@@ -1,0 +1,36 @@
+
+{
+  "name": "ARhub - Developer Tools",
+  "short_name": "ARhub",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "https://arlabs07.netlify.app/images/index/icon16.png",
+      "type": "image/png",
+      "sizes": "16x16"
+    },
+    {
+      "src": "https://arlabs07.netlify.app/images/index/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://arlabs07.netlify.app/images/index/web-app-manifest-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
