@@ -1,0 +1,707 @@
+
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<meta name="theme-color" content="#050505">
+<title>Universal Converter | ARhub Systems</title>
+<meta name="description" content="A powerful multi-purpose converter for Length, Data, Area, Volume, Weight, and Real-time Currency.">
+<link rel="icon" type="image/x-icon" href="https://arlabs07.netlify.app/images/index/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/header.css">
+<link rel="stylesheet" href="css/footer.css">
+<style>
+    /* Global Reset & Box Sizing */
+    *, ::after, ::before { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+        background-color: #050505;
+        font-family: 'Outfit', sans-serif;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        overflow-x: hidden; /* Prevent horizontal scroll on body */
+        width: 100%;
+    }
+
+    /* Breadcrumb Styles */
+    .breadcrumb-section {
+        margin-top: 80px; /* Header clearance */
+        padding: 15px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.02);
+        width: 100%;
+    }
+
+    .breadcrumb-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.85rem;
+        color: #888;
+        font-family: 'JetBrains Mono', monospace;
+        flex-wrap: wrap; /* Allow wrapping on very small screens */
+    }
+
+    .bc-link { color: #888; text-decoration: none; transition: color 0.2s; }
+    .bc-link:hover { color: #fff; }
+    .bc-sep { color: #444; font-size: 0.8rem; }
+    .bc-current { color: #00c8ff; }
+
+    /* Main App Layout */
+    .app-main {
+        flex: 1;
+        max-width: 1000px;
+        margin: 0 auto;
+        width: 100%;
+        padding: 30px 20px; /* Reduced top padding */
+    }
+
+    .converter-container {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+        width: 100%;
+    }
+
+    .app-title-area {
+        text-align: center;
+        margin-bottom: 10px;
+        padding: 0 10px; /* Safe space */
+    }
+    .app-h1 {
+        font-size: clamp(2rem, 5vw, 2.5rem); /* Responsive Font */
+        font-weight: 800;
+        margin-bottom: 10px;
+        word-wrap: break-word; /* Prevent overflow on long words */
+    }
+    .app-sub {
+        color: #888;
+        font-size: 0.95rem;
+    }
+
+    /* Navigation Tabs - Horizontal Scroll handling */
+    .cat-nav-wrapper {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 80px;
+        padding: 4px;
+        display: flex;
+        overflow-x: auto;
+        gap: 5px;
+        scrollbar-width: none; /* Firefox */
+        -webkit-overflow-scrolling: touch; /* Smooth iOS scroll */
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    .cat-nav-wrapper::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+    .cat-btn {
+        flex: 0 0 auto; /* Don't shrink, rely on scroll */
+        background: transparent;
+        border: none;
+        color: #888;
+        padding: 10px 18px;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .cat-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    
+    .cat-btn.active {
+        background: #00c8ff;
+        color: #000;
+        box-shadow: 0 4px 15px rgba(0, 200, 255, 0.4);
+    }
+
+    /* Workspace */
+    .converter-workspace {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+        background: rgba(20, 20, 20, 0.5);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 24px;
+        padding: 40px;
+        position: relative;
+        width: 100%;
+    }
+
+    /* Responsive Adjustments for Mobile */
+    @media (max-width: 600px) {
+        .app-main {
+            padding: 20px 15px; /* Tighter padding on mobile */
+        }
+        .converter-workspace {
+            padding: 20px; /* Reduced internal padding */
+            border-radius: 16px;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .converter-workspace {
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+        }
+    }
+
+    /* Input Panels */
+    .panel {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 20px;
+        transition: border-color 0.3s;
+        width: 100%; /* Ensure panel fits container */
+        min-width: 0; /* Flexbox overflow fix */
+    }
+    .panel:focus-within { border-color: #00c8ff; }
+
+    .panel-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #666;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+        display: block;
+        font-weight: 700;
+    }
+
+    .input-row {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 100%;
+    }
+
+    .value-input {
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 2.5rem;
+        font-weight: 700;
+        width: 100%;
+        outline: none;
+        font-family: 'JetBrains Mono', monospace;
+        min-width: 0; /* Fix input overflow */
+    }
+
+    /* Custom Select Styling */
+    .custom-select {
+        position: relative;
+        width: 100%;
+        user-select: none;
+    }
+
+    .select-trigger {
+        background: rgba(255,255,255,0.08);
+        padding: 12px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s;
+        width: 100%;
+    }
+    .select-trigger:hover { background: rgba(255,255,255,0.12); }
+    .select-trigger span { 
+        font-weight: 600; 
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+        max-width: 90%;
+    }
+
+    .options-overlay {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        background: #1a1a1a;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s ease;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    }
+    .options-overlay.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    
+    .option {
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        transition: background 0.2s;
+        font-size: 0.95rem;
+    }
+    .option:hover { background: rgba(255,255,255,0.05); }
+    .option.selected { color: #00c8ff; background: rgba(0,200,255,0.05); }
+
+    /* Swap Button */
+    .swap-area {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .btn-swap {
+        width: 50px; height: 50px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        flex-shrink: 0; /* Prevent squishing */
+    }
+    .btn-swap:hover {
+        background: #00c8ff;
+        color: #000;
+        transform: rotate(180deg);
+        box-shadow: 0 0 20px rgba(0,200,255,0.5);
+    }
+
+    .result-info {
+        text-align: center;
+        margin-top: 20px;
+        color: #888;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+        padding: 0 10px;
+    }
+
+    /* Mobile specific adjustment for swap button orientation */
+    @media (max-width: 768px) {
+        .value-input { font-size: 2rem; }
+        .swap-area { 
+            transform: rotate(90deg); 
+            margin: 5px 0; 
+            height: 50px; /* Reserve space */
+        }
+        .btn-swap:hover { transform: rotate(270deg); }
+    }
+</style>
+</head>
+<body>
+
+<!-- Global Header -->
+<header class="header">
+<div class="header-inner">
+<a href="index.html" class="logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub Logo" width="32" height="32">
+ARhub
+</a>
+<nav class="nav-links">
+<a href="index.html">Overview</a>
+<a href="app.html" class="active">Apps</a>
+<a href="about.html">About</a>
+</nav>
+<div class="header-actions">
+<button class="menu-toggle"><i class="fas fa-bars"></i></button>
+</div>
+</div>
+</header>
+
+<!-- Breadcrumbs -->
+<div class="breadcrumb-section">
+    <div class="breadcrumb-inner">
+        <a href="index.html" class="bc-link">ARhub</a>
+        <span class="bc-sep">/</span>
+        <a href="app.html" class="bc-link">App</a>
+        <span class="bc-sep">/</span>
+        <span class="bc-current">Convert</span>
+    </div>
+</div>
+
+<main class="app-main">
+    <div class="converter-container">
+        
+        <div class="app-title-area">
+            <h1 class="app-h1"> Unit Converter</h1>
+            <p class="app-sub">Transform measurements instantly with precision.</p>
+        </div>
+
+        <nav class="cat-nav-wrapper">
+            <button class="cat-btn active" data-cat="length"><i class="fas fa-ruler"></i> Length</button>
+            <button class="cat-btn" data-cat="weight"><i class="fas fa-weight-hanging"></i> Weight</button>
+            <button class="cat-btn" data-cat="area"><i class="fas fa-vector-square"></i> Area</button>
+            <button class="cat-btn" data-cat="volume"><i class="fas fa-cube"></i> Volume</button>
+            <button class="cat-btn" data-cat="data"><i class="fas fa-database"></i> Data</button>
+            <button class="cat-btn" data-cat="time"><i class="fas fa-clock"></i> Time</button>
+            <button class="cat-btn" data-cat="currency"><i class="fas fa-coins"></i> Currency</button>
+        </nav>
+
+        <div class="converter-workspace">
+            
+            <!-- LEFT PANEL (FROM) -->
+            <div class="panel">
+                <span class="panel-label">From</span>
+                <div class="input-row">
+                    <input type="number" id="input-value" class="value-input" value="1" placeholder="0">
+                    <div class="custom-select" id="select-from">
+                        <div class="select-trigger">
+                            <span>Meters</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="options-overlay"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CENTER (SWAP) -->
+            <div class="swap-area">
+                <button class="btn-swap" id="btn-swap" aria-label="Swap Units">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+
+            <!-- RIGHT PANEL (TO) -->
+            <div class="panel">
+                <span class="panel-label">To</span>
+                <div class="input-row">
+                    <input type="text" id="output-value" class="value-input" value="-" readonly>
+                    <div class="custom-select" id="select-to">
+                        <div class="select-trigger">
+                            <span>Feet</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="options-overlay"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="result-info" class="result-info">
+            Select units to begin conversion.
+        </div>
+    </div>
+</main>
+
+<footer class="site-footer">
+<div class="footer-container">
+<div class="footer-brand">
+<a href="index.html" class="f-logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub" width="32" height="32">
+ARhub
+</a>
+<p>Innovating with code.</p>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Ecosystem</h3>
+<ul>
+<li><a href="app.html">Applications</a></li>
+<li><a href="purplepdf.html">PurplePDF</a></li>
+<li><a href="index.html#featured-section">ardev</a></li>
+</ul>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Company</h3>
+<ul>
+<li><a href="about.html">About</a></li>
+<li><a href="contact.html">Contact</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>&copy; 2026 arlabs07. All rights reserved.</span>
+</div>
+</footer>
+
+<script src="js/sitemap.js"></script>
+<script src="js/header.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- UNIT DEFINITIONS ---
+    const definitions = {
+        length: {
+            units: {
+                m: { name: 'Meters', factor: 1 },
+                km: { name: 'Kilometers', factor: 1000 },
+                cm: { name: 'Centimeters', factor: 0.01 },
+                mm: { name: 'Millimeters', factor: 0.001 },
+                um: { name: 'Micrometers', factor: 0.000001 },
+                nm: { name: 'Nanometers', factor: 0.000000001 },
+                ft: { name: 'Feet', factor: 0.3048 },
+                in: { name: 'Inches', factor: 0.0254 },
+                yd: { name: 'Yards', factor: 0.9144 },
+                mi: { name: 'Miles', factor: 1609.34 },
+                nmi: { name: 'Nautical Miles', factor: 1852 }
+            },
+            defaultFrom: 'm',
+            defaultTo: 'ft'
+        },
+        weight: {
+            units: {
+                kg: { name: 'Kilograms', factor: 1 },
+                g: { name: 'Grams', factor: 0.001 },
+                mg: { name: 'Milligrams', factor: 0.000001 },
+                t: { name: 'Metric Tonnes', factor: 1000 },
+                lb: { name: 'Pounds', factor: 0.453592 },
+                oz: { name: 'Ounces', factor: 0.0283495 },
+                st: { name: 'Stones', factor: 6.35029 },
+                carat: { name: 'Carats', factor: 0.0002 }
+            },
+            defaultFrom: 'kg',
+            defaultTo: 'lb'
+        },
+        area: {
+            units: {
+                sqm: { name: 'Square Meters', factor: 1 },
+                sqkm: { name: 'Square Kilometers', factor: 1000000 },
+                sqcm: { name: 'Square Centimeters', factor: 0.0001 },
+                sqft: { name: 'Square Feet', factor: 0.092903 },
+                sqyd: { name: 'Square Yards', factor: 0.836127 },
+                sqmi: { name: 'Square Miles', factor: 2589988 },
+                acre: { name: 'Acres', factor: 4046.86 },
+                ha: { name: 'Hectares', factor: 10000 }
+            },
+            defaultFrom: 'sqm',
+            defaultTo: 'sqft'
+        },
+        volume: {
+            units: {
+                l: { name: 'Litres', factor: 1 },
+                ml: { name: 'Millilitres', factor: 0.001 },
+                cum: { name: 'Cubic Meters', factor: 1000 },
+                cuft: { name: 'Cubic Feet', factor: 28.3168 },
+                gal: { name: 'Gallons (US)', factor: 3.78541 },
+                qt: { name: 'Quarts (US)', factor: 0.946353 },
+                pt: { name: 'Pints (US)', factor: 0.473176 },
+                cup: { name: 'Cups', factor: 0.236588 },
+                tbsp: { name: 'Tablespoons', factor: 0.0147868 },
+                tsp: { name: 'Teaspoons', factor: 0.0049289 }
+            },
+            defaultFrom: 'l',
+            defaultTo: 'gal'
+        },
+        data: {
+            units: {
+                bit: { name: 'Bits', factor: 0.125 }, 
+                B: { name: 'Bytes', factor: 1 },
+                KB: { name: 'Kilobytes', factor: 1024 },
+                MB: { name: 'Megabytes', factor: 1048576 },
+                GB: { name: 'Gigabytes', factor: 1073741824 },
+                TB: { name: 'Terabytes', factor: 1099511627776 },
+                PB: { name: 'Petabytes', factor: 1125899906842624 }
+            },
+            defaultFrom: 'MB',
+            defaultTo: 'KB'
+        },
+        time: {
+            units: {
+                ms: { name: 'Milliseconds', factor: 0.001 },
+                s: { name: 'Seconds', factor: 1 },
+                min: { name: 'Minutes', factor: 60 },
+                h: { name: 'Hours', factor: 3600 },
+                d: { name: 'Days', factor: 86400 },
+                wk: { name: 'Weeks', factor: 604800 },
+                mo: { name: 'Months (Avg)', factor: 2628000 },
+                y: { name: 'Years', factor: 31536000 }
+            },
+            defaultFrom: 'min',
+            defaultTo: 's'
+        },
+        currency: {
+            isApi: true,
+            defaultFrom: 'USD',
+            defaultTo: 'INR',
+            list: ['USD', 'EUR', 'INR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'SGD', 'NZD', 'HKD', 'SEK', 'KRW', 'BRL', 'RUB', 'ZAR', 'MXN']
+        }
+    };
+
+    // State Variables
+    let currentCat = 'length';
+    let unitFrom = definitions.length.defaultFrom;
+    let unitTo = definitions.length.defaultTo;
+    let exchangeRates = {};
+
+    // Elements
+    const inputVal = document.getElementById('input-value');
+    const outputVal = document.getElementById('output-value');
+    const resultInfo = document.getElementById('result-info');
+    const selectFrom = document.getElementById('select-from');
+    const selectTo = document.getElementById('select-to');
+
+    function init() {
+        // Tab Listeners
+        document.querySelectorAll('.cat-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                switchCategory(btn.dataset.cat);
+            });
+        });
+
+        // Swap Listener
+        document.getElementById('btn-swap').addEventListener('click', () => {
+            const temp = unitFrom;
+            unitFrom = unitTo;
+            unitTo = temp;
+            populateDropdowns();
+            updateConversion();
+        });
+
+        // Input Listener
+        inputVal.addEventListener('input', updateConversion);
+
+        // Outside Click for Dropdowns
+        document.addEventListener('click', (e) => {
+            if(!selectFrom.contains(e.target)) closeDropdown(selectFrom);
+            if(!selectTo.contains(e.target)) closeDropdown(selectTo);
+        });
+
+        // Initial Load
+        populateDropdowns();
+        updateConversion();
+    }
+
+    function switchCategory(cat) {
+        currentCat = cat;
+        unitFrom = definitions[cat].defaultFrom;
+        unitTo = definitions[cat].defaultTo;
+        inputVal.value = 1;
+
+        if(cat === 'currency' && Object.keys(exchangeRates).length === 0) {
+            fetchRates();
+        }
+        
+        populateDropdowns();
+        updateConversion();
+    }
+
+    function populateDropdowns() {
+        const def = definitions[currentCat];
+        let optionsHtml = '';
+        const list = catIsApi(currentCat) ? def.list : Object.keys(def.units);
+
+        list.forEach(key => {
+            const label = catIsApi(currentCat) ? key : def.units[key].name;
+            optionsHtml += `<div class="option" data-val="${key}">${label}</div>`;
+        });
+
+        setupDropdown(selectFrom, optionsHtml, unitFrom, (val) => { unitFrom = val; updateConversion(); });
+        setupDropdown(selectTo, optionsHtml, unitTo, (val) => { unitTo = val; updateConversion(); });
+    }
+
+    function setupDropdown(el, html, selectedVal, callback) {
+        const triggerSpan = el.querySelector('.select-trigger span');
+        const overlay = el.querySelector('.options-overlay');
+        
+        // Update Trigger Text
+        if(catIsApi(currentCat)) {
+            triggerSpan.innerText = selectedVal;
+        } else {
+            triggerSpan.innerText = definitions[currentCat].units[selectedVal].name;
+        }
+
+        overlay.innerHTML = html;
+
+        // Toggle logic
+        el.querySelector('.select-trigger').onclick = (e) => {
+            e.stopPropagation();
+            const isOpen = overlay.classList.contains('open');
+            // Close all first
+            document.querySelectorAll('.options-overlay').forEach(o => o.classList.remove('open'));
+            if(!isOpen) overlay.classList.add('open');
+        };
+
+        // Option logic
+        overlay.querySelectorAll('.option').forEach(opt => {
+            if(opt.dataset.val === selectedVal) opt.classList.add('selected');
+            
+            opt.onclick = () => {
+                callback(opt.dataset.val);
+                overlay.classList.remove('open');
+            };
+        });
+    }
+
+    function closeDropdown(el) {
+        el.querySelector('.options-overlay').classList.remove('open');
+    }
+
+    function catIsApi(cat) {
+        return definitions[cat].isApi === true;
+    }
+
+    async function fetchRates() {
+        resultInfo.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Loading exchange rates...';
+        try {
+            const res = await fetch('https://api.frankfurter.app/latest?from=USD');
+            const data = await res.json();
+            exchangeRates = data.rates;
+            exchangeRates['USD'] = 1;
+            updateConversion();
+        } catch(e) {
+            resultInfo.innerText = "Error: Could not fetch currency data.";
+        }
+    }
+
+    function updateConversion() {
+        const val = parseFloat(inputVal.value);
+        if(isNaN(val)) {
+            outputVal.value = '';
+            resultInfo.innerText = '';
+            return;
+        }
+
+        let result = 0;
+        let rateText = '';
+
+        if(currentCat === 'currency') {
+            if(Object.keys(exchangeRates).length === 0) {
+                outputVal.value = '...';
+                return;
+            }
+            // Rate Math
+            const rateA = exchangeRates[unitFrom];
+            const rateB = exchangeRates[unitTo];
+            const conversion = (rateB / rateA);
+            result = val * conversion;
+            rateText = `1 ${unitFrom} ≈ ${conversion.toFixed(4)} ${unitTo}`;
+
+        } else {
+            // Standard Math
+            const units = definitions[currentCat].units;
+            const factorFrom = units[unitFrom].factor;
+            const factorTo = units[unitTo].factor;
+            
+            result = val * factorFrom / factorTo;
+            
+            // Text info
+            const oneUnit = 1 * factorFrom / factorTo;
+            rateText = `1 ${units[unitFrom].name} = ${parseFloat(oneUnit.toPrecision(6))} ${units[unitTo].name}`;
+        }
+
+        outputVal.value = parseFloat(result.toPrecision(8));
+        resultInfo.innerText = rateText;
+    }
+
+    init();
+});
+</script>
+</body>
+</html>
