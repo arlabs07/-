@@ -1,0 +1,374 @@
+
+/* HERO: Centered, High-Performance, Mobile-Optimized */
+
+:root {
+    --bg-dark: #050505;
+    --primary: #ff8c00;
+    --text-main: #ffffff;
+    --text-muted: #888888;
+    --border-light: rgba(255, 255, 255, 0.1);
+}
+
+.hero-section {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 120px 20px 40px 20px;
+    text-align: center;
+}
+
+/* 
+    DIFFERENTIATION FACTOR:
+    Distinct Hero Glow (Orange/White) 
+*/
+.hero-glow-bg {
+    position: absolute;
+    top: -10%; left: 50%;
+    transform: translateX(-50%);
+    width: 80vw; height: 60vh;
+    background: radial-gradient(circle, rgba(255, 140, 0, 0.12) 0%, transparent 70%);
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* 1. Optimized Background (Better LCP) */
+.hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Starfield for Parallax */
+.stars {
+    position: absolute;
+    inset: 0;
+    background-image: 
+        radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent),
+        radial-gradient(1px 1px at 40px 70px, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1.5px 1.5px at 50px 160px, #fff, transparent),
+        radial-gradient(1px 1px at 80px 120px, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1.5px 1.5px at 110px 40px, #fff, transparent),
+        radial-gradient(1px 1px at 130px 190px, rgba(255,255,255,0.8), transparent);
+    background-size: 200px 200px;
+    opacity: 0.3;
+    z-index: -2;
+    /* PERFORMANCE: Only apply will-change if strictly necessary to save RAM */
+    will-change: transform; 
+}
+
+.grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+    will-change: transform;
+}
+
+/* 2. Container Layout */
+.hero-container {
+    position: relative;
+    z-index: 10;
+    /* REDUCED WIDTH: Limits content spread for 'Compact/Black Space' feel */
+    max-width: 900px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    transition: max-width 0.3s ease;
+}
+
+/* 3. Typography & Content */
+.badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-light);
+    padding: 6px 14px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #ccc;
+    margin-bottom: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    animation: fadeDown 0.8s ease-out;
+}
+
+.status-dot {
+    width: 6px; height: 6px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ff88;
+}
+
+.hero-title {
+    font-size: clamp(2.5rem, 6vw, 5rem); 
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    letter-spacing: -0.03em;
+    animation: fadeUp 0.8s ease-out 0.1s backwards;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, #fff 20%, #888 100%);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+.hero-desc {
+    font-size: clamp(0.95rem, 2vw, 1.15rem);
+    color: var(--text-muted);
+    max-width: 480px; /* Tighter text width */
+    margin: 0 auto 30px auto;
+    line-height: 1.6;
+    animation: fadeUp 0.8s ease-out 0.2s backwards;
+}
+
+/* 4. Buttons */
+.hero-cta {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    width: 100%;
+    animation: fadeUp 0.8s ease-out 0.3s backwards;
+}
+
+.btn {
+    padding: 14px 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* Gap for Icon */
+    white-space: nowrap;
+}
+
+.btn i {
+    font-size: 0.9em;
+}
+
+.btn-primary {
+    background: #fff;
+    color: #000;
+    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+}
+.btn-primary:hover {
+    background: #e6e6e6;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+}
+
+.btn-glass {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border: 1px solid var(--border-light);
+    backdrop-filter: blur(10px);
+}
+.btn-glass:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #fff;
+    transform: translateY(-2px);
+}
+
+/* 5. 3D Glass Code Card */
+.hero-visual-wrapper {
+    perspective: 1000px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+    animation: fadeIn 1s ease-out 0.5s backwards;
+}
+
+.glass-code-card {
+    width: 100%;
+    max-width: 500px;
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    transform-style: preserve-3d;
+    transition: transform 0.1s ease-out;
+    transform: rotateX(10deg);
+}
+
+.card-top-bar {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+}
+
+.traffic-lights { display: flex; gap: 8px; }
+.light { width: 10px; height: 10px; border-radius: 50%; }
+.red { background: #ff5f56; }
+.yellow { background: #ffbd2e; }
+.green { background: #27c93f; }
+
+.tab-name {
+    margin: 0 auto;
+    color: #666;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    padding-right: 40px;
+}
+
+.card-code-area {
+    padding: 20px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.code-row { display: flex; gap: 15px; }
+.num { color: #444; user-select: none; width: 15px; text-align: right; }
+.indent { padding-left: 20px; }
+
+/* Syntax Colors */
+.kwd { color: #c678dd; }
+.var { color: #e5c07b; }
+.str { color: #98c379; }
+.func { color: #61afef; }
+.comment { color: #5c6370; font-style: italic; }
+.tag { color: #e06c75; }
+.num-val { color: #d19a66; }
+
+.compile-status {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 8px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #98c379;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.2);
+}
+
+/* Animations */
+@keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* --- RESPONSIVE OPTIMIZATIONS --- */
+
+/* Mobile Optimization */
+@media (max-width: 600px) {
+    .hero-section {
+        padding-top: 110px;
+        padding-bottom: 20px;
+        align-items: flex-start; /* Move content slightly up */
+    }
+    
+    .hero-container {
+        max-width: 88%; /* Very Tighter container as requested */
+        gap: 25px;
+    }
+
+    .hero-title {
+        font-size: 2.5rem; /* Large enough but fits */
+    }
+    
+    .hero-desc {
+        font-size: 0.95rem;
+        margin-bottom: 15px;
+    }
+
+    /* SINGLE LINE BUTTONS - MOBILE */
+    .hero-cta {
+        flex-direction: row; /* Strict Row */
+        flex-wrap: nowrap; /* No wrapping allowed */
+        gap: 12px;
+    }
+
+    .btn {
+        flex: 1; /* Equal width distribution */
+        width: auto;
+        padding: 12px 10px; /* Reduced padding to fit text */
+        font-size: 0.9rem;
+    }
+
+    /* Card Optimization */
+    .glass-code-card {
+        font-size: 0.75rem;
+        transform: none !important; /* Disable 3D on mobile for neatness */
+        margin-top: 10px;
+    }
+    
+    .card-code-area {
+        padding: 15px;
+    }
+}
+
+/* Desktop Optimization */
+@media (min-width: 1024px) {
+    .hero-section {
+        text-align: left;
+    }
+
+    .hero-container {
+        /* Slightly tighter than full 1200px to honor "Reduce container size" request */
+        max-width: 1100px; 
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 60px;
+        padding: 0 20px;
+    }
+
+    .hero-content {
+        max-width: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hero-title {
+        font-size: 4.2rem;
+        margin-left: -3px; /* Optical alignment */
+    }
+
+    .hero-desc {
+        margin-left: 0;
+        margin-right: 0;
+        font-size: 1.1rem;
+    }
+
+    .hero-cta {
+        justify-content: flex-start;
+    }
+
+    .hero-visual-wrapper {
+        margin-top: 0;
+        max-width: 50%;
+        justify-content: flex-end;
+        perspective: 1500px;
+    }
+
+    .glass-code-card {
+        margin-right: 0;
+        transform: rotateY(-10deg) rotateX(5deg);
+    }
+}

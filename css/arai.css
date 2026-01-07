@@ -1,0 +1,208 @@
+
+/* --- ARAI AI SECTION --- */
+
+.arai-section {
+    position: relative;
+    padding: 100px 20px;
+    overflow: hidden;
+    z-index: 10;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* 
+    DIFFERENTIATION FACTOR: 
+    Strong Pink/Red Blur Shadow for Arai Section 
+*/
+.arai-section::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120%; height: 120%;
+    background: radial-gradient(circle at center, rgba(255, 0, 85, 0.15) 0%, transparent 65%);
+    filter: blur(100px);
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.arai-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 60px;
+}
+
+/* TEXT CONTENT SIDE */
+.arai-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center on mobile */
+    text-align: center; /* Center on mobile */
+    z-index: 2;
+}
+
+.arai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: rgba(255, 0, 85, 0.1);
+    border: 1px solid rgba(255, 0, 85, 0.3);
+    border-radius: 50px;
+    color: #ff2a6d;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.brand-font {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.arai-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.gradient-arai {
+    background: linear-gradient(135deg, #ff2a6d 0%, #ff6b9d 100%);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+.arai-desc {
+    font-size: 1.05rem;
+    color: #b0b0b0;
+    line-height: 1.7;
+    margin-bottom: 30px;
+    max-width: 500px;
+}
+
+.arai-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.arai-features li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #e0e0e0;
+    font-size: 0.95rem;
+    justify-content: center; /* Mobile Center */
+}
+
+.arai-features i {
+    color: #ff2a6d;
+}
+
+.arai-action .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    padding: 12px 28px;
+    border-radius: 50px;
+    transition: all 0.3s;
+}
+
+.arai-action .btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(255, 42, 109, 0.6) !important;
+}
+
+/* VISUAL SIDE */
+.arai-visual {
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.arai-glow-fx {
+    position: absolute;
+    width: 300px; height: 300px;
+    background: #ff2a6d;
+    filter: blur(150px);
+    opacity: 0.2;
+    z-index: 1;
+    animation: pulseGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes pulseGlow {
+    from { opacity: 0.15; transform: scale(0.9); }
+    to { opacity: 0.3; transform: scale(1.1); }
+}
+
+.arai-img-wrapper {
+    position: relative;
+    z-index: 5;
+    /* Rotation retained as requested */
+    transform: rotate(45deg); 
+    transition: transform 0.5s ease;
+    animation: floatImage 6s ease-in-out infinite;
+    
+    /* OPTIMIZATION FOR 1300x2600 IMAGE */
+    max-width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.arai-img-wrapper:hover {
+    transform: rotate(45deg) scale(1.02);
+}
+
+.arai-img {
+    /* 
+       Image is extremely tall (1:2 ratio). 
+       We must constrain height so it doesn't break layout.
+       Width auto preserves aspect ratio.
+    */
+    height: auto;
+    width: auto;
+    max-height: 400px; /* Constrain huge height */
+    max-width: 200px;  /* Proportional width constraint */
+    object-fit: contain;
+    filter: drop-shadow(0 20px 30px rgba(0,0,0,0.5));
+}
+
+@keyframes floatImage {
+    0%, 100% { transform: rotate(45deg) translateY(0); }
+    50% { transform: rotate(45deg) translateY(-15px); }
+}
+
+/* DESKTOP RESPONSIVE */
+@media (min-width: 1024px) {
+    .arai-container {
+        flex-direction: row;
+        justify-content: space-between;
+        text-align: left;
+    }
+
+    .arai-content {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .arai-features li {
+        justify-content: flex-start;
+    }
+
+    .arai-img {
+        max-height: 600px; /* Allow more height on desktop */
+        max-width: 300px;
+    }
+}

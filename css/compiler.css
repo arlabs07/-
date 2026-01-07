@@ -1,0 +1,287 @@
+
+.compiler-section {
+    position: relative;
+    padding: 80px 20px 100px 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+    z-index: 10;
+}
+
+/* 
+    DIFFERENTIATION FACTOR:
+    Strong Green/Purple Tech Glow for Compiler
+*/
+.compiler-section::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; height: 100%;
+    background: radial-gradient(circle at center, rgba(157, 0, 255, 0.15) 0%, transparent 60%);
+    filter: blur(100px);
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.compiler-header-wrapper {
+    margin-bottom: 30px;
+    text-align: left;
+}
+
+.ide-container {
+    background: #0d0e12;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 
+        0 0 0 1px rgba(0,0,0,0.5),
+        0 20px 60px -20px rgba(0, 0, 0, 0.8),
+        0 0 30px rgba(0, 200, 255, 0.05);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 520px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ide-container:hover {
+    box-shadow: 
+        0 0 0 1px rgba(255,255,255,0.15),
+        0 30px 80px -20px rgba(0, 0, 0, 0.9),
+        0 0 40px rgba(0, 200, 255, 0.1);
+}
+
+.ide-toolbar {
+    height: 50px;
+    background: #15161a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.ide-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.window-dots {
+    display: flex;
+    gap: 6px;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.d-red { background: #ff5f56; box-shadow: 0 0 5px rgba(255, 95, 86, 0.5); }
+.dot.d-yellow { background: #ffbd2e; box-shadow: 0 0 5px rgba(255, 189, 46, 0.5); }
+.dot.d-green { background: #27c93f; box-shadow: 0 0 5px rgba(39, 201, 63, 0.5); }
+
+.filename {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: #888;
+    background: rgba(255,255,255,0.05);
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.filename i { color: #e06c75; font-size: 0.9rem; }
+
+.view-switcher {
+    display: flex;
+    background: #000;
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.switch-btn {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    transition: all 0.2s;
+}
+
+.switch-btn.active {
+    background: #2a2b30;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.ide-controls {
+    display: none;
+    align-items: center;
+    gap: 15px;
+}
+
+.status-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.status-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 0 0 5px #00ff88;
+    animation: blink 2s infinite;
+}
+
+@keyframes blink { 50% { opacity: 0.4; } }
+
+.workspace-area {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+    height: calc(100% - 50px);
+}
+
+.pane {
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+}
+
+.pane.active { 
+    display: flex;
+    animation: fadeInPane 0.3s ease-out;
+}
+
+@keyframes fadeInPane {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.editor-pane {
+    background: #0d0e12; 
+    position: relative;
+    flex-direction: row;
+}
+
+.line-numbers {
+    width: 45px;
+    height: 100%;
+    background: #0d0e12;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    padding: 20px 5px;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #444;
+    user-select: none;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.line-number-item {
+    display: block;
+    padding-right: 8px;
+}
+
+.code-wrapper {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+}
+
+.code-wrapper textarea,
+.code-wrapper pre {
+    margin: 0;
+    padding: 20px 10px;
+    border: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    tab-size: 2;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow: auto;
+}
+
+.code-wrapper pre {
+    z-index: 1;
+    pointer-events: none;
+    color: #abb2bf;
+}
+
+.code-wrapper textarea {
+    z-index: 2;
+    background: transparent;
+    color: transparent;
+    caret-color: #528bff;
+    resize: none;
+    outline: none;
+}
+.code-wrapper textarea::selection {
+    background: rgba(82, 139, 255, 0.25);
+    color: transparent;
+}
+
+.syn-tag { color: #e06c75; }       
+.syn-attr { color: #d19a66; }      
+.syn-str { color: #98c379; }       
+.syn-comment { color: #5c6370; font-style: italic; } 
+.syn-doctype { color: #c678dd; } 
+.syn-brace { color: #e5c07b; }
+
+.preview-pane {
+    background: #fff;
+    border-left: none;
+    width: 100%;
+}
+
+.preview-wrapper {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    position: relative;
+}
+
+#live-preview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+@media (min-width: 1025px) {
+    .view-switcher { display: none; }
+    .ide-controls { display: flex; }
+    .pane { display: flex !important; width: 50%; }
+    .editor-pane { border-right: 1px solid rgba(255,255,255,0.08); }
+    .preview-pane { width: 50%; }
+}
+
+@media (max-width: 1024px) {
+    .ide-container {
+        height: 70vh;
+        min-height: 400px;
+    }
+}
