@@ -1,0 +1,326 @@
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="PurplePDF by ARhub | The Instant Web PDF Suite">
+<title>PurplePDF | ARhub Ecosystem</title>
+<link rel="preconnect" href="https://cdn.tailwindcss.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<style>
+/* Custom Scrollbar & Transitions compatible with ARhub theme */
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#050505;color:#fff;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;overflow-x:hidden}
+.view-section{display:none;opacity:0;transition:opacity .5s ease}
+.view-section.active-view{display:block;opacity:1}
+.gradient-text{background:linear-gradient(45deg,#8b5cf6,#ec4899,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;background-size:200% auto;animation:gradientShift 3s ease infinite}
+@keyframes gradientShift{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}
+.reveal{opacity:0;transform:translateY(40px);transition:all 1s cubic-bezier(.2, .8, .2, 1)}
+.reveal.active{opacity:1;transform:translateY(0)}
+.app-card{opacity:0;transform:translateY(30px) scale(.95);animation:cardEntrance .6s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes cardEntrance{to{opacity:1;transform:translateY(0) scale(1)}}
+.hover-trigger{transition:all .4s cubic-bezier(.4, 0, .2, 1)}
+.hover-trigger:hover{transform:translateY(-8px) scale(1.02);box-shadow:0 20px 40px -10px rgba(139,92,246,.3);z-index:10}
+.glass-panel{background:rgba(255,255,255,.03);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.05)}
+.glass-card{background:linear-gradient(145deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.01) 100%);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.05);border-radius:16px}
+.search-container{background:rgba(255,255,255,.05);backdrop-filter:blur(10px);border:1px solid rgba(139,92,246,.2);border-radius:16px;padding:.5rem 1rem;transition:all .3s}
+.search-container:focus-within{border-color:#8b5cf6;background:rgba(255,255,255,.08);box-shadow:0 0 20px rgba(139,92,246,.2)}
+.blob{position:absolute;filter:blur(80px);opacity:.4;z-index:-1;animation:blobFloat 10s infinite alternate}
+@keyframes blobFloat{0%{transform:translate(0,0)}100%{transform:translate(20px,40px)}}
+.btn-load-more{background:linear-gradient(90deg,rgba(139,92,246,.1) 0,rgba(236,72,153,.1) 100%);border:1px solid rgba(255,255,255,.1);color:#fff;padding:12px 30px;border-radius:9999px;font-weight:600;transition:all .3s ease;cursor:pointer;backdrop-filter:blur(5px)}
+.btn-load-more:hover{background:linear-gradient(90deg,rgba(139,92,246,.3) 0,rgba(236,72,153,.3) 100%);border-color:rgba(139,92,246,.5);transform:translateY(-2px);box-shadow:0 10px 20px -5px rgba(139,92,246,.4)}
+.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease-out}
+.accordion-item.active .accordion-content{max-height:300px}
+.accordion-icon{transition:transform .3s ease}
+.accordion-item.active .accordion-icon{transform:rotate(180deg)}
+</style>
+</head>
+<body class="min-h-screen bg-[#050505] selection:bg-purple-500 selection:text-white">
+
+<!-- Background FX -->
+<div class="blob bg-purple-900 w-96 h-96 rounded-full top-0 left-0"></div>
+<div class="blob bg-pink-900 w-80 h-80 rounded-full bottom-0 right-0"></div>
+
+<!-- Integrated Header -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-[#050505]/90 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+    <div class="container mx-auto px-4 h-20 flex items-center justify-between">
+        <a href="index.html" class="flex items-center space-x-3 group cursor-pointer decoration-0" aria-label="Back to ARhub">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg hover:shadow-purple-500/50 transition-all duration-300 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-600 opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                <!-- Custom SVG Logo -->
+                <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="relative z-10">
+                    <defs>
+                        <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#8b5cf6" />
+                            <stop offset="50%" stop-color="#ec4899" />
+                            <stop offset="100%" stop-color="#f59e0b" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="45" fill="url(#g2)" />
+                    <path d="M35 35h30v8h-30zm0 12h25v6h-25zm0 10h28v6h-28z" fill="white" opacity="0.9" />
+                    <path d="M40 65h20l-5-5v3h-10v4z" fill="white" />
+                </svg>
+            </div>
+            <h1 class="text-xl md:text-2xl font-bold text-white tracking-wide">PurplePDF</h1>
+        </a>
+        
+        <div class="flex items-center space-x-6">
+            <span class="hidden md:inline text-xs font-semibold text-gray-500 uppercase tracking-widest">Part of ARhub Ecosystem</span>
+            <a href="index.html" class="text-sm font-bold text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full border border-white/10 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Hub
+            </a>
+        </div>
+    </div>
+</header>
+
+<main class="pt-32 pb-20 min-h-[80vh]">
+
+    <!-- Home View -->
+    <div id="view-home" class="view-section active-view">
+        <section class="container mx-auto px-4 mb-20 relative">
+            <div class="text-center max-w-4xl mx-auto reveal active">
+                <div class="inline-flex items-center px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-medium mb-6 animate-pulse">
+                    <span class="w-2 h-2 rounded-full bg-purple-400 mr-2"></span>
+                    Powered by Web Assembly
+                </div>
+                <h2 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight">
+                    Instant PDF Tools <br><span class="gradient-text">Privacy-First & Free</span>
+                </h2>
+                <p class="text-gray-400 text-lg md:text-xl mb-10 leading-relaxed max-w-2xl mx-auto">
+                    The ARhub PDF utility suite. Merge, split, and edit documents directly in your browser without uploading files to a server.
+                </p>
+                
+                <div class="search-container flex items-center max-w-lg mx-auto shadow-2xl shadow-purple-900/20">
+                    <i class="fas fa-search text-gray-500 mr-3" aria-hidden="true"></i>
+                    <label for="appSearch" class="sr-only">Search PDF tools</label>
+                    <input id="appSearch" class="bg-transparent border-none text-white w-full focus:outline-none placeholder-gray-600 h-10" placeholder="Search tools (e.g. merge, compress)..." autocomplete="off">
+                </div>
+            </div>
+        </section>
+
+        <!-- Tools Grid -->
+        <section id="tool-directory" class="container mx-auto px-4 mb-32 min-h-[400px]">
+            <div class="flex justify-between items-end mb-8 border-b border-white/10 pb-4">
+                <h3 class="text-2xl font-bold text-white">Available Modules</h3>
+                <div class="text-sm text-gray-500" id="toolCount">Loading modules...</div>
+            </div>
+            
+            <div id="appGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Cards injected via JS -->
+            </div>
+
+            <div class="text-center mt-12">
+                <div id="loadingIndicator" class="text-center py-4 opacity-0 transition-opacity duration-300 hidden">
+                    <i class="fas fa-circle-notch fa-spin text-purple-500 text-2xl"></i>
+                    <p class="text-gray-600 text-sm mt-2">Syncing ARhub directory...</p>
+                </div>
+                <button id="loadMoreBtn" class="btn-load-more hidden" aria-label="Load more applications">Load More Tools <i class="fas fa-chevron-down ml-2"></i></button>
+            </div>
+        </section>
+
+        <!-- Features Banner -->
+        <section class="border-y border-white/5 bg-white/5 backdrop-blur-sm py-16 mb-32 relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-r from-purple-900/10 to-pink-900/10"></div>
+            <div class="container mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center relative z-10 reveal">
+                <div class="p-4">
+                    <div class="text-4xl font-bold text-white mb-2"><i class="fas fa-shield-alt text-purple-500"></i></div>
+                    <div class="text-gray-400 text-sm uppercase tracking-wider font-bold">Secure</div>
+                </div>
+                <div class="p-4">
+                    <div class="text-4xl font-bold text-white mb-2">∞</div>
+                    <div class="text-gray-400 text-sm uppercase tracking-wider font-bold">Unlimited</div>
+                </div>
+                <div class="p-4">
+                    <div class="text-4xl font-bold text-white mb-2"><i class="fas fa-bolt text-yellow-500"></i></div>
+                    <div class="text-gray-400 text-sm uppercase tracking-wider font-bold">Fast</div>
+                </div>
+                <div class="p-4">
+                    <div class="text-4xl font-bold text-white mb-2">100%</div>
+                    <div class="text-gray-400 text-sm uppercase tracking-wider font-bold">Free</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="container mx-auto px-4 mb-32 max-w-3xl reveal">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Common Queries</h2>
+            <div class="space-y-4">
+                <div class="accordion-item glass-panel rounded-lg overflow-hidden cursor-pointer" onclick="toggleAccordion(this)">
+                    <div class="p-5 flex justify-between items-center">
+                        <h3 class="font-medium text-lg">Do files leave my computer?</h3>
+                        <i class="fas fa-chevron-down accordion-icon text-gray-400"></i>
+                    </div>
+                    <div class="accordion-content bg-black/20">
+                        <div class="p-5 pt-0 text-gray-400 text-sm leading-relaxed">
+                            No. PurplePDF tools are designed to run client-side code. Your documents are processed by your own browser engine and are not uploaded to our servers.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item glass-panel rounded-lg overflow-hidden cursor-pointer" onclick="toggleAccordion(this)">
+                    <div class="p-5 flex justify-between items-center">
+                        <h3 class="font-medium text-lg">Is this part of ARhub?</h3>
+                        <i class="fas fa-chevron-down accordion-icon text-gray-400"></i>
+                    </div>
+                    <div class="accordion-content bg-black/20">
+                        <div class="p-5 pt-0 text-gray-400 text-sm leading-relaxed">
+                            Yes, PurplePDF is a flagship project within the ARhub ecosystem, maintained by arlabs07.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+</main>
+
+<!-- Unified Footer -->
+<footer class="border-t border-white/5 bg-[#050505] pt-16 pb-8">
+    <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+            
+            <div class="col-span-1">
+                <div class="flex items-center space-x-2 mb-4">
+                   <span class="text-xl font-bold text-white">PurplePDF</span>
+                </div>
+                <p class="text-gray-500 text-sm leading-relaxed max-w-sm">
+                    The privacy-focused PDF utility belt for the modern web. Part of the ARhub developer ecosystem.
+                </p>
+            </div>
+
+            <div>
+                <h4 class="text-white font-bold mb-4">ARhub Ecosystem</h4>
+                <ul class="space-y-2 text-sm text-gray-500">
+                    <li><a href="index.html" class="hover:text-purple-400 transition-colors">Overview</a></li>
+                    <li><a href="index.html#projects-section" class="hover:text-purple-400 transition-colors">Systems</a></li>
+                    <li><a href="index.html#arai-section" class="hover:text-purple-400 transition-colors">Arai AI</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h4 class="text-white font-bold mb-4">Legal & Support</h4>
+                <ul class="space-y-2 text-sm text-gray-500">
+                    <li><a href="privacy.html" class="hover:text-purple-400 transition-colors">Privacy Policy</a></li>
+                    <li><a href="contact.html" class="hover:text-purple-400 transition-colors">Contact arlabs07</a></li>
+                    <li><a href="faq.html" class="hover:text-purple-400 transition-colors">FAQ</a></li>
+                </ul>
+            </div>
+
+        </div>
+        
+        <div class="border-t border-white/5 pt-8 text-center flex flex-col md:flex-row justify-between items-center">
+            <p class="text-gray-600 text-xs">© 2026 arlabs07. All rights reserved.</p>
+            <div class="flex items-center space-x-5 mt-4 md:mt-0">
+                <a href="https://github.com/arlabs07" target="_blank" class="text-gray-500 hover:text-white transition-colors"><i class="fab fa-github text-xl"></i></a>
+                <a href="https://arlabs07.blogspot.com" target="_blank" class="text-gray-500 hover:text-orange-500 transition-colors"><i class="fab fa-blogger text-xl"></i></a>
+                <a href="https://youtube.com/@arlabs07" target="_blank" class="text-gray-500 hover:text-red-600 transition-colors"><i class="fab fa-youtube text-xl"></i></a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="js/sitemap.js"></script>
+<script>
+// Lightweight accordion logic
+function toggleAccordion(item) {
+    const isActive = item.classList.contains('active');
+    document.querySelectorAll('.accordion-item').forEach(i => {
+        i.classList.remove('active');
+    });
+    if (!isActive) {
+        item.classList.add('active');
+    }
+}
+
+// Data Scanner for tools, reading from sitemap.js
+class AppScanner {
+    constructor() {
+        this.grid = document.getElementById('appGrid');
+        this.loadingIndicator = document.getElementById('loadingIndicator');
+        this.loadMoreBtn = document.getElementById('loadMoreBtn');
+        this.toolCountEl = document.getElementById('toolCount');
+        
+        // Load from sitemap.js
+        this.tools = (typeof AR_DISCOVERY !== 'undefined') ? AR_DISCOVERY.purpleTools : [];
+    }
+
+    init() {
+        this.renderTools();
+    }
+
+    renderTools() {
+        this.grid.innerHTML = '';
+        if (this.tools.length === 0) {
+            this.grid.innerHTML = '<div class="text-gray-500">System directory unavailable.</div>';
+            return;
+        }
+
+        this.tools.forEach((tool, index) => {
+            const card = document.createElement('div');
+            card.className = 'glass-card p-6 flex flex-col justify-between h-52 relative overflow-hidden group hover-trigger cursor-pointer';
+            // Animation stagger
+            card.style.animationDelay = `${index * 0.1}s`;
+            
+            card.innerHTML = `
+                <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
+                    <i class="fas ${tool.icon} text-6xl transform rotate-12"></i>
+                </div>
+                <div class="relative z-10">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center transition-transform duration-300">
+                            <i class="fas ${tool.icon} ${tool.color}"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">${tool.title}</h3>
+                    <p class="text-sm text-gray-400 line-clamp-2">${tool.desc}</p>
+                </div>
+                <div class="relative z-10 mt-auto flex items-center text-sm font-medium text-purple-400 group-hover:text-purple-300 transition-colors pt-4">
+                    Launch Tool <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                </div>
+            `;
+            this.grid.appendChild(card);
+        });
+        this.toolCountEl.innerText = `${this.tools.length} Tools Active`;
+        if(this.loadingIndicator) this.loadingIndicator.classList.add('hidden');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Reveal Animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if(entry.isIntersecting) {
+                entry.target.classList.add('active');
+            }
+        });
+    }, { threshold: 0.1 });
+    
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Initialize App Scanner
+    const scanner = new AppScanner();
+    scanner.init();
+
+    // Search Filter
+    const searchInput = document.getElementById('appSearch');
+    if(searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.glass-card');
+            cards.forEach(card => {
+                const title = card.querySelector('h3').innerText.toLowerCase();
+                if(title.includes(term)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+
+User-agent: *
+Allow: /
+Disallow: /css/
+Disallow: /js/
+Disallow: /app/*
+
+Sitemap: https://arlabs07.netlify.app/sitemap.xml

@@ -1,0 +1,72 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Arai Chat | ARhub</title>
+<meta name="theme-color" content="#121212">
+<link rel="icon" type="image/x-icon" href="https://arlabs07.netlify.app/images/index/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/arai-chat.css">
+</head>
+<body>
+
+<div class="chat-layout">
+    
+    <!-- Sidebar -->
+    <aside class="chat-sidebar" id="chat-sidebar">
+        <div class="sidebar-top">
+            <a href="index.html" class="brand-link">
+                <i class="fas fa-robot"></i> Arai AI
+            </a>
+            <button class="new-chat-btn" id="new-chat-btn">
+                <i class="fas fa-plus"></i> New Chat
+            </button>
+        </div>
+        
+        <div class="history-list" id="history-list">
+            <!-- History items injected via JS -->
+            <div class="history-label">Today</div>
+        </div>
+
+        <div class="sidebar-bottom">
+            <a href="index.html" class="user-item">
+                <div class="user-avatar"><i class="fas fa-arrow-left"></i></div>
+                <span>Back to Hub</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="chat-main">
+        <div class="mobile-topbar">
+            <button id="toggle-sidebar"><i class="fas fa-bars"></i></button>
+            <span>Arai AI</span>
+            <div style="width:24px"></div>
+        </div>
+
+        <div class="messages-container" id="messages-container">
+            <!-- Welcome Message -->
+            <div class="message ai-message">
+                <div class="avatar"><i class="fas fa-robot"></i></div>
+                <div class="content">
+                    <p>Hello! I am <strong>Arai</strong>, your coding assistant. I can help you debug code, explain concepts, or generate snippets. How can I help you today?</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea id="chat-input" rows="1" placeholder="Ask Arai anything..."></textarea>
+                <button id="send-btn" disabled><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <div class="disclaimer">AI responses may vary. Check important info.</div>
+        </div>
+    </main>
+</div>
+
+<script src="js/arai-core.js"></script>
+</body>
+</html>

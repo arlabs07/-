@@ -1,0 +1,127 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ARhub IDE | Professional Web Editor</title>
+<meta name="theme-color" content="#1c2130">
+<link rel="icon" type="image/x-icon" href="https://arlabs07.netlify.app/images/index/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/playground.css">
+</head>
+<body>
+
+<!-- Header -->
+<header class="ide-header">
+    <div class="header-left">
+        <a href="index.html" class="home-btn" title="Back to Home"><i class="fas fa-cube"></i></a>
+        <div class="project-info">
+            <input type="text" id="project-name-input" value="untitled-project" spellcheck="false">
+            <span class="status-indicator" id="save-status"><i class="fas fa-check"></i> Saved</span>
+        </div>
+    </div>
+    
+    <div class="header-center">
+        <!-- Mobile View Switcher -->
+        <div class="view-toggles">
+            <button class="view-btn active" data-target="editor"><i class="fas fa-code"></i> Code</button>
+            <button class="view-btn" data-target="preview"><i class="fas fa-desktop"></i> Web</button>
+            <button class="view-btn" data-target="console"><i class="fas fa-terminal"></i> Console</button>
+        </div>
+    </div>
+
+    <div class="header-right">
+        <button id="run-btn" class="run-button">
+            <i class="fas fa-play"></i> <span class="btn-label">Run</span>
+        </button>
+        <button id="settings-toggle" class="icon-btn"><i class="fas fa-cog"></i></button>
+        <button id="sidebar-toggle" class="icon-btn mobile-only"><i class="fas fa-bars"></i></button>
+    </div>
+</header>
+
+<div class="ide-workspace">
+    
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>EXPLORER</span>
+            <div class="sidebar-actions">
+                <button id="new-file-btn" title="New File"><i class="fas fa-file-circle-plus"></i></button>
+            </div>
+        </div>
+        <div class="file-tree" id="file-tree">
+            <!-- Files injected via JS -->
+        </div>
+        <div class="sidebar-footer">
+            <button id="download-zip" title="Download Project"><i class="fas fa-download"></i> Zip</button>
+        </div>
+    </aside>
+
+    <!-- Main Editor Area -->
+    <section class="pane editor-pane" id="pane-editor">
+        <div class="tab-bar" id="tab-bar">
+            <!-- Tabs injected via JS -->
+        </div>
+        
+        <div class="code-container">
+            <div class="gutter" id="gutter"></div>
+            <div class="editor-wrapper">
+                <pre class="highlight-layer" aria-hidden="true"><code id="highlight-layer"></code></pre>
+                <textarea id="code-input" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+            </div>
+        </div>
+    </section>
+
+    <!-- Resizer (Desktop) -->
+    <div class="resizer" id="resizer"></div>
+
+    <!-- Output Pane (Preview & Console) -->
+    <section class="pane output-pane" id="pane-output">
+        
+        <!-- Preview Window -->
+        <div class="output-view active" id="view-preview">
+            <div class="address-bar">
+                <button id="refresh-preview"><i class="fas fa-redo-alt"></i></button>
+                <input type="text" value="localhost:3000" disabled readonly>
+                <button id="popout-preview"><i class="fas fa-external-link-alt"></i></button>
+            </div>
+            <div class="iframe-wrapper">
+                <iframe id="preview-frame" title="Application Preview"></iframe>
+            </div>
+        </div>
+
+        <!-- Console Window -->
+        <div class="output-view" id="view-console">
+            <div class="console-header">
+                <span><i class="fas fa-terminal"></i> Shell Output</span>
+                <button id="clear-console"><i class="fas fa-ban"></i></button>
+            </div>
+            <div class="console-logs" id="console-logs">
+                <div class="log-entry system">System ready. Click Run to start.</div>
+            </div>
+            <div class="console-input-area">
+                <span class="prompt">></span>
+                <input type="text" id="console-input" placeholder="Execute JS...">
+            </div>
+        </div>
+
+    </section>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="file-modal">
+    <div class="modal-box">
+        <h3>Create New File</h3>
+        <input type="text" id="new-filename" placeholder="script.js">
+        <div class="modal-actions">
+            <button class="btn-sec" id="cancel-file">Cancel</button>
+            <button class="btn-pri" id="confirm-file">Create</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/playground-core.js"></script>
+</body>
+</html>
