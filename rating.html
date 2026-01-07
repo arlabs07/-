@@ -1,0 +1,823 @@
+
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<meta name="theme-color" content="#050505">
+<title>Rate Us | ARhub Ecosystem</title>
+<meta name="description" content="Share your feedback and rate your experience with ARhub tools.">
+<link rel="icon" type="image/x-icon" href="https://arlabs07.netlify.app/images/index/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- Core & Page Styles -->
+<link rel="stylesheet" href="css/header.css">
+<link rel="stylesheet" href="css/footer.css">
+<link rel="stylesheet" href="css/pages.css">
+<link rel="stylesheet" href="css/rating.css">
+<style>*,::after,::before{box-sizing:border-box;margin:0;padding:0}body,html{width:100%;height:100%;overflow-x:hidden;background-color:#050505;font-family:Outfit,sans-serif;color:#fff;scroll-behavior:smooth}::selection{background:rgba(255,140,0,.3);color:#fff}.theme-layer{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;pointer-events:none;overflow:hidden;background:#050505}
+
+/* --- RATING PAGE STYLES --- */
+
+.rating-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 50px;
+    padding-bottom: 60px;
+}
+
+/* FORM SECTION */
+.feedback-form-card {
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    height: fit-content;
+    position: relative;
+}
+
+.form-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #fff;
+    text-align: center;
+}
+
+/* Star Rating Widget */
+.star-widget {
+    display: flex;
+    justify-content: center;
+    flex-direction: row-reverse; /* For CSS hover magic */
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.star-widget input { display: none; }
+
+.star-widget label {
+    font-size: 2rem;
+    color: #444;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.star-widget label:hover,
+.star-widget label:hover ~ label,
+.star-widget input:checked ~ label {
+    color: #ffb700;
+    transform: scale(1.1);
+}
+
+/* Inputs */
+.input-group { margin-bottom: 15px; }
+
+.f-input {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: #fff;
+    font-family: inherit;
+    transition: border-color 0.3s;
+}
+.f-input:focus { outline: none; border-color: #ffb700; background: rgba(255, 183, 0, 0.05); }
+
+.btn-submit {
+    width: 100%;
+    padding: 14px;
+    background: #fff;
+    color: #000;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+.btn-submit:hover { background: #ffb700; transform: translateY(-2px); }
+.btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* REVIEWS LIST SECTION */
+.reviews-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-height: 200px;
+}
+
+/* Loading State */
+.loading-reviews {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+    font-style: italic;
+}
+
+.review-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 20px;
+    animation: fadeIn 0.5s ease-out;
+    transition: transform 0.2s;
+}
+.review-card:hover {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.1);
+}
+
+.r-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.r-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.r-avatar {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, #333, #111);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    color: #888;
+    border: 1px solid rgba(255,255,255,0.1);
+    text-transform: uppercase;
+}
+
+.r-name { font-weight: 700; color: #fff; font-size: 0.95rem; }
+.r-date { font-size: 0.75rem; color: #666; font-family: 'JetBrains Mono', monospace; }
+
+.r-stars { color: #ffb700; font-size: 0.85rem; }
+
+.r-message {
+    color: #ccc;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    background: rgba(0,0,0,0.2);
+    padding: 15px;
+    border-radius: 8px;
+    white-space: pre-wrap; /* Preserve newlines */
+}
+
+/* TEAM RESPONSE BOX */
+.team-response {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    gap: 12px;
+}
+
+.team-icon {
+    color: #00c8ff;
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
+.team-content h4 {
+    font-size: 0.8rem;
+    color: #00c8ff;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.team-text {
+    font-size: 0.9rem;
+    color: #888;
+    font-style: italic;
+}
+
+.status-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 5px;
+}
+.status-badge.pending { 
+    background: rgba(255, 165, 0, 0.1); 
+    color: orange; 
+    border: 1px solid rgba(255, 165, 0, 0.3); 
+}
+.status-badge.replied {
+    background: rgba(0, 200, 255, 0.1);
+    color: #00c8ff;
+    border: 1px solid rgba(0, 200, 255, 0.3);
+}
+
+/* Load More Button */
+.load-more-container {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+
+.btn-load-more {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 10px 25px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+.btn-load-more:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: #fff;
+}
+.btn-load-more.hidden { display: none; }
+
+/* CUSTOM SUCCESS OVERLAY */
+.custom-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.custom-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.overlay-content {
+    background: #111;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 90%;
+    width: 400px;
+    transform: translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.custom-overlay.active .overlay-content {
+    transform: translateY(0);
+}
+
+.success-icon {
+    width: 80px; height: 80px;
+    background: rgba(0, 255, 136, 0.1);
+    color: #00ff88;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin: 0 auto 20px auto;
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.overlay-content h3 {
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.overlay-content p {
+    color: #888;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.overlay-btn {
+    background: #fff;
+    color: #000;
+    font-weight: 700;
+    padding: 12px 30px;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+.overlay-btn:hover {
+    background: #00ff88;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (min-width: 900px) {
+    .rating-container {
+        grid-template-columns: 1fr 1.5fr;
+        align-items: start;
+    }
+    .feedback-form-card {
+        position: sticky;
+        top: 120px;
+    }
+}
+</style>
+
+<!-- ERUDA DEBUGGER: Loaded First -->
+<script src="//cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+    eruda.init();
+    console.log("Eruda initialized. Waiting for app...");
+</script>
+
+</head>
+<body>
+
+<header class="header">
+<div class="header-inner">
+<a href="index.html" class="logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub Logo" width="32" height="32">
+ARhub
+</a>
+<nav class="nav-links">
+<a href="index.html">Home</a>
+<a href="about.html">About</a>
+<a href="contact.html">Contact</a>
+<a href="rating.html" class="active">Reviews</a>
+</nav>
+<div class="header-actions">
+<button class="menu-toggle"><i class="fas fa-bars"></i></button>
+</div>
+</div>
+</header>
+
+<main class="page-wrapper">
+<div class="page-glow"></div>
+<div class="container-sm" style="max-width: 1100px;">
+    
+    <div style="text-align:center; margin-bottom:50px;">
+        <h1 class="page-title" style="margin-bottom:10px;">Community Feedback</h1>
+        <p style="color:#888;">See what others are saying about ARhub or drop your own review.</p>
+    </div>
+
+    <div class="rating-container">
+        
+        <!-- LEFT: FORM -->
+        <div class="feedback-form-card">
+            <h3 class="form-title">Rate Your Experience</h3>
+            <form id="ratingForm">
+                
+                <!-- Star Input -->
+                <div class="star-widget">
+                    <input type="radio" name="rate" id="rate-5" value="5">
+                    <label for="rate-5" class="fas fa-star" aria-label="5 Stars"></label>
+                    <input type="radio" name="rate" id="rate-4" value="4">
+                    <label for="rate-4" class="fas fa-star" aria-label="4 Stars"></label>
+                    <input type="radio" name="rate" id="rate-3" value="3">
+                    <label for="rate-3" class="fas fa-star" aria-label="3 Stars"></label>
+                    <input type="radio" name="rate" id="rate-2" value="2">
+                    <label for="rate-2" class="fas fa-star" aria-label="2 Stars"></label>
+                    <input type="radio" name="rate" id="rate-1" value="1">
+                    <label for="rate-1" class="fas fa-star" aria-label="1 Star"></label>
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="username" class="f-input" placeholder="Your Name / Handle" required maxlength="30">
+                </div>
+                
+                <div class="input-group">
+                    <textarea id="message" class="f-input" rows="4" placeholder="What did you like or dislike?" required maxlength="500"></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    Send Feedback <i class="fas fa-paper-plane"></i>
+                </button>
+
+            </form>
+        </div>
+
+        <!-- RIGHT: REVIEWS LIST -->
+        <div class="reviews-section">
+            <div class="reviews-list" id="reviews-container">
+                <!-- Data injected via js/rating.js -->
+            </div>
+            
+            <div class="load-more-container">
+                <button id="load-more-btn" class="btn-load-more" style="display:none">
+                    Load More Reviews <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+</main>
+
+<!-- Success Overlay -->
+<div id="success-overlay" class="custom-overlay">
+    <div class="overlay-content">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <h3>Review Sent!</h3>
+        <p>Thanks for your feedback. Your review has been submitted successfully and is pending moderation.</p>
+        <button id="close-overlay-btn" class="overlay-btn">Continue</button>
+    </div>
+</div>
+
+<footer class="site-footer">
+<div class="footer-container">
+<div class="footer-brand">
+<a href="index.html" class="f-logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub" width="32" height="32">
+ARhub
+</a>
+<p>Innovating with code.</p>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Company</h3>
+<ul>
+<li><a href="about.html">About</a></li>
+<li><a href="contact.html">Contact</a></li>
+<li><a href="rating.html">Feedback</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>&copy; 2026 arlabs07. All rights reserved.</span>
+</div>
+</footer>
+
+<script src="js/sitemap.js"></script>
+<script src="js/header.js"></script>
+<!-- Main Logic -->
+<script>
+
+/* 
+    RATING SYSTEM CORE
+    Powered by ParqraDB | Secured by ARhub CryptoGuard
+*/
+
+/**
+ * SECTION: SECURITY & CONFIGURATION
+ * ------------------------------------------------------------------
+ * Updated for Netlify Environment Variables.
+ * This script assumes a build process (like Vite/Webpack) or 
+ * Netlify Function injection replaces 'process.env'.
+ */
+
+const CREDENTIALS = {
+    // If you are running this in a raw browser environment without a bundler,
+    // you may need to manually replace these or use a 'window.env' injection method.
+    url: (typeof process !== 'undefined' && process.env) ? process.env.PARQRA_API_URL : 'MISSING_ENV_URL',
+    key: (typeof process !== 'undefined' && process.env) ? process.env.PARQRA_API_KEY : 'MISSING_ENV_KEY'
+};
+
+/**
+ * SECTION: RATE LIMITING
+ * ------------------------------------------------------------------
+ * Enforces strict yearly limits via LocalStorage and DB checking.
+ */
+class RateLimiter {
+    constructor() {
+        this.LIMIT = 3;
+        this.STORAGE_KEY = 'arhub_user_activity';
+    }
+
+    // Check 1: Local Storage (Device Check)
+    getLocalCount() {
+        try {
+            const raw = localStorage.getItem(this.STORAGE_KEY);
+            if (!raw) return 0;
+            const data = JSON.parse(raw);
+            const currentYear = new Date().getFullYear();
+            
+            // Filter timestamps for current year only
+            const valid = data.filter(timestamp => {
+                return new Date(timestamp).getFullYear() === currentYear;
+            });
+
+            return valid.length;
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    // Check 2: Database JSON (Username Check)
+    getDbCount(username, allReviews) {
+        if (!allReviews || !Array.isArray(allReviews)) return 0;
+        
+        const currentYear = new Date().getFullYear();
+        const lowerName = username.toLowerCase().trim();
+
+        // Count how many times this username appears in this year
+        const matches = allReviews.filter(r => {
+            const rName = (r.username || '').toLowerCase();
+            const rDate = new Date(r.date || r.created_at);
+            return rName === lowerName && rDate.getFullYear() === currentYear;
+        });
+
+        return matches.length;
+    }
+
+    // Record a new submission locally
+    recordSubmission() {
+        try {
+            const raw = localStorage.getItem(this.STORAGE_KEY);
+            let data = raw ? JSON.parse(raw) : [];
+            data.push(new Date().toISOString());
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            // Storage might be full or disabled
+        }
+    }
+
+    isAllowed(username, allReviews) {
+        const localCount = this.getLocalCount();
+        const dbCount = this.getDbCount(username, allReviews);
+        
+        // If EITHER check hits the limit, block.
+        // We take the max to be safe (e.g. user cleared cache but DB remembers them)
+        const totalCount = Math.max(localCount, dbCount);
+        
+        return totalCount < this.LIMIT;
+    }
+}
+
+const limiter = new RateLimiter();
+
+/**
+ * SECTION: DATABASE INTERFACE
+ */
+class ParqraDB {
+    constructor(tableName) {
+        this.table = tableName;
+    }
+
+    get headers() {
+        return { 
+            'Content-Type': 'application/json', 
+            'x-api-key': CREDENTIALS.key 
+        };
+    }
+
+    async list() {
+        const res = await fetch(`${CREDENTIALS.url}/db/${this.table}`, { headers: this.headers });
+        return res.json();
+    }
+
+    async create(data) {
+        const res = await fetch(`${CREDENTIALS.url}/db/${this.table}`, {
+            method: 'POST',
+            headers: this.headers,
+            body: JSON.stringify({ data }) 
+        });
+
+        if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(`API Error ${res.status}`);
+        }
+        return res.json();
+    }
+}
+
+const db = new ParqraDB('Reviews');
+
+// --- MAIN LOGIC ---
+
+function initRatingSystem() {
+    const form = document.getElementById('ratingForm');
+    const container = document.getElementById('reviews-container');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const submitBtn = document.querySelector('.btn-submit');
+    
+    // Overlay elements
+    const overlay = document.getElementById('success-overlay');
+    const closeOverlayBtn = document.getElementById('close-overlay-btn');
+
+    if(closeOverlayBtn && overlay) {
+        closeOverlayBtn.addEventListener('click', () => {
+            overlay.classList.remove('active');
+        });
+    }
+
+    // State
+    let allReviews = [];
+    let visibleCount = 0;
+    const BATCH_SIZE = 5;
+
+    // 1. Fetch Reviews
+    async function fetchReviews() {
+        if (!container) return;
+        
+        container.innerHTML = '<div class="loading-reviews"><i class="fas fa-circle-notch fa-spin"></i> Syncing database...</div>';
+        
+        try {
+            const response = await db.list();
+            let items = [];
+            
+            // Normalize Data Structure
+            if (response && response.data && Array.isArray(response.data)) {
+                items = response.data.map(item => {
+                    if (item.data && typeof item.data === 'object' && item.data.username) {
+                        return { ...item.data, id: item.id, created_at: item.created_at }; 
+                    }
+                    return item;
+                });
+            } else if (Array.isArray(response)) {
+                items = response;
+            }
+
+            items = items.filter(i => i && (i.username || i.rating));
+
+            // Sort: Newest First
+            items.sort((a, b) => {
+                const dateA = new Date(a.date || a.created_at || 0);
+                const dateB = new Date(b.date || b.created_at || 0);
+                return dateB - dateA;
+            });
+
+            allReviews = items;
+            container.innerHTML = '';
+
+            if (allReviews.length === 0) {
+                container.innerHTML = '<div class="loading-reviews">No reviews found.</div>';
+                if(loadMoreBtn) loadMoreBtn.style.display = 'none';
+            } else {
+                showNextBatch();
+            }
+
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = '<div class="loading-reviews" style="color:salmon">Unable to load reviews. (Env Check Failed?)</div>';
+        }
+    }
+
+    function showNextBatch() {
+        const nextBatch = allReviews.slice(visibleCount, visibleCount + BATCH_SIZE);
+        nextBatch.forEach(data => container.appendChild(createReviewCard(data)));
+        visibleCount += nextBatch.length;
+        if (loadMoreBtn) {
+            loadMoreBtn.style.display = (visibleCount >= allReviews.length) ? 'none' : 'block';
+        }
+    }
+
+    // 2. Submit Handler
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+
+            const username = document.getElementById('username').value.trim();
+            const feedback = document.getElementById('message').value.trim();
+            const starsInput = document.querySelector('input[name="rate"]:checked');
+
+            if (!starsInput) {
+                alert("Please select a star rating.");
+                return;
+            }
+            if (!username || !feedback) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            // --- RATE LIMIT CHECK ---
+            if (!limiter.isAllowed(username, allReviews)) {
+                alert(`Submission Blocked.\nYou have reached the yearly limit of ${limiter.LIMIT} reviews.`);
+                return;
+            }
+
+            const rating = parseInt(starsInput.value);
+            
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+            submitBtn.disabled = true;
+
+            const payload = {
+                username: username,
+                feedback: feedback,
+                rating: rating,
+                date: new Date().toISOString(),
+                response: "Waiting for review"
+            };
+
+            try {
+                // Send to DB
+                await db.create(payload);
+                
+                // Record locally for rate limiting
+                limiter.recordSubmission();
+
+                // UI Update
+                const displayData = { ...payload, id: 'temp-' + Date.now() };
+                const newCard = createReviewCard(displayData);
+                newCard.style.animation = "fadeIn 0.5s";
+                
+                if(container.firstChild && container.firstChild.className === 'loading-reviews') {
+                    container.innerHTML = '';
+                }
+                
+                container.prepend(newCard);
+                
+                // Add to local list so re-checking rate limit works without refresh
+                allReviews.unshift(displayData);
+                
+                form.reset();
+                
+                if(overlay) overlay.classList.add('active');
+                else alert("Review submitted successfully!");
+
+            } catch (err) {
+                console.error(err);
+                alert("Failed to submit review. Please try again later.");
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    function createReviewCard(data) {
+        const div = document.createElement('div');
+        div.className = 'review-card';
+
+        const name = data.username || 'User';
+        const stars = parseInt(data.rating) || 0;
+        let starHtml = '';
+        for(let i=1; i<=5; i++) starHtml += (i<=stars) ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+
+        const reply = data.response || "Waiting for review";
+        const badgeClass = reply === "Waiting for review" ? "pending" : "replied";
+        const badgeText = reply === "Waiting for review" ? "Pending" : "Official Response";
+        
+        const dateStr = data.date || data.created_at;
+        const displayDate = dateStr ? new Date(dateStr).toLocaleDateString() : 'Just now';
+
+        div.innerHTML = `
+            <div class="r-header">
+                <div class="r-user">
+                    <div class="r-avatar">${name.substring(0,2).toUpperCase()}</div>
+                    <div>
+                        <div class="r-name">${escapeHtml(name)}</div>
+                        <div class="r-date">${displayDate}</div>
+                    </div>
+                </div>
+                <div class="r-stars">${starHtml}</div>
+            </div>
+            <div class="r-message">${escapeHtml(data.feedback || '')}</div>
+            <div class="team-response">
+                <i class="fas fa-reply team-icon"></i>
+                <div class="team-content">
+                    <h4>Status</h4>
+                    <div class="status-badge ${badgeClass}">${badgeText}</div>
+                    <div class="team-text" style="margin-top:5px;">${escapeHtml(reply)}</div>
+                </div>
+            </div>
+        `;
+        return div;
+    }
+
+    function escapeHtml(text) {
+        if(!text) return '';
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Start
+    fetchReviews();
+
+    if(loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', showNextBatch);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRatingSystem);
+} else {
+    initRatingSystem();
+}
+
+</script>
+</body>
+</html>
