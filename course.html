@@ -1,0 +1,139 @@
+
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<meta name="theme-color" content="#050505">
+<title>Courses | ARhub Learning</title>
+<meta name="description" content="Master modern web development, AI engineering, and more with free, high-quality courses by arlabs07.">
+<link rel="icon" type="image/x-icon" href="https://arlabs07.netlify.app/images/index/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- Libraries for Content Rendering -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+<!-- Core Styles -->
+<link rel="stylesheet" href="css/header.css">
+<link rel="stylesheet" href="css/footer.css">
+<link rel="stylesheet" href="css/course.css">
+
+<style>*,::after,::before{box-sizing:border-box;margin:0;padding:0}body,html{width:100%;height:100%;overflow-x:hidden;background-color:#050505;font-family:Outfit,sans-serif;color:#fff;}</style>
+</head>
+<body>
+
+<header class="header">
+<div class="header-inner">
+<a href="index.html" class="logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub Logo" width="32" height="32">
+ARhub
+</a>
+<nav class="nav-links">
+<a href="index.html">Overview</a>
+<a href="course.html" class="active">Courses</a>
+<a href="docs.html">Docs</a>
+<a href="blog.html">Blog</a>
+</nav>
+<div class="header-actions">
+<button class="menu-toggle"><i class="fas fa-bars"></i></button>
+</div>
+</div>
+</header>
+
+<main class="course-wrapper">
+    
+    <!-- VIEW 1: CATALOG (Grid of Cards) -->
+    <div id="catalog-view" class="catalog-view">
+        <div class="catalog-hero">
+            <h1 class="catalog-title">Learning Pathways</h1>
+            <p class="catalog-desc">Comprehensive, project-based curriculums designed to take you from zero to deployed.</p>
+        </div>
+        
+        <div class="container-lg">
+            <div id="course-grid" class="course-grid">
+                <!-- Courses injected via JS -->
+                <div class="loader-placeholder"><i class="fas fa-circle-notch fa-spin"></i> Loading courses...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: PLAYER (Sidebar + Content) -->
+    <div id="player-view" class="player-view" style="display:none;">
+        
+        <!-- Player Sidebar (Syllabus) -->
+        <aside class="player-sidebar" id="player-sidebar">
+            <div class="ps-header">
+                <button id="back-to-catalog" class="back-btn"><i class="fas fa-arrow-left"></i> All Courses</button>
+                <h3 id="ps-course-title">Course Title</h3>
+            </div>
+            <div class="ps-content" id="ps-modules">
+                <!-- Modules & Lessons injected here -->
+            </div>
+        </aside>
+
+        <!-- Player Main Content -->
+        <section class="player-main">
+            <!-- Mobile Sidebar Toggle -->
+            <button id="mobile-syllabus-toggle" class="mobile-toggle"><i class="fas fa-bars"></i> Syllabus</button>
+
+            <!-- Sticky Lesson TOC (Injected dynamically if headers exist) -->
+            <div id="lesson-toc" class="sticky-lesson-toc" style="display:none;">
+                <div class="lt-current" id="lt-current-text">Lesson Overview</div>
+                <button class="lt-toggle" id="lt-toggle-btn" aria-label="Toggle Table of Contents"><i class="fas fa-chevron-down"></i></button>
+                <div class="lt-dropdown" id="lt-list">
+                    <!-- TOC Items injected here -->
+                </div>
+            </div>
+
+            <div class="player-content-container" id="player-render-area">
+                <!-- Lesson Content (Video/Audio/Doc) injected here -->
+                <div class="empty-state">Select a lesson to begin.</div>
+            </div>
+            
+            <div class="player-nav-controls">
+                <button id="prev-lesson" class="nav-lesson-btn disabled"><i class="fas fa-chevron-left"></i> Previous</button>
+                <button id="next-lesson" class="nav-lesson-btn disabled">Next <i class="fas fa-chevron-right"></i></button>
+            </div>
+        </section>
+
+    </div>
+
+</main>
+
+<footer class="site-footer">
+<div class="footer-container">
+<div class="footer-brand">
+<a href="index.html" class="f-logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub" width="32" height="32">
+ARhub
+</a>
+<p>Innovating with code.</p>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Learning</h3>
+<ul>
+<li><a href="course.html">Courses</a></li>
+<li><a href="docs.html">Documentation</a></li>
+<li><a href="blog.html">Blog</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>&copy; 2026 arlabs07. All rights reserved.</span>
+</div>
+</footer>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+
+<script src="js/sitemap.js"></script>
+<script src="js/header.js"></script>
+<script src="js/course.js"></script>
+</body>
+  </html>
+              
