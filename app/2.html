@@ -1,0 +1,1544 @@
+
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<meta name="theme-color" content="#050505">
+<title>Meta Tag Inspector | ARhub Ecosystem</title>
+<meta name="description" content="Analyze website metadata, generate social previews for Twitter/Facebook/WhatsApp/LinkedIn, and debug SEO tags efficiently.">
+<link rel="icon" type="image/x-icon" href="https://arlabs07.netlify.app/images/index/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- Core Styles -->
+<link rel="stylesheet" href="https://arlabs07.netlify.app/css/header.css">
+<link rel="stylesheet" href="https://arlabs07.netlify.app/css/footer.css">
+<link rel="stylesheet" href="https://arlabs07.netlify.app/css/pages.css">
+<!-- App Specific Style -->
+<style>*,::after,::before{box-sizing:border-box;margin:0;padding:0}body,html{width:100%;height:100%;overflow-x:hidden;background-color:#050505;font-family:Outfit,sans-serif;color:#fff;}
+
+/* Meta Tool Specific Styles */
+    /* Breadcrumb Styles */
+    .breadcrumb-section {
+        margin-top: 80px;
+        padding: 15px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.02);
+        width: 100%;
+    }
+
+    .breadcrumb-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.85rem;
+        color: #888;
+        font-family: 'JetBrains Mono', monospace;
+        flex-wrap: wrap; 
+    }
+
+    .bc-link { color: #888; text-decoration: none; transition: color 0.2s; }
+    .bc-link:hover { color: #fff; }
+    .bc-sep { color: #444; font-size: 0.8rem; }
+    .bc-current { color: #00c8ff; }
+
+/* --- 1. Main Layout & Colors --- */
+.app-main {
+    flex: 1;
+    width: 100%;
+    min-height: 80vh;
+    position: relative;
+    background: #050505;
+}
+
+.page-glow {
+    position: fixed;
+    top: 20%; left: 50%;
+    transform: translateX(-50%);
+    width: 60vw; height: 60vh;
+    background: radial-gradient(circle, rgba(0, 200, 255, 0.08) 0%, transparent 70%);
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: -1;
+}
+
+.tool-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.tool-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.tool-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.tool-desc {
+    color: #888;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* --- 2. Input Panel --- */
+.input-panel {
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 40px;
+    backdrop-filter: blur(10px);
+}
+
+.tabs-header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: #666;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: color 0.2s;
+    border-radius: 4px;
+}
+.tab-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.tab-btn.active { color: #ff6b9d; background: rgba(255, 107, 157, 0.1); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.url-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+input[type="text"], textarea {
+    flex: 1;
+    background: #0a0a0a;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    min-width: 200px;
+}
+input[type="text"]:focus, textarea:focus { outline: none; border-color: #ff6b9d; }
+
+textarea { height: 150px; resize: vertical; width: 100%; }
+
+.action-btn {
+    background: #ff6b9d;
+    color: #000;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s;
+    white-space: nowrap;
+}
+.action-btn:hover { transform: scale(1.05); background: #ff85b0; }
+.full-width { width: 100%; margin-top: 10px; }
+
+.info-note { font-size: 0.8rem; color: #666; margin-top: 8px; width: 100%; }
+
+/* --- 3. Results Navigation --- */
+.result-nav {
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.res-tab {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    color: #888;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.res-tab:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.res-tab.active { background: #ff6b9d; color: #000; font-weight: 700; border-color: #ff6b9d; }
+
+.badge {
+    background: rgba(0,0,0,0.3);
+    color: inherit;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.res-panel { display: none; animation: fadeIn 0.3s ease; }
+.res-panel.active { display: block; }
+
+/* --- 4. Issues Tab --- */
+.issues-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.issue-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-left-width: 4px;
+    border-radius: 6px;
+    padding: 15px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.issue-item.error { border-left-color: #ff5555; background: rgba(255, 85, 85, 0.05); }
+.issue-item.warning { border-left-color: #ffb700; background: rgba(255, 183, 0, 0.05); }
+.issue-item.success { border-left-color: #00ff88; background: rgba(0, 255, 136, 0.05); }
+.issue-item.info { border-left-color: #00c8ff; }
+
+.issue-icon { font-size: 1.1rem; margin-top: 2px; }
+.issue-content h4 { font-size: 1rem; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.issue-content p { color: #aaa; font-size: 0.9rem; }
+
+/* --- 5. Inspector Tab --- */
+.inspector-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.meta-cat-header {
+    background: rgba(255,255,255,0.05);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    margin-top: 20px;
+}
+.meta-cat-header:first-child { margin-top: 0; }
+.meta-cat-header h3 { font-size: 1rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+.cat-count { font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 12px; }
+
+.meta-table { display: flex; flex-direction: column; }
+.meta-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 0.9rem;
+}
+.meta-row:last-child { border-bottom: none; }
+
+.meta-key {
+    background: rgba(0,0,0,0.2);
+    padding: 12px 15px;
+    color: #ff9fb3;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    overflow-x: auto;
+    word-break: break-all;
+}
+.meta-value {
+    padding: 12px 15px;
+    color: #ccc;
+    font-family: 'JetBrains Mono', monospace;
+    word-break: break-all;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.empty-val { color: #666; font-style: italic; }
+.empty-table { padding: 20px; text-align: center; color: #666; font-style: italic; }
+
+.char-count { font-size: 0.7rem; color: #666; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+/* Responsive Table */
+@media (max-width: 768px) {
+    .meta-row { grid-template-columns: 1fr; }
+    .meta-key { border-bottom: 1px solid rgba(255,255,255,0.02); }
+}
+
+/* --- 6. Previews --- */
+.preview-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 30px;
+}
+@media (min-width: 900px) { .preview-grid { grid-template-columns: 1fr 1fr; } }
+
+.preview-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.platform-label {
+    margin-bottom: 15px;
+    font-weight: 700;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Facebook */
+.fb-preview-box { background: #3a3b3c; border-radius: 8px; overflow: hidden; max-width: 500px; margin: 0 auto; }
+.fb-image-container { width: 100%; height: 200px; background: #222; overflow: hidden; }
+.fb-image-container img { width: 100%; height: 100%; object-fit: cover; }
+.fb-text { padding: 10px 12px; background: #242526; border-top: 1px solid #3e4042; }
+.fb-domain { font-size: 0.75rem; color: #b0b3b8; text-transform: uppercase; margin-bottom: 4px; }
+.fb-title { font-weight: 600; color: #e4e6eb; margin-bottom: 4px; font-family: sans-serif; font-size: 1rem; }
+.fb-desc { font-size: 0.85rem; color: #b0b3b8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: sans-serif; }
+
+/* Twitter */
+.tw-preview-box { background: #000; border: 1px solid #333; border-radius: 12px; overflow: hidden; max-width: 500px; margin: 0 auto; }
+.tw-image-container { width: 100%; height: 200px; background: #111; overflow: hidden; }
+.tw-image-container img { width: 100%; height: 100%; object-fit: cover; }
+.tw-text { padding: 12px; font-family: sans-serif; }
+.tw-title { color: #fff; font-weight: 600; margin-bottom: 4px; font-size: 0.95rem; }
+.tw-desc { color: #71767b; font-size: 0.9rem; margin-bottom: 4px; }
+.tw-domain { color: #71767b; font-size: 0.85rem; }
+
+/* LinkedIn */
+.li-preview-box { background: #fff; border-radius: 8px; overflow: hidden; max-width: 500px; margin: 0 auto; border: 1px solid #e0e0e0; }
+.li-image-container { width: 100%; height: 200px; background: #f3f2ef; overflow: hidden; }
+.li-image-container img { width: 100%; height: 100%; object-fit: cover; }
+.li-text { padding: 10px; background: #fff; }
+.li-title { color: #000; font-weight: 600; font-family: sans-serif; font-size: 0.95rem; margin-bottom: 4px; line-height: 1.3; }
+.li-domain { color: #666; font-size: 0.75rem; font-family: sans-serif; }
+
+/* Slack */
+.sl-preview-box { display: flex; gap: 10px; background: #fff; border-radius: 8px; max-width: 500px; margin: 0 auto; padding: 12px; border: 1px solid #ddd; }
+.sl-bar { width: 4px; background: #e0e0e0; border-radius: 4px; }
+.sl-content { flex: 1; font-family: sans-serif; }
+.sl-site-name { font-size: 0.85rem; font-weight: 700; color: #1d1c1d; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.sl-title { font-size: 1rem; font-weight: 700; color: #1264a3; margin-bottom: 4px; }
+.sl-desc { font-size: 0.9rem; color: #1d1c1d; margin-bottom: 10px; }
+.sl-thumb { width: 100%; max-height: 200px; overflow: hidden; border-radius: 4px; }
+.sl-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* WhatsApp (Fixed) */
+.wa-preview-box-lg { background: #111b21; padding: 15px; border-radius: 8px; max-width: 350px; margin: 0 auto; }
+.wa-bubble-lg { background: #202c33; border-radius: 8px; overflow: hidden; position: relative; }
+.wa-image-lg { width: 100%; height: 160px; background: #333; position: relative; }
+.wa-image-lg img { width: 100%; height: 100%; object-fit: cover; }
+.wa-content-lg { padding: 10px 12px; }
+.wa-title-lg { font-weight: 600; color: #e9edef; font-size: 0.95rem; margin-bottom: 4px; line-height: 1.3; }
+.wa-desc-lg { font-size: 0.85rem; color: #8696a0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 4px; }
+.wa-footer-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.wa-url-lg { font-size: 0.75rem; color: #8696a0; }
+
+/* Updated Tiny Overlay for WhatsApp - Square & Bottom Right */
+.wa-tiny-overlay { 
+    position: absolute; 
+    bottom: 12px; 
+    right: 12px; 
+    width: 24px; 
+    height: 24px; 
+    border-radius: 4px; /* Square */
+    overflow: hidden; 
+    border: 1px solid rgba(255,255,255,0.2); 
+    background: #000; 
+    display: none; 
+    z-index: 5;
+}
+.wa-tiny-overlay img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Google Search */
+.google-preview-card { background: #202124; padding: 20px; border-radius: 8px; font-family: Arial, sans-serif; max-width: 600px; }
+.g-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; position: relative; }
+.g-favicon { width: 26px; height: 26px; background: #333; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.g-favicon img { width: 16px; height: 16px; }
+.g-site-info { display: flex; flex-direction: column; }
+.g-name { color: #dadce0; font-size: 0.875rem; }
+.g-url { color: #dadce0; font-size: 0.75rem; }
+.g-more-icon { color: #9aa0a6; position: absolute; right: 0; top: 0; cursor: pointer; }
+.g-title { color: #8ab4f8; font-size: 1.25rem; margin-bottom: 4px; cursor: pointer; line-height: 1.3; }
+.g-title:hover { text-decoration: underline; }
+.g-desc { color: #bdc1c6; font-size: 0.875rem; line-height: 1.58; }
+.g-sitelinks-list { margin-top: 12px; }
+.g-sl-row { padding: 12px 0; border-top: 1px solid #3c4043; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.g-sl-text { color: #8ab4f8; font-size: 0.95rem; }
+.g-sl-arrow { color: #9aa0a6; font-size: 0.8rem; }
+.g-sl-row:hover .g-sl-text { text-decoration: underline; }
+.g-breadcrumbs { color: #dadce0; font-size: 0.75rem; display: none; align-items: center; gap: 4px; }
+.g-bc-item { white-space: nowrap; }
+.g-bc-sep { font-size: 0.6rem; color: #9aa0a6; }
+
+/* Analytics */
+.analytics-card { background: rgba(255,255,255,0.03); padding: 25px; border-radius: 12px; }
+.analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+.ana-item { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; }
+.ana-item.empty { grid-column: 1/-1; text-align: center; color: #666; font-style: italic; background: transparent; border: 1px dashed #444; }
+.ana-label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; margin-bottom: 5px; font-weight: 700; }
+.ana-val { font-family: monospace; color: #ff6b9d; font-size: 1.1rem; }
+.ana-type { font-size: 0.8rem; color: #00ff88; margin-top: 5px; }
+
+/* Assets & Other */
+.assets-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+.asset-card { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; flex: 1; min-width: 200px; text-align: center; }
+.asset-card h4 { margin-bottom: 15px; color: #aaa; font-size: 0.9rem; }
+.browser-tab-mock { background: #222; padding-top: 10px; border-radius: 8px 8px 0 0; }
+.bt-shape { background: #333; width: 180px; margin: 0 auto; padding: 8px 12px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px; position: relative; }
+.bt-icon { width: 16px; height: 16px; border-radius: 2px; }
+.bt-text { font-size: 0.75rem; color: #fff; white-space: nowrap; overflow: hidden; max-width: 120px; }
+.bt-close { font-size: 0.7rem; color: #888; position: absolute; right: 10px; }
+.iphone-mock { width: 60px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.app-icon-img { width: 60px; height: 60px; border-radius: 14px; background: #333; object-fit: cover; }
+.app-label { font-size: 0.7rem; color: #fff; }
+
+/* JSON-LD Tabular Viewer (NEW) */
+.json-container { background: transparent; padding: 0; border: none; }
+
+.json-block {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    margin-bottom: 15px;
+    overflow: hidden;
+}
+
+.json-block-header {
+    background: rgba(255,255,255,0.05);
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+    user-select: none;
+}
+.json-block-header:hover { background: rgba(255,255,255,0.08); }
+
+.json-block-title {
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.json-type-badge {
+    background: rgba(0, 200, 255, 0.15);
+    color: #00c8ff;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.json-toggle-icon { color: #888; transition: transform 0.2s; }
+.json-block.open .json-toggle-icon { transform: rotate(180deg); }
+
+.json-block-content {
+    display: none;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 0;
+    overflow-x: auto; /* Updated: Handle horizontal overflow on mobile */
+}
+.json-block.open .json-block-content { display: block; }
+
+/* JSON Table Structure */
+.json-table {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    min-width: 400px; /* Updated: Ensure table doesn't squeeze too much on mobile */
+}
+
+.json-row {
+    display: table-row;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.json-row:last-child { border-bottom: none; }
+
+.json-key-cell {
+    display: table-cell;
+    padding: 12px 15px;
+    width: 30%;
+    min-width: 120px; /* Updated: Minimum width for keys */
+    color: #ff9fb3; /* Theme pink */
+    vertical-align: top;
+    background: rgba(0,0,0,0.2);
+    border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.json-val-cell {
+    display: table-cell;
+    padding: 12px 15px;
+    color: #ccc;
+    vertical-align: top;
+    word-break: break-word;
+}
+
+/* Recursive/Nested styling */
+.nested-json-table {
+    width: 100%;
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.05);
+    margin-top: 5px;
+}
+.nested-json-table .json-row { border-bottom: 1px solid rgba(255,255,255,0.05); }
+.nested-json-table .json-key-cell { width: auto; color: #a5d6ff; padding: 8px; background: transparent; } /* Blue for nested */
+.nested-json-table .json-val-cell { padding: 8px; }
+
+.loader-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+.spinner { width: 40px; height: 40px; border: 4px solid #333; border-top-color: #ff6b9d; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.hidden { display: none !important; }
+
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+<div class="header-inner">
+<a href="https://arlabs07.netlify.app/index.html" class="logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub Logo" width="32" height="32">
+ARhub
+</a>
+<nav class="nav-links">
+<a href="https://arlabs07.netlify.app/index.html">Overview</a>
+<a href="https://arlabs07.netlify.app/app.html" class="active">Apps</a>
+<a href="https://arlabs07.netlify.app/about.html">About</a>
+</nav>
+<div class="header-actions">
+<button class="menu-toggle"><i class="fas fa-bars"></i></button>
+</div>
+</div>
+</header>
+
+<!-- Breadcrumbs -->
+<div class="breadcrumb-section">
+    <div class="breadcrumb-inner">
+        <a href="../index.html" class="bc-link">ARhub</a>
+        <span class="bc-sep">/</span>
+        <a href="../app.html" class="bc-link">Apps</a>
+        <span class="bc-sep">/</span>
+        <span class="bc-current">Meta Inspector</span>
+    </div>
+</div>
+
+<main class="app-main">
+    <!-- Background Glow Effect -->
+    <div class="page-glow"></div>
+
+    <div class="tool-container">
+        
+        <div class="tool-header">
+            <h1 class="tool-title"><i class="fas fa-tags" style="color: #ff6b9d;"></i> Meta Inspector</h1>
+            <p class="tool-desc">Deep-dive SEO analysis, social card previews, and full tag inspection.</p>
+        </div>
+
+        <!-- INPUT SECTION -->
+        <div class="input-panel">
+            <div class="tabs-header">
+                <button class="tab-btn active" data-target="url-input">Fetch URL</button>
+                <button class="tab-btn" data-target="code-input">Paste Code</button>
+            </div>
+            
+            <div class="tab-content active" id="url-input">
+                <div class="url-bar">
+                    <input type="text" id="target-url" placeholder="https://example.com" value="https://arlabs07.netlify.app">
+                    <button id="btn-fetch" class="action-btn">
+                        <i class="fas fa-bolt"></i> Analyze
+                    </button>
+                </div>
+                <div class="info-note"><i class="fas fa-info-circle"></i> Fetched via proxy. Some sites may block access.</div>
+            </div>
+
+            <div class="tab-content" id="code-input">
+                <textarea id="raw-html" placeholder="Paste your HTML content here..." spellcheck="false"></textarea>
+                <button id="btn-parse" class="action-btn full-width">Analyze Code</button>
+            </div>
+        </div>
+
+        <!-- RESULTS SECTION -->
+        <div id="results-area" class="results-area hidden">
+            
+            <!-- Navigation -->
+            <nav class="result-nav">
+                <button class="res-tab active" data-view="issues">Issues <span id="issue-badge" class="badge">0</span></button>
+                <button class="res-tab" data-view="inspector">Inspector</button>
+                <button class="res-tab" data-view="social">Social</button>
+                <button class="res-tab" data-view="search">Search</button>
+                <button class="res-tab" data-view="analytics">Analytics</button>
+                <button class="res-tab" data-view="assets">Assets</button>
+                <button class="res-tab" data-view="jsonld">JSON-LD</button>
+            </nav>
+
+            <!-- 0. ISSUES TAB -->
+            <div class="res-panel active" id="view-issues">
+                <div class="issues-container" id="issues-list">
+                    <div class="issue-item info">Run analysis to identify issues.</div>
+                </div>
+            </div>
+
+            <!-- 1. INSPECTOR (DEEP DIVE) -->
+            <div class="res-panel" id="view-inspector">
+                <div class="inspector-card">
+                    <div class="meta-cat-header">
+                        <h3><i class="fas fa-file-code"></i> Basic HTML</h3>
+                        <span class="cat-count" id="count-basic">0</span>
+                    </div>
+                    <div class="meta-table" id="table-basic"></div>
+
+                    <div class="meta-cat-header">
+                        <h3><i class="fab fa-facebook"></i> Open Graph</h3>
+                        <span class="cat-count" id="count-og">0</span>
+                    </div>
+                    <div class="meta-table" id="table-og"></div>
+
+                    <div class="meta-cat-header">
+                        <h3><i class="fab fa-twitter"></i> Twitter Cards</h3>
+                        <span class="cat-count" id="count-twitter">0</span>
+                    </div>
+                    <div class="meta-table" id="table-twitter"></div>
+
+                    <div class="meta-cat-header">
+                        <h3><i class="fas fa-align-left"></i> Content & Audience</h3>
+                        <span class="cat-count" id="count-content">0</span>
+                    </div>
+                    <div class="meta-table" id="table-content"></div>
+
+                    <div class="meta-cat-header">
+                        <h3><i class="fas fa-globe-asia"></i> Geography</h3>
+                        <span class="cat-count" id="count-geo">0</span>
+                    </div>
+                    <div class="meta-table" id="table-geo"></div>
+
+                    <div class="meta-cat-header">
+                        <h3><i class="fas fa-user-shield"></i> Ownership & Verification</h3>
+                        <span class="cat-count" id="count-owner">0</span>
+                    </div>
+                    <div class="meta-table" id="table-owner"></div>
+
+                    <div class="meta-cat-header">
+                        <h3><i class="fas fa-mobile-alt"></i> Mobile & PWA</h3>
+                        <span class="cat-count" id="count-pwa">0</span>
+                    </div>
+                    <div class="meta-table" id="table-pwa"></div>
+
+                    <div class="meta-cat-header">
+                        <h3><i class="fas fa-code"></i> Technical</h3>
+                        <span class="cat-count" id="count-tech">0</span>
+                    </div>
+                    <div class="meta-table" id="table-tech"></div>
+                </div>
+            </div>
+
+            <!-- 2. SOCIAL PREVIEWS -->
+            <div class="res-panel" id="view-social">
+                <div class="preview-grid">
+                    
+                    <!-- Facebook / OG -->
+                    <div class="preview-card facebook">
+                        <div class="platform-label"><i class="fab fa-facebook"></i> Facebook</div>
+                        <div class="fb-preview-box">
+                            <div class="fb-image-container" id="fb-img-div">
+                                <img id="fb-img" src="" alt="OG Image">
+                            </div>
+                            <div class="fb-text">
+                                <div class="fb-domain" id="fb-domain">DOMAIN.COM</div>
+                                <div class="fb-title" id="fb-title">Website Title</div>
+                                <div class="fb-desc" id="fb-desc">Description goes here...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Twitter Large -->
+                    <div class="preview-card twitter">
+                        <div class="platform-label"><i class="fab fa-x-twitter"></i> Twitter / X</div>
+                        <div class="tw-preview-box">
+                            <div class="tw-image-container" id="tw-img-div">
+                                <img id="tw-img" src="" alt="Twitter Image">
+                            </div>
+                            <div class="tw-text">
+                                <div class="tw-title" id="tw-title">Twitter Title</div>
+                                <div class="tw-desc" id="tw-desc">Description text...</div>
+                                <div class="tw-domain" id="tw-domain">domain.com</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LinkedIn -->
+                    <div class="preview-card linkedin">
+                        <div class="platform-label"><i class="fab fa-linkedin"></i> LinkedIn</div>
+                        <div class="li-preview-box">
+                            <div class="li-image-container" id="li-img-div">
+                                <img id="li-img" src="" alt="LinkedIn Image">
+                            </div>
+                            <div class="li-text">
+                                <div class="li-title" id="li-title">Article Title</div>
+                                <div class="li-domain" id="li-domain">domain.com</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slack -->
+                    <div class="preview-card slack">
+                        <div class="platform-label"><i class="fab fa-slack"></i> Slack</div>
+                        <div class="sl-preview-box">
+                            <div class="sl-bar"></div>
+                            <div class="sl-content">
+                                <div class="sl-site-name" id="sl-site-name">Site Name</div>
+                                <div class="sl-title" id="sl-title">Message Title</div>
+                                <div class="sl-desc" id="sl-desc">Description text...</div>
+                                <div class="sl-thumb" id="sl-img-div">
+                                    <img id="sl-img" src="">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- WhatsApp (Modern) -->
+                    <div class="preview-card whatsapp">
+                        <div class="platform-label"><i class="fab fa-whatsapp"></i> WhatsApp</div>
+                        <div class="wa-preview-box-lg">
+                            <div class="wa-bubble-lg">
+                                <div class="wa-image-lg" id="wa-img-div-lg">
+                                    <img id="wa-img-lg" src="">
+                                </div>
+                                <div class="wa-content-lg">
+                                    <div class="wa-title-lg" id="wa-title-lg">Title</div>
+                                    <div class="wa-desc-lg" id="wa-desc-lg">Description text goes here...</div>
+                                    <div class="wa-footer-row">
+                                        <!-- Removed wa-fav-lg as per request -->
+                                        <div class="wa-url-lg" id="wa-url-lg">example.com</div>
+                                    </div>
+                                    
+                                    <!-- Tiny Image Overlay (Updated: Square & Bottom Right) -->
+                                    <div class="wa-tiny-overlay" id="wa-tiny-overlay">
+                                        <img id="wa-tiny-img" src="">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 3. SEARCH ENGINE -->
+            <div class="res-panel" id="view-search">
+                <div class="google-preview-card">
+                    <div class="platform-label"><i class="fab fa-google"></i> Google Mobile Result</div>
+                    <div class="g-result">
+                        <div class="g-head">
+                            <div class="g-favicon"><img id="g-fav" src=""></div>
+                            <div class="g-site-info">
+                                <span class="g-name" id="g-site-name">Site Name</span>
+                                <span class="g-url" id="g-url">https://example.com</span>
+                                <div class="g-breadcrumbs" id="g-breadcrumbs" style="display:none;"></div>
+                            </div>
+                            <i class="fas fa-ellipsis-v g-more-icon"></i>
+                        </div>
+                        <div class="g-title" id="g-title">Page Title Goes Here</div>
+                        <div class="g-desc" id="g-desc">The meta description of the page will appear here in the search results. Ideally between 150-160 characters.</div>
+                        
+                        <!-- Sitelinks Simulation (List Style) -->
+                        <div class="g-sitelinks-list" id="g-sitelinks" style="display:none;">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. ANALYTICS SCANNER -->
+            <div class="res-panel" id="view-analytics">
+                <div class="analytics-card">
+                    <h3><i class="fas fa-chart-line"></i> Detected Tracking Tags</h3>
+                    <p class="section-desc">Scans source code for common analytics IDs (GA4, GTM, Pixel, etc).</p>
+                    <div class="analytics-grid" id="analytics-grid">
+                        <div class="ana-item empty">Run analysis to detect tags.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. ASSETS -->
+            <div class="res-panel" id="view-assets">
+                <div class="assets-grid">
+                    <div class="asset-card">
+                        <h4>Browser Tab</h4>
+                        <div class="browser-tab-mock">
+                            <div class="bt-shape">
+                                <img id="tab-icon" src="" class="bt-icon">
+                                <span id="tab-title" class="bt-text">Page Title</span>
+                                <i class="fas fa-times bt-close"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="asset-card">
+                        <h4>Apple Touch Icon</h4>
+                        <div class="iphone-mock">
+                            <img id="apple-icon" src="" class="app-icon-img">
+                            <span class="app-label">App Name</span>
+                        </div>
+                    </div>
+                    <div class="asset-card">
+                        <h4>Android / Windows</h4>
+                        <div class="win-tile" id="win-tile">
+                            <img id="ms-icon" src="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. JSON-LD -->
+            <div class="res-panel" id="view-jsonld">
+                <div class="json-container" id="json-output">
+                    <!-- Injected via JS -->
+                    <span style="color:#666">No JSON-LD data detected.</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="loader" class="loader-overlay hidden">
+            <div class="spinner"></div>
+            <p>Scanning Metadata...</p>
+        </div>
+
+    </div>
+</main>
+
+<footer class="site-footer">
+<div class="footer-container">
+<div class="footer-brand">
+<a href="https://arlabs07.netlify.app/index.html" class="f-logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub" width="32" height="32">
+ARhub
+</a>
+<p>Innovating with code.</p>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Ecosystem</h3>
+<ul>
+<li><a href="https://arlabs07.netlify.app/app.html">Applications</a></li>
+<li><a href="https://arlabs07.netlify.app/purplepdf.html">PurplePDF</a></li>
+<li><a href="https://arlabs07.netlify.app/ardev.html">ArDev Suite</a></li>
+</ul>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Company</h3>
+<ul>
+<li><a href="https://arlabs07.netlify.app/about.html">About</a></li>
+<li><a href="https://arlabs07.netlify.app/contact.html">Contact</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>&copy; 2026 arlabs07. All rights reserved.</span>
+</div>
+</footer>
+
+<script src="https://arlabs07.netlify.app/js/sitemap.js"></script>
+<script src="https://arlabs07.netlify.app/js/header.js"></script>
+<script>
+  
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- STATE & DOM ---
+    const dom = {
+        tabs: document.querySelectorAll('.tab-btn'),
+        panes: document.querySelectorAll('.tab-content'),
+        urlInput: document.getElementById('target-url'),
+        codeArea: document.getElementById('raw-html'),
+        btnFetch: document.getElementById('btn-fetch'),
+        btnParse: document.getElementById('btn-parse'),
+        resultsArea: document.getElementById('results-area'),
+        loader: document.getElementById('loader'),
+        resTabs: document.querySelectorAll('.res-tab'),
+        resPanes: document.querySelectorAll('.res-panel')
+    };
+
+    let metaData = {};
+
+    // --- EVENT LISTENERS ---
+
+    // Input Tabs
+    dom.tabs.forEach(btn => {
+        btn.addEventListener('click', () => {
+            dom.tabs.forEach(b => b.classList.remove('active'));
+            dom.panes.forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.target).classList.add('active');
+        });
+    });
+
+    // Result Tabs
+    dom.resTabs.forEach(btn => {
+        btn.addEventListener('click', () => {
+            dom.resTabs.forEach(b => b.classList.remove('active'));
+            dom.resPanes.forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
+        });
+    });
+
+    // Actions
+    dom.btnParse.addEventListener('click', () => processHTML(dom.codeArea.value));
+    dom.btnFetch.addEventListener('click', fetchUrl);
+
+    // --- LOGIC ---
+
+    async function fetchUrl() {
+        const url = dom.urlInput.value.trim();
+        if(!url) return alert('Please enter a URL');
+
+        showLoader(true);
+        try {
+            // Using AllOrigins proxy to bypass CORS
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            const data = await response.json();
+            
+            if (data.contents) {
+                processHTML(data.contents, url);
+            } else {
+                throw new Error("No content");
+            }
+        } catch (e) {
+            alert("Could not fetch URL. It might be blocked or invalid. Try pasting the source code manually.");
+            console.error(e);
+        } finally {
+            showLoader(false);
+        }
+    }
+
+    function processHTML(html, baseUrl = '') {
+        if(!html.trim()) return alert("No HTML content to analyze.");
+        
+        dom.resultsArea.classList.remove('hidden');
+        window.scrollTo({ top: dom.resultsArea.offsetTop - 100, behavior: 'smooth' });
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract Data
+        metaData = extractMeta(doc, baseUrl);
+        
+        // Render Views
+        renderIssues(metaData, doc);
+        renderInspector(metaData);
+        renderSocial(metaData);
+        renderSearch(metaData);
+        renderAnalytics(html);
+        renderAssets(metaData);
+        renderJsonLd(doc);
+    }
+
+    function extractMeta(doc, baseUrl) {
+        const getMeta = (name) => {
+            const el = doc.querySelector(`meta[name="${name}"], meta[property="${name}"]`);
+            return el ? el.getAttribute('content') : null;
+        };
+
+        const getLink = (rel) => {
+            const el = doc.querySelector(`link[rel~="${rel}"]`);
+            return el ? resolveUrl(el.getAttribute('href'), baseUrl) : null;
+        };
+
+        // 1. Gather ALL meta tags for Inspector
+        const allTags = [];
+        const metaTags = doc.getElementsByTagName('meta');
+        
+        for(let tag of metaTags) {
+            let name = tag.getAttribute('name') || tag.getAttribute('property') || tag.getAttribute('http-equiv') || tag.getAttribute('charset') || 'unknown';
+            let content = tag.getAttribute('content') || tag.getAttribute('charset') || ''; 
+            
+            // Refined Categorization
+            let category = 'other';
+            
+            if(name.startsWith('og:')) category = 'og';
+            else if(name.startsWith('twitter:')) category = 'twitter';
+            else if(name.startsWith('apple-') || name.includes('mobile') || name === 'theme-color') category = 'pwa';
+            else if(name === 'viewport' || name === 'charset' || name.startsWith('Content-Security') || name === 'referrer' || name.startsWith('google-site') || name.startsWith('msapplication')) category = 'tech';
+            else if(['classification','subject','category','language','rating','distribution','target','audience'].includes(name)) category = 'content';
+            else if(name.startsWith('geo.') || name === 'ICBM') category = 'geo';
+            else if(['author','creator','owner','publisher','copyright','web_author','reply-to','contact'].includes(name)) category = 'owner';
+            else if(['title','description','keywords','robots','generator'].includes(name)) category = 'basic';
+
+            allTags.push({ name, content, category });
+        }
+
+        // 2. Structured Data for Previews
+        const data = {
+            allTags: allTags,
+            
+            // Basics
+            title: doc.title || getMeta('og:title') || getMeta('twitter:title') || 'No Title',
+            desc: getMeta('description') || getMeta('og:description') || 'No description found.',
+            url: getMeta('og:url') || baseUrl || 'example.com',
+            siteName: getMeta('og:site_name') || '',
+            
+            // Tech
+            charset: doc.characterSet, 
+            viewport: getMeta('viewport'),
+            robots: getMeta('robots'),
+            canonical: getLink('canonical'),
+            
+            // Images & Assets
+            ogImage: resolveUrl(getMeta('og:image'), baseUrl),
+            twImage: resolveUrl(getMeta('twitter:image'), baseUrl),
+            favicon: getLink('icon') || getLink('shortcut icon'),
+            appleIcon: getLink('apple-touch-icon') || getLink('apple-touch-icon-precomposed'),
+            msTile: resolveUrl(getMeta('msapplication-TileImage'), baseUrl),
+            
+            // Structured Data
+            breadcrumbs: getBreadcrumbs(doc),
+            sitelinks: getSitelinks(doc),
+        };
+
+        // Fallbacks
+        if(!data.ogImage && data.twitterImage) data.ogImage = data.twitterImage;
+        if(!data.twImage && data.ogImage) data.twImage = data.ogImage;
+        
+        // Domain extraction
+        try {
+            const u = new URL(data.url.startsWith('http') ? data.url : `https://${data.url}`);
+            data.domain = u.hostname;
+        } catch(e) { data.domain = 'domain.com'; }
+
+        return data;
+    }
+
+    // --- JSON-LD HELPERS ---
+
+    function getBreadcrumbs(doc) {
+        const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+        let crumbs = [];
+
+        scripts.forEach(script => {
+            try {
+                const json = JSON.parse(script.innerText);
+                const data = Array.isArray(json) ? json : [json];
+                
+                data.forEach(item => {
+                    if (item['@type'] === 'BreadcrumbList' && Array.isArray(item.itemListElement)) {
+                        const sorted = item.itemListElement.sort((a, b) => a.position - b.position);
+                        crumbs = sorted.map(i => i.name || (i.item ? i.item.name : 'Unknown'));
+                    }
+                });
+            } catch(e) {}
+        });
+        
+        return crumbs.length > 0 ? crumbs : null;
+    }
+
+    function getSitelinks(doc) {
+        const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+        let links = [];
+
+        scripts.forEach(script => {
+            try {
+                const json = JSON.parse(script.innerText);
+                const data = Array.isArray(json) ? json : [json];
+                
+                data.forEach(item => {
+                    if (item['@type'] === 'SiteNavigationElement') {
+                        links.push({ name: item.name, url: item.url });
+                    }
+                    else if (item['@type'] === 'ItemList' && Array.isArray(item.itemListElement)) {
+                        item.itemListElement.forEach(el => {
+                            links.push({ name: el.name, url: el.url });
+                        });
+                    }
+                });
+            } catch(e) {}
+        });
+        
+        return links.slice(0, 6);
+    }
+
+    function resolveUrl(path, base) {
+        if(!path) return '';
+        if(path.startsWith('http') || path.startsWith('data:')) return path;
+        if(!base) return path;
+        try {
+            return new URL(path, base).href;
+        } catch(e) { return path; }
+    }
+
+    // --- RENDERERS ---
+
+    function renderIssues(data, doc) {
+        const container = document.getElementById('issues-list');
+        const badge = document.getElementById('issue-badge');
+        container.innerHTML = '';
+        
+        let issues = [];
+
+        // 1. Basic SEO
+        if (data.title === 'No Title') issues.push({ type: 'error', title: 'Missing Title Tag', msg: 'The page title is missing.' });
+        else if (data.title.length < 30) issues.push({ type: 'warning', title: 'Title Too Short', msg: `Current: ${data.title.length} chars. Recommended: 50-60 chars.` });
+        else if (data.title.length > 60) issues.push({ type: 'warning', title: 'Title Too Long', msg: `Current: ${data.title.length} chars. Google typically truncates after 60.` });
+
+        if (data.desc.includes('No description')) issues.push({ type: 'error', title: 'Missing Meta Description', msg: 'Add a description to improve click-through rates.' });
+        else if (data.desc.length < 100) issues.push({ type: 'warning', title: 'Description Too Short', msg: 'Recommended: 150-160 chars.' });
+        else if (data.desc.length > 160) issues.push({ type: 'warning', title: 'Description Too Long', msg: 'Description may be truncated in search results.' });
+
+        // 2. Technical
+        if (!data.viewport) issues.push({ type: 'error', title: 'Missing Viewport', msg: 'Essential for mobile responsiveness. Add <meta name="viewport" ...>' });
+        if (!doc.querySelector('h1')) issues.push({ type: 'error', title: 'Missing H1 Tag', msg: 'An H1 tag is critical for page structure and SEO.' });
+        if (!data.canonical) issues.push({ type: 'warning', title: 'Missing Canonical Link', msg: 'Canonical tags help prevent duplicate content issues.' });
+        if (!data.favicon) issues.push({ type: 'warning', title: 'Missing Favicon', msg: 'Favicon is missing or not detected.' });
+
+        // 3. Social
+        if (!data.ogImage) issues.push({ type: 'error', title: 'Missing OG Image', msg: 'Social shares will look empty without an image.' });
+        
+        // Update Badge
+        badge.innerText = issues.length;
+        badge.style.background = issues.length > 0 ? (issues.some(i=>i.type==='error') ? '#ff5555' : '#ffb700') : '#00ff88';
+
+        if (issues.length === 0) {
+            container.innerHTML = '<div class="issue-item success"><i class="fas fa-check-circle issue-icon"></i><div class="issue-content"><h4>All Good!</h4><p>No critical issues detected.</p></div></div>';
+            return;
+        }
+
+        issues.forEach(issue => {
+            let icon = issue.type === 'error' ? 'fa-exclamation-circle' : 'fa-exclamation-triangle';
+            let html = `
+                <div class="issue-item ${issue.type}">
+                    <i class="fas ${icon} issue-icon" style="color:var(--issue-color)"></i>
+                    <div class="issue-content">
+                        <h4>${issue.title}</h4>
+                        <p>${issue.msg}</p>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += html;
+        });
+    }
+
+    function renderInspector(data) {
+        const createTable = (tags, id) => {
+            const el = document.getElementById(id);
+            const countEl = document.getElementById(id.replace('table', 'count'));
+            
+            if(!el) return;
+            
+            el.innerHTML = '';
+            const filtered = tags.filter(t => {
+                if(id === 'table-basic') return t.category === 'basic';
+                if(id === 'table-og') return t.category === 'og';
+                if(id === 'table-twitter') return t.category === 'twitter';
+                if(id === 'table-pwa') return t.category === 'pwa';
+                if(id === 'table-content') return t.category === 'content';
+                if(id === 'table-geo') return t.category === 'geo';
+                if(id === 'table-owner') return t.category === 'owner';
+                if(id === 'table-tech') return t.category === 'tech' || t.category === 'other';
+                return false;
+            });
+
+            if(countEl) countEl.innerText = filtered.length;
+
+            if(filtered.length === 0) {
+                el.innerHTML = '<div class="empty-table">No tags found in this category.</div>';
+                return;
+            }
+
+            filtered.forEach(tag => {
+                const row = document.createElement('div');
+                row.className = 'meta-row';
+                
+                let displayContent = tag.content;
+                if(displayContent.length > 80) displayContent = displayContent.substring(0, 80) + '...';
+                if(!displayContent) displayContent = '<span class="empty-val">empty</span>';
+
+                let countBadge = '';
+                if(tag.name === 'title' || tag.name === 'description' || tag.name === 'og:title' || tag.name === 'og:description') {
+                    countBadge = `<span class="char-count">${tag.content.length} chars</span>`;
+                }
+
+                row.innerHTML = `
+                    <div class="meta-key">${tag.name}</div>
+                    <div class="meta-value">
+                        ${displayContent} ${countBadge}
+                    </div>
+                `;
+                el.appendChild(row);
+            });
+        };
+
+        const all = data.allTags;
+        createTable(all, 'table-basic');
+        createTable(all, 'table-og');
+        createTable(all, 'table-twitter');
+        createTable(all, 'table-pwa');
+        createTable(all, 'table-content');
+        createTable(all, 'table-geo');
+        createTable(all, 'table-owner');
+        createTable(all, 'table-tech');
+    }
+
+    function renderSocial(data) {
+        // FB
+        setText('fb-title', data.title);
+        setText('fb-desc', data.desc);
+        setText('fb-domain', data.domain.toUpperCase());
+        setImg('fb-img', data.ogImage || '', 'fb-img-div');
+
+        // Twitter
+        setText('tw-title', data.title);
+        setText('tw-desc', data.desc);
+        setText('tw-domain', data.domain);
+        setImg('tw-img', data.twImage || '', 'tw-img-div');
+
+        // WhatsApp Customization
+        setText('wa-title-lg', data.title);
+        setText('wa-desc-lg', data.desc);
+        setText('wa-url-lg', data.domain);
+        setImg('wa-img-lg', data.ogImage || '', 'wa-img-div-lg');
+        
+        // Remove URL Favicon
+        const waFav = document.getElementById('wa-fav-lg');
+        if(waFav) waFav.style.display = 'none';
+        
+        // Tiny Overlay Image
+        const waTiny = document.getElementById('wa-tiny-img');
+        const waOverlay = document.getElementById('wa-tiny-overlay');
+        
+        if(data.favicon) {
+            waTiny.src = data.favicon;
+            waOverlay.style.display = 'block';
+        } else {
+            waOverlay.style.display = 'none';
+        }
+
+        // LinkedIn
+        setText('li-title', data.title);
+        setText('li-domain', data.domain);
+        setImg('li-img', data.ogImage || '', 'li-img-div');
+
+        // Slack
+        setText('sl-title', data.title);
+        setText('sl-desc', data.desc);
+        setText('sl-site-name', data.siteName || data.domain);
+        setImg('sl-img', data.ogImage || '', 'sl-img-div');
+    }
+
+    function renderSearch(data) {
+        setText('g-title', data.title.length > 60 ? data.title.substring(0, 57) + '...' : data.title);
+        setText('g-desc', data.desc.length > 160 ? data.desc.substring(0, 157) + '...' : data.desc);
+        
+        const urlEl = document.getElementById('g-url');
+        const bcEl = document.getElementById('g-breadcrumbs');
+        const sitelinksEl = document.getElementById('g-sitelinks');
+
+        setText('g-site-name', data.siteName || data.domain);
+
+        // Breadcrumbs
+        if (data.breadcrumbs && data.breadcrumbs.length > 0) {
+            urlEl.style.display = 'none';
+            bcEl.style.display = 'flex';
+            let html = '';
+            data.breadcrumbs.forEach((crumb, idx) => {
+                html += `<span class="g-bc-item">${crumb}</span>`;
+                if(idx < data.breadcrumbs.length - 1) {
+                    html += `<span class="g-bc-sep">›</span>`;
+                }
+            });
+            bcEl.innerHTML = html;
+        } else {
+            urlEl.style.display = 'inline';
+            bcEl.style.display = 'none';
+            urlEl.innerText = data.url;
+        }
+
+        // Sitelinks
+        if (data.sitelinks && data.sitelinks.length > 0) {
+            sitelinksEl.style.display = 'block';
+            let slHtml = '';
+            data.sitelinks.forEach(link => {
+                slHtml += `
+                    <div class="g-sl-row">
+                        <span class="g-sl-text">${link.name}</span>
+                        <i class="fas fa-chevron-right g-sl-arrow"></i>
+                    </div>
+                `;
+            });
+            sitelinksEl.innerHTML = slHtml;
+        } else {
+            sitelinksEl.style.display = 'none';
+        }
+        
+        const fav = document.getElementById('g-fav');
+        if(data.favicon) {
+            fav.src = data.favicon;
+            fav.style.display = 'block';
+        } else {
+            fav.style.display = 'none';
+        }
+    }
+
+    function renderAnalytics(html) {
+        const container = document.getElementById('analytics-grid');
+        container.innerHTML = '';
+
+        const patterns = [
+            { type: 'GA4', label: 'Google Analytics 4', regex: /G-[A-Z0-9]{10,}/g },
+            { type: 'GTM', label: 'Google Tag Manager', regex: /GTM-[A-Z0-9]{6,}/g },
+            { type: 'UA', label: 'Universal Analytics', regex: /UA-[0-9]+-[0-9]+/g },
+            { type: 'Pixel', label: 'Meta Pixel', regex: /fbq\(['"]init['"],\s*['"]([0-9]+)['"]\)/g, group: 1 }
+        ];
+
+        let found = false;
+
+        patterns.forEach(pat => {
+            const matches = [...html.matchAll(pat.regex)];
+            matches.forEach(match => {
+                found = true;
+                const id = pat.group ? match[pat.group] : match[0];
+                const card = document.createElement('div');
+                card.className = 'ana-item';
+                card.innerHTML = `
+                    <div class="ana-label">${pat.label}</div>
+                    <div class="ana-val">${id}</div>
+                    <div class="ana-type"><i class="fas fa-check-circle"></i> Active</div>
+                `;
+                container.appendChild(card);
+            });
+        });
+
+        if(!found) {
+            container.innerHTML = '<div class="ana-item empty">No common tracking tags detected in source.</div>';
+        }
+    }
+
+    function renderAssets(data) {
+        // Tab Icon - Standard Favicon
+        setImg('tab-icon', data.favicon, null, 'display:none');
+        setText('tab-title', data.title);
+        
+        // Apple Touch Icon (Fallback to favicon if missing, but usually distinct)
+        setImg('apple-icon', data.appleIcon || data.favicon, null, 'opacity:0.2');
+        
+        // Microsoft Tile (Windows) - Distinct from favicon
+        setImg('ms-icon', data.msTile || data.favicon, null, 'opacity:0.2');
+    }
+
+    // --- JSON-LD TABULAR VIEWER ---
+    
+    function renderJsonLd(doc) {
+        const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+        const container = document.getElementById('json-output');
+        
+        container.innerHTML = ''; 
+        
+        if(scripts.length === 0) {
+            container.innerHTML = '<span style="color:#666; font-style:italic;">No JSON-LD structured data found on this page.</span>';
+            return;
+        }
+
+        // 1. Flatten all JSON-LD data into a single list of objects
+        let allItems = [];
+        scripts.forEach(script => {
+            try {
+                const json = JSON.parse(script.innerText);
+                if (Array.isArray(json)) {
+                    allItems = [...allItems, ...json];
+                } else {
+                    allItems.push(json);
+                }
+            } catch(e) {
+                console.warn("Invalid JSON-LD block skipped");
+            }
+        });
+
+        if (allItems.length === 0) {
+            container.innerHTML = '<span style="color:#666">JSON-LD data detected but empty or invalid.</span>';
+            return;
+        }
+
+        // 2. Render each item as a collapsible block
+        allItems.forEach((item, index) => {
+            const type = item['@type'] || 'Object';
+            const name = item.name || `Block ${index + 1}`;
+            
+            const block = document.createElement('div');
+            block.className = 'json-block';
+            
+            // Header (Toggle)
+            const header = document.createElement('div');
+            header.className = 'json-block-header';
+            header.innerHTML = `
+                <div class="json-block-title">
+                    <span class="json-type-badge">${type}</span>
+                    <span>${name}</span>
+                </div>
+                <i class="fas fa-chevron-down json-toggle-icon"></i>
+            `;
+            
+            // Content (Hidden)
+            const content = document.createElement('div');
+            content.className = 'json-block-content';
+            
+            // Build Table
+            content.appendChild(buildJsonTable(item));
+
+            // Toggle Logic
+            header.onclick = () => {
+                block.classList.toggle('open');
+            };
+
+            block.appendChild(header);
+            block.appendChild(content);
+            container.appendChild(block);
+        });
+    }
+
+    function buildJsonTable(obj) {
+        const table = document.createElement('div');
+        table.className = 'json-table';
+
+        // Sort keys: @context, @type first, then others
+        const keys = Object.keys(obj).sort((a,b) => {
+            if(a.startsWith('@')) return -1;
+            if(b.startsWith('@')) return 1;
+            return a.localeCompare(b);
+        });
+
+        keys.forEach(key => {
+            const row = document.createElement('div');
+            row.className = 'json-row';
+            
+            const keyCell = document.createElement('div');
+            keyCell.className = 'json-key-cell';
+            keyCell.innerText = key;
+
+            const valCell = document.createElement('div');
+            valCell.className = 'json-val-cell';
+            
+            // Recursively format value
+            valCell.appendChild(formatJsonValue(obj[key]));
+
+            row.appendChild(keyCell);
+            row.appendChild(valCell);
+            table.appendChild(row);
+        });
+
+        return table;
+    }
+
+    function formatJsonValue(val) {
+        // Null
+        if (val === null) {
+            const s = document.createElement('span');
+            s.style.color = '#777'; s.innerText = 'null';
+            return s;
+        }
+        
+        // Primitive
+        if (typeof val !== 'object') {
+            const s = document.createElement('span');
+            if(typeof val === 'string') {
+                s.style.color = '#a5d6ff'; // Blue for string
+                // Detect URL
+                if(val.startsWith('http')) {
+                    s.innerHTML = `<a href="${val}" target="_blank" style="color:#a5d6ff;text-decoration:underline">${val}</a>`;
+                } else {
+                    s.innerText = `"${val}"`;
+                }
+            } else {
+                s.style.color = '#ff9fb3'; // Pink for num/bool
+                s.innerText = val;
+            }
+            return s;
+        }
+
+        // Array
+        if (Array.isArray(val)) {
+            const list = document.createElement('div');
+            list.style.display = 'flex';
+            list.style.flexDirection = 'column';
+            list.style.gap = '8px';
+            
+            val.forEach(item => {
+                // If simple, inline it. If object, nested table.
+                if (typeof item === 'object' && item !== null) {
+                    const nested = buildJsonTable(item);
+                    nested.classList.add('nested-json-table');
+                    list.appendChild(nested);
+                } else {
+                    const wrap = document.createElement('div');
+                    wrap.style.borderLeft = '2px solid #333';
+                    wrap.style.paddingLeft = '8px';
+                    wrap.appendChild(formatJsonValue(item));
+                    list.appendChild(wrap);
+                }
+            });
+            return list;
+        }
+
+        // Object (Nested)
+        const nested = buildJsonTable(val);
+        nested.classList.add('nested-json-table');
+        return nested;
+    }
+
+    // Helpers
+    function setText(id, text) {
+        const el = document.getElementById(id);
+        if(el) el.innerText = text || '';
+    }
+
+    function setImg(id, src, containerId, errorStyle = '') {
+        const img = document.getElementById(id);
+        const div = containerId ? document.getElementById(containerId) : null;
+        
+        if(src) {
+            img.src = src;
+            img.style.display = 'block';
+            if(div) div.style.background = '#000';
+        } else {
+            img.style.display = 'none';
+            if(div) {
+                div.style.background = '#222';
+                div.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:3rem;"><i class="fas fa-image"></i></div>`;
+            }
+        }
+    }
+
+    function showLoader(show) {
+        dom.loader.classList.toggle('hidden', !show);
+    }
+
+});
+
+</script>
+</body>
+</html>
