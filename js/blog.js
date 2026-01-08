@@ -19,6 +19,133 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentCategory = 'All';
     let searchTerm = '';
 
+    // --- MEDIA PLAYER HELPERS (Copied from Course Logic) ---
+    function createVideoPlayer(src) {
+        const container = document.createElement('div');
+        container.className = 'custom-video-player';
+        container.innerHTML = `
+            <video src="${src}" playsinline></video>
+            <div class="video-controls">
+                <button class="play-pause-btn"><i class="fas fa-play"></i></button>
+                <div class="progress-bar-container"><div class="progress-bar-fill"></div></div>
+                <div class="time-display">00:00 / 00:00</div>
+                <button class="fs-btn"><i class="fas fa-expand"></i></button>
+            </div>`;
+        
+        const video = container.querySelector('video');
+        const playBtn = container.querySelector('.play-pause-btn');
+        const barFill = container.querySelector('.progress-bar-fill');
+        const timeD = container.querySelector('.time-display');
+        const fsBtn = container.querySelector('.fs-btn');
+
+        const toggle = () => {
+            if(video.paused) { video.play(); playBtn.innerHTML='<i class="fas fa-pause"></i>'; }
+            else { video.pause(); playBtn.innerHTML='<i class="fas fa-play"></i>'; }
+        };
+        playBtn.onclick = video.onclick = toggle;
+        
+        video.ontimeupdate = () => {
+            barFill.style.width = (video.currentTime/video.duration)*100 + '%';
+            timeD.innerText = formatTime(video.currentTime) + ' / ' + formatTime(video.duration);
+        };
+        
+        fsBtn.onclick = () => {
+            if(container.requestFullscreen) container.requestFullscreen();
+            else if(video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+        };
+
+        return container;
+    }
+
+    function createAudioPlayer(src) {
+        const container = document.createElement('div');
+        container.className = 'custom-audio-player';
+        container.innerHTML = `
+            <audio src="${src}"></audio>
+            <div class="audio-icon-box"><i class="fas fa-music"></i></div>
+            <div class="audio-info">
+                <span class="audio-title">Audio Clip</span>
+                <div class="audio-visualizer"><div class="av-bar"></div><div class="av-bar"></div><div class="av-bar"></div></div>
+            </div>
+            <button class="play-pause-btn" style="color:#00c8ff;font-size:1.5rem;"><i class="fas fa-play-circle"></i></button>`;
+        
+        const audio = container.querySelector('audio');
+        const btn = container.querySelector('.play-pause-btn');
+        
+        btn.onclick = () => {
+            if(audio.paused) { audio.play(); btn.innerHTML='<i class="fas fa-pause-circle"></i>'; container.classList.add('playing'); }
+            else { audio.pause(); btn.innerHTML='<i class="fas fa-play-circle"></i>'; container.classList.remove('playing'); }
+        };
+        return container;
+    }
+
+    function createPDFViewer(src) {
+        const encoded = encodeURIComponent(src);
+        const div = document.createElement('div');
+        div.className = 'pdf-viewer-container';
+        div.innerHTML = `
+            <div class="pdf-toolbar"><span><i class="fas fa-file-pdf"></i> Document</span><a href="${src}" target="_blank" class="pdf-dl-btn">Download</a></div>
+            <iframe src="https://docs.google.com/gview?url=${encoded}&embedded=true" frameborder="0"></iframe>
+        `;
+        return div;
+    }
+
+    function enhanceMedia(root) {
+        // Videos
+        root.querySelectorAll('video').forEach(v => {
+            if(v.closest('.custom-video-player')) return;
+            const src = v.src || v.querySelector('source')?.src;
+            if(src) v.replaceWith(createVideoPlayer(src));
+        });
+        // Audio
+        root.querySelectorAll('audio').forEach(a => {
+            if(a.closest('.custom-audio-player')) return;
+            const src = a.src || a.querySelector('source')?.src;
+            if(src) a.replaceWith(createAudioPlayer(src));
+        });
+        // Images (Lightbox)
+        root.querySelectorAll('img').forEach(img => {
+            if(img.closest('.bc-img-wrap')) return; // Don't lightbox thumbnails
+            img.style.cursor = 'zoom-in';
+            img.onclick = () => {
+                const m = document.createElement('div');
+                m.className = 'lightbox-modal active';
+                m.innerHTML = `<button class="lightbox-close">&times;</button><img src="${img.src}" class="lightbox-img">`;
+                document.body.appendChild(m);
+                m.onclick = (e) => { if(e.target !== m.querySelector('img')) m.remove(); }
+            };
+        });
+        // Docs
+        root.querySelectorAll('a').forEach(a => {
+            const h = a.getAttribute('href');
+            if(h && (h.endsWith('.pdf') || h.endsWith('.doc') || h.endsWith('.docx'))) {
+                a.innerHTML += ' <i class="fas fa-eye"></i>';
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    const m = document.createElement('div');
+                    m.className = 'lightbox-modal active';
+                    const v = createPDFViewer(h);
+                    v.style.cssText = "width:90%; height:80%; background:#1a1a1a;";
+                    v.querySelector('iframe').style.height = "calc(100% - 40px)";
+                    m.appendChild(v);
+                    
+                    const c = document.createElement('button');
+                    c.className='lightbox-close'; c.innerHTML='&times;';
+                    c.onclick=()=>m.remove();
+                    m.appendChild(c);
+                    document.body.appendChild(m);
+                };
+            }
+        });
+    }
+
+    function formatTime(s) {
+        if(isNaN(s)) return "00:00";
+        const m = Math.floor(s/60);
+        const sec = Math.floor(s%60);
+        return `${m}:${sec.toString().padStart(2,'0')}`;
+    }
+
     // --- 2. GRID RENDERING ---
 
     function renderCategories() {
@@ -62,102 +189,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let imgHtml = post.image ? `<div class="bc-img-wrap"><img src="${post.image}" alt="${post.title}" loading="lazy"></div>` : `<div class="bc-img-wrap" style="background:#1a1a1a; display:flex; align-items:center; justify-content:center; color:#333;"><i class="fas fa-newspaper fa-3x"></i></div>`;
 
-            // Updated Meta Structure for horizontal scroll
             card.innerHTML = `
                 ${imgHtml}
                 <div class="bc-content">
                     <div class="bc-meta">
-                        <span>${post.category}</span>
-                        <span>•</span>
-                        <span>${post.date}</span>
-                        <span>•</span>
-                        <span>By ${post.author}</span>
+                        <span>${post.category}</span>•<span>${post.date}</span>
                     </div>
                     <h3 class="bc-title">${post.title}</h3>
                     <p class="bc-summary">${post.summary}</p>
                     <div class="bc-footer">
                         <span>${post.readTime}</span>
-                        <span class="read-btn">Read Article <i class="fas fa-arrow-right"></i></span>
+                        <span class="read-btn">Read <i class="fas fa-arrow-right"></i></span>
                     </div>
                 </div>
             `;
-            card.addEventListener('click', () => { window.location.hash = post.id; });
+            // Safe Nav
+            card.addEventListener('click', () => { 
+                try { window.location.hash = post.id; } catch(e) {}
+            });
             blogGrid.appendChild(card);
         });
     }
 
-    // --- 3. READER RENDERING (With Sticky TOC) ---
+    // --- 3. READER RENDERING ---
 
     function renderReader(postId) {
         const post = blogs.find(b => b.id === postId);
-        if(!post) { window.location.hash = ''; return; }
+        if(!post) { try{window.location.hash = '';}catch(e){} return; }
         if(!brContainer) return;
 
         let imgHtml = post.image ? `<div class="br-image"><img src="${post.image}" alt="${post.title}"></div>` : '';
 
-        // Generate IDs for Headers in Content to link TOC
+        // Generate IDs for headers
         let content = post.content;
         const headers = [];
-        
-        // Regex to find h2, h3 and inject IDs
-        // NOTE: This is a simple parser. For production, DOMParser is safer.
         let hCount = 0;
         content = content.replace(/<(h[2-3])>(.*?)<\/\1>/gi, (match, tag, text) => {
             const id = `section-${hCount++}`;
-            // Strip tags from text for TOC display
             const cleanText = text.replace(/<[^>]*>?/gm, '');
             headers.push({ id, text: cleanText, tag });
             return `<${tag} id="${id}">${text}</${tag}>`;
         });
 
-        // Build UI
         brContainer.innerHTML = `
             <div class="br-header">
                 <div class="br-meta">
-                    <span>${post.category}</span>
-                    <span>•</span>
-                    <span>${post.date}</span>
-                    <span>•</span>
-                    <span>By ${post.author}</span>
+                    <span>${post.category}</span>•<span>${post.date}</span>•<span>By ${post.author}</span>
                 </div>
                 <h1 class="br-title">${post.title}</h1>
             </div>
             ${imgHtml}
             
-            <!-- Action Bar (Updated: Socials & Share only) -->
-            <div class="blog-action-bar">
-                <div class="action-group">
-                    <button class="action-btn" title="Share on X (Twitter)" onclick="window.open('https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(window.location.href)}', '_blank')">
-                        <i class="fab fa-x-twitter"></i>
-                    </button>
-                    <button class="action-btn" title="Share on LinkedIn" onclick="window.open('https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}', '_blank')">
-                        <i class="fab fa-linkedin"></i>
-                    </button>
-                    <button class="action-btn" title="Share on WhatsApp" onclick="window.open('https://wa.me/?text=${encodeURIComponent(post.title + ' ' + window.location.href)}', '_blank')">
-                        <i class="fab fa-whatsapp"></i>
-                    </button>
-                    <button class="action-btn" title="Share on Reddit" onclick="window.open('https://www.reddit.com/submit?url=${encodeURIComponent(window.location.href)}&title=${encodeURIComponent(post.title)}', '_blank')">
-                        <i class="fab fa-reddit-alien"></i>
-                    </button>
-                    <button class="action-btn" title="Share on Instagram" onclick="alert('Open Instagram app to share this link!')">
-                        <i class="fab fa-instagram"></i>
-                    </button>
-                </div>
-                
-                <div class="action-group">
-                    <button class="action-btn" title="More Options" onclick="navigator.share ? navigator.share({title: '${post.title}', url: window.location.href}) : alert('Share menu not supported on this device.')">
-                        <i class="fas fa-share-nodes"></i> <span>Share</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Sticky TOC Bar -->
             <div class="sticky-toc-bar" id="sticky-toc">
                 <div class="toc-current" id="toc-active-text">Introduction</div>
                 <button class="toc-toggle" id="toc-btn"><i class="fas fa-chevron-down"></i></button>
-                <div class="toc-dropdown" id="toc-list">
-                    <!-- JS Injected -->
-                </div>
+                <div class="toc-dropdown" id="toc-list"></div>
             </div>
 
             <div class="br-content" id="article-content">
@@ -165,22 +251,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
-        // Scroll to top
         window.scrollTo(0, 0);
 
-        // --- Post-Render: Libraries ---
+        // Apply Media Enhancements
+        enhanceMedia(document.getElementById('article-content'));
+
+        // Post-Render Libraries
         if(window.mermaid) mermaid.init();
         if(window.Prism) Prism.highlightAll();
         if(window.renderMathInElement) {
             renderMathInElement(document.getElementById('article-content'), {
-                delimiters: [
-                    {left: '$$', right: '$$', display: true},
-                    {left: '$', right: '$', display: false}
-                ]
+                delimiters: [ {left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false} ]
             });
         }
 
-        // --- TOC Logic ---
         setupTOC(headers);
     }
 
@@ -194,14 +278,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Populate Dropdown
         headers.forEach(h => {
             const item = document.createElement('div');
             item.className = 'toc-item';
             item.innerText = h.text;
-            // Indent h3
             if(h.tag === 'h3') item.style.paddingLeft = '25px';
-            
             item.onclick = () => {
                 document.getElementById(h.id).scrollIntoView({behavior: 'smooth', block: 'start'});
                 tocList.classList.remove('active');
@@ -209,32 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tocList.appendChild(item);
         });
 
-        // Toggle
         tocBtn.onclick = () => tocList.classList.toggle('active');
         document.querySelector('.toc-current').onclick = () => tocList.classList.toggle('active');
-
-        // ScrollSpy
-        const observerOptions = { root: null, rootMargin: '-100px 0px -70% 0px', threshold: 0 };
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const id = entry.target.id;
-                    const header = headers.find(h => h.id === id);
-                    if(header) {
-                        tocActiveText.innerText = header.text;
-                        // Update dropdown active class
-                        Array.from(tocList.children).forEach(child => {
-                            child.classList.toggle('active', child.innerText === header.text);
-                        });
-                    }
-                }
-            });
-        }, observerOptions);
-
-        headers.forEach(h => {
-            const el = document.getElementById(h.id);
-            if(el) observer.observe(el);
-        });
     }
 
     // --- 4. ROUTING ---
@@ -265,4 +322,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
     init();
 });
-      
