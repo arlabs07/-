@@ -1,0 +1,1073 @@
+
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<meta name="theme-color" content="#050505">
+<title>OptiFit | ARhub Ecosystem</title>
+<meta name="description" content="Precision calculator for BMI, Body Fat, and Ideal Weight using multiple medical algorithms (Navy, Devine, Robinson, Miller) for highest accuracy.">
+<link rel="icon" type="image/x-icon" href="https://arlabs07.netlify.app/images/index/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- Core Styles -->
+<link rel="stylesheet" href="https://arlabs07.netlify.app/css/header.css">
+<link rel="stylesheet" href="https://arlabs07.netlify.app/css/footer.css">
+<style>
+    /* Global Reset & Box Sizing */
+    *, ::after, ::before { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+        background-color: #050505;
+        font-family: 'Outfit', sans-serif;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        overflow-x: hidden; 
+        width: 100%;
+    }
+
+    /* Breadcrumb Styles */
+    .breadcrumb-section {
+        margin-top: 80px; /* Header clearance */
+        padding: 15px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.02);
+        width: 100%;
+    }
+
+    .breadcrumb-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.85rem;
+        color: #888;
+        font-family: 'JetBrains Mono', monospace;
+        flex-wrap: wrap; 
+    }
+
+    .bc-link { color: #888; text-decoration: none; transition: color 0.2s; }
+    .bc-link:hover { color: #fff; }
+    .bc-sep { color: #444; font-size: 0.8rem; }
+    .bc-current { color: #00c8ff; }
+
+    /* OptiFit App Specific Styles */
+    :root {
+      --primary: #8a2be2;
+      --glow: rgba(138, 43, 226, 0.5);
+      --bg-card: rgba(30, 30, 30, 0.6);
+      --bg-input: rgba(0, 0, 0, 0.3);
+      --text-muted: #aaa;
+    }
+
+    .app-main {
+        flex: 1;
+        max-width: 900px;
+        margin: 0 auto;
+        width: 100%;
+        padding: 40px 20px;
+        position: relative;
+    }
+
+    .app-header-center {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .app-h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        background: linear-gradient(90deg, var(--primary), #ff6b6b);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-weight: 800;
+    }
+
+    .app-desc {
+        color: var(--text-muted);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      overflow: hidden;
+      background-color: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .3s ease;
+      border: none;
+      background: transparent;
+      color: #888;
+      font-weight: 600;
+      font-family: 'Outfit', sans-serif;
+    }
+    
+    .tab:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.02);
+    }
+
+    .tab.active {
+      background-color: rgba(138, 43, 226, 0.1);
+      color: var(--primary);
+      font-weight: 700;
+      border-bottom: 2px solid var(--primary);
+    }
+
+    /* Calculator Card */
+    .calculator {
+      background-color: var(--bg-card);
+      padding: 30px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      margin-bottom: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #ddd;
+      font-size: 0.9rem;
+    }
+    
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background-color: var(--bg-input);
+      color: #fff;
+      font-size: 1rem;
+      font-family: 'Outfit', sans-serif;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    
+    input:focus {
+      outline: 0;
+      border-color: var(--primary);
+      box-shadow: 0 0 15px var(--glow);
+    }
+
+    /* Custom Dropdown Styling */
+    .custom-select {
+        position: relative;
+        width: 100%;
+        user-select: none;
+    }
+
+    .select-trigger {
+        background-color: var(--bg-input);
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.1);
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s;
+        color: #888; /* Placeholder color */
+    }
+    
+    .select-trigger.has-value {
+        color: #fff;
+    }
+
+    .select-trigger:hover {
+        border-color: rgba(138, 43, 226, 0.5);
+    }
+
+    .select-trigger i {
+        font-size: 0.8rem;
+        transition: transform 0.3s;
+    }
+    
+    .custom-select.open .select-trigger {
+        border-color: var(--primary);
+        box-shadow: 0 0 15px var(--glow);
+    }
+    
+    .custom-select.open .select-trigger i {
+        transform: rotate(180deg);
+    }
+
+    .options-overlay {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: 100%;
+        max-height: 200px;
+        overflow-y: auto;
+        background: #1a1a1a;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s ease;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    }
+    
+    .custom-select.open .options-overlay {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    
+    .option {
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        transition: background 0.2s;
+        font-size: 0.95rem;
+        color: #ccc;
+    }
+    
+    .option:last-child { border-bottom: none; }
+    
+    .option:hover { background: rgba(138, 43, 226, 0.1); color: #fff; }
+    .option.selected { color: var(--primary); background: rgba(138, 43, 226, 0.05); }
+
+    .row {
+      display: flex;
+      gap: 15px;
+    }
+    
+    .col {
+      flex: 1;
+    }
+    
+    /* Button */
+    .glow-button {
+      display: block;
+      padding: 16px 30px;
+      background: linear-gradient(135deg, #8a2be2, #ff6b6b);
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+      text-align: center;
+      transition: all .3s ease;
+      width: 100%;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 10px;
+    }
+    
+    .glow-button:hover {
+      box-shadow: 0 0 25px rgba(138, 43, 226, 0.4);
+      transform: translateY(-2px);
+    }
+    
+    /* Results Area */
+    .result {
+      padding: 25px;
+      border-radius: 12px;
+      text-align: center;
+      margin-top: 30px;
+      background-color: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.05);
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .result h3 {
+      font-size: 1.4rem;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    
+    .result-value {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin: 15px 0;
+      color: var(--primary);
+      text-shadow: 0 0 20px var(--glow);
+    }
+    
+    .result-category {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #ddd;
+    }
+    
+    .formula-details {
+        font-size: 0.85rem;
+        color: #888;
+        margin-top: 10px;
+        background: rgba(255,255,255,0.03);
+        padding: 10px;
+        border-radius: 8px;
+        display: inline-block;
+    }
+
+    /* BMI Scale */
+    .bmi-scale {
+      display: flex;
+      justify-content: space-between;
+      margin: 30px 0 10px 0;
+      position: relative;
+      height: 10px;
+      background: linear-gradient(to right, #3498db, #2ecc71, #f1c40f, #e67e22, #e74c3c);
+      border-radius: 50px;
+    }
+    
+    .bmi-marker {
+      position: absolute;
+      width: 4px;
+      height: 20px;
+      background-color: #fff;
+      top: -5px;
+      transform: translateX(-50%);
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      transition: left 0.5s ease-out;
+    }
+    
+    .bmi-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: .8rem;
+      color: #888;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .recommendations {
+      margin-top: 25px;
+      padding: 15px;
+      border-left: 4px solid var(--primary);
+      background-color: rgba(138, 43, 226, 0.05);
+      text-align: left;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    /* Unit Toggle */
+    .units-toggle {
+      display: flex;
+      margin: 0 auto 30px auto;
+      background-color: rgba(255,255,255,0.05);
+      border-radius: 50px;
+      padding: 4px;
+      width: fit-content;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .unit-option {
+      padding: 8px 25px;
+      cursor: pointer;
+      border-radius: 50px;
+      transition: all .3s ease;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+    
+    .unit-option.active {
+      background-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    /* History */
+    .history-item {
+      padding: 15px;
+      margin-bottom: 10px;
+      background-color: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .history-date {
+      color: #666;
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    #history-list {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    
+    .clear-history {
+      background: transparent;
+      color: #ff6b6b;
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .clear-history:hover {
+        background: rgba(255, 107, 107, 0.1);
+    }
+    
+    /* Notification Toast */
+    .notification-container {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+    }
+
+    .toast {
+        background: rgba(20, 20, 20, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px 24px;
+        border-radius: 50px;
+        color: #fff;
+        font-size: 0.95rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        backdrop-filter: blur(10px);
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { border-color: #ff6b6b; color: #ff6b6b; }
+    .toast.success { border-color: #2ecc71; color: #2ecc71; }
+    .toast i { font-size: 1.1rem; }
+
+</style>
+</head>
+<body>
+
+<!-- Global Header -->
+<header class="header">
+<div class="header-inner">
+<a href="https://arlabs07.netlify.app/index.html" class="logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub Logo" width="32" height="32">
+ARhub
+</a>
+<nav class="nav-links">
+<a href="https://arlabs07.netlify.app/index.html">Overview</a>
+<a href="https://arlabs07.netlify.app/app.html" class="active">Apps</a>
+<a href="https://arlabs07.netlify.app/about.html">About</a>
+</nav>
+<div class="header-actions">
+<button class="menu-toggle"><i class="fas fa-bars"></i></button>
+</div>
+</div>
+</header>
+
+<!-- Breadcrumbs -->
+<div class="breadcrumb-section">
+    <div class="breadcrumb-inner">
+        <a href="https://arlabs07.netlify.app/index.html" class="bc-link">ARhub</a>
+        <span class="bc-sep">/</span>
+        <a href="https://arlabs07.netlify.app/app.html" class="bc-link">App</a>
+        <span class="bc-sep">/</span>
+        <span class="bc-current">OptiFit</span>
+    </div>
+</div>
+
+<main class="app-main">
+    <div class="app-header-center">
+      <h1 class="app-h1">OptiFit</h1>
+      <p class="app-desc">Precision Calculator. Uses Navy & BMI Methods for Body Fat & 4 Medical Algorithms for Ideal Weight.</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="calculator">BMI</button>
+        <button class="tab" data-tab="body-fat">Body Fat</button>
+        <button class="tab" data-tab="ideal-weight">Ideal Weight</button>
+        <button class="tab" data-tab="history">History</button>
+    </div>
+
+    <!-- BMI Tab -->
+    <div id="calculator" class="tab-content active">
+      <div class="calculator">
+        <div class="units-toggle">
+          <div class="unit-option active" data-unit="metric">Metric</div>
+          <div class="unit-option" data-unit="imperial">Imperial</div>
+        </div>
+        
+        <div id="metric-form">
+          <div class="form-group">
+              <label for="weight">Weight (kg)</label>
+              <input type="number" id="weight" placeholder="e.g. 70" min="1" max="600" step="0.1">
+          </div>
+          <div class="form-group">
+              <label for="height">Height (cm)</label>
+              <input type="number" id="height" placeholder="e.g. 175" min="30" max="300" step="0.1">
+          </div>
+        </div>
+        
+        <div id="imperial-form" style="display:none">
+          <div class="form-group">
+              <label for="weight-lb">Weight (lb)</label>
+              <input type="number" id="weight-lb" placeholder="e.g. 150" min="2" max="1000" step="0.1">
+          </div>
+          <div class="row">
+            <div class="col">
+              <div class="form-group">
+                <label for="height-ft">Height (ft)</label>
+                <input type="number" id="height-ft" placeholder="ft" min="1" max="9" step="1">
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="height-in">Height (in)</label>
+                <input type="number" id="height-in" placeholder="in" min="0" max="11" step="0.1">
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" placeholder="Years" min="2" max="120">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Gender</label>
+                    <div class="custom-select" id="gender-bmi" data-value="">
+                        <div class="select-trigger"><span>Select</span><i class="fas fa-chevron-down"></i></div>
+                        <div class="options-overlay">
+                            <div class="option" data-value="male">Male</div>
+                            <div class="option" data-value="female">Female</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="glow-button" id="calculate-bmi">Calculate BMI</button>
+        
+        <div class="result" id="bmi-result">
+          <h3>Average BMI</h3>
+          <div class="result-value" id="bmi-value">--</div>
+          <div class="result-category" id="bmi-category">--</div>
+          
+          <div class="formula-details">
+             Standard: <span id="val-bmi-std" style="color:#fff">--</span> | 
+             New (Oxford): <span id="val-bmi-new" style="color:#fff">--</span>
+          </div>
+
+          <div class="bmi-scale">
+            <div class="bmi-marker" id="bmi-marker"></div>
+          </div>
+          <div class="bmi-labels">
+            <span>15</span><span>18.5</span><span>25</span><span>30</span><span>35</span><span>40</span>
+          </div>
+          <div class="recommendations" id="bmi-recommendations"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body Fat Tab -->
+    <div id="body-fat" class="tab-content">
+      <div class="calculator">
+        <p style="font-size:0.8rem; color:#888; margin-bottom:15px; text-align:center;">Calculates average using U.S. Navy Method & BMI Method.</p>
+        
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label for="bf-age">Age</label>
+                    <input type="number" id="bf-age" placeholder="Years" min="10" max="100">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label for="bf-weight">Weight (kg)</label>
+                    <input type="number" id="bf-weight" placeholder="kg" min="20" max="300" step="0.1">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="waist">Waist (cm)</label>
+            <input type="number" id="waist" placeholder="At navel level" min="20" max="250" step="0.1">
+        </div>
+        <div class="form-group">
+            <label for="neck">Neck (cm)</label>
+            <input type="number" id="neck" placeholder="Below Adam's apple" min="15" max="80" step="0.1">
+        </div>
+        <div class="form-group" id="hip-container" style="display:none;">
+            <label for="hip">Hip (cm)</label>
+            <input type="number" id="hip" placeholder="At widest point" min="30" max="250" step="0.1">
+        </div>
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label for="bf-height">Height (cm)</label>
+                    <input type="number" id="bf-height" placeholder="Height" min="30" max="300" step="0.1">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Gender</label>
+                    <div class="custom-select" id="gender-bf" data-value="">
+                        <div class="select-trigger"><span>Select</span><i class="fas fa-chevron-down"></i></div>
+                        <div class="options-overlay">
+                            <div class="option" data-value="male">Male</div>
+                            <div class="option" data-value="female">Female</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button class="glow-button" id="calculate-body-fat">Calculate Body Fat</button>
+        
+        <div class="result" id="body-fat-result">
+          <h3>Estimated Body Fat</h3>
+          <div class="result-value" id="body-fat-value">--</div>
+          <div class="result-category" id="body-fat-category">--</div>
+          
+          <div class="formula-details">
+             Navy Method: <span id="val-bf-navy" style="color:#fff">--</span> | 
+             BMI Method: <span id="val-bf-bmi" style="color:#fff">--</span>
+          </div>
+
+          <div class="recommendations" id="body-fat-recommendations"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ideal Weight Tab -->
+    <div id="ideal-weight" class="tab-content">
+      <div class="calculator">
+        <p style="font-size:0.8rem; color:#888; margin-bottom:15px; text-align:center;">Consensus of Devine, Robinson, Miller & Hamwi Formulas.</p>
+        
+        <div class="form-group">
+            <label for="iw-height">Height (cm)</label>
+            <input type="number" id="iw-height" placeholder="Enter height" min="30" max="300" step="0.1">
+        </div>
+        <div class="form-group">
+            <label>Gender</label>
+            <div class="custom-select" id="gender-iw" data-value="">
+                <div class="select-trigger"><span>Select</span><i class="fas fa-chevron-down"></i></div>
+                <div class="options-overlay">
+                    <div class="option" data-value="male">Male</div>
+                    <div class="option" data-value="female">Female</div>
+                </div>
+            </div>
+        </div>
+        
+        <button class="glow-button" id="calculate-ideal-weight">Calculate Ideal Weight</button>
+        
+        <div class="result" id="ideal-weight-result">
+          <h3>Ideal Body Weight</h3>
+          <div class="result-value" id="ideal-weight-value">--</div>
+          <div style="font-size:0.9rem; color:#888; margin-top:10px;">
+             Devine: <span id="val-iw-devine" style="color:#fff">--</span> | 
+             Robinson: <span id="val-iw-robinson" style="color:#fff">--</span> <br>
+             Miller: <span id="val-iw-miller" style="color:#fff">--</span> | 
+             Hamwi: <span id="val-iw-hamwi" style="color:#fff">--</span>
+          </div>
+          <div class="recommendations" id="ideal-weight-recommendations"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Tab -->
+    <div id="history" class="tab-content">
+      <div class="calculator">
+        <h3 style="color:#fff; margin-bottom:15px; text-align:center;">Your History</h3>
+        <div id="history-list"></div>
+        <button class="clear-history" id="clear-history">Clear History</button>
+      </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="notification-container" id="notification-container"></div>
+
+</main>
+
+<footer class="site-footer">
+<div class="footer-container">
+<div class="footer-brand">
+<a href="https://arlabs07.netlify.app/index.html" class="f-logo">
+<img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub" width="32" height="32">
+ARhub
+</a>
+<p>Innovating with code.</p>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Ecosystem</h3>
+<ul>
+<li><a href="https://arlabs07.netlify.app/app.html">Applications</a></li>
+<li><a href="https://arlabs07.netlify.app/purplepdf.html">PurplePDF</a></li>
+<li><a href="https://arlabs07.netlify.app/ardev.html">ArDev Suite</a></li>
+</ul>
+</div>
+<div class="footer-links">
+<h3 class="footer-heading">Company</h3>
+<ul>
+<li><a href="https://arlabs07.netlify.app/about.html">About</a></li>
+<li><a href="https://arlabs07.netlify.app/contact.html">Contact</a></li>
+</ul>
+</div>
+</div>
+<div class="footer-bottom">
+<span>&copy; 2026 arlabs07. All rights reserved.</span>
+</div>
+</footer>
+
+<script src="https://arlabs07.netlify.app/js/sitemap.js"></script>
+<script src="https://arlabs07.netlify.app/js/header.js"></script>
+<script>
+    // --- NOTIFICATION SYSTEM ---
+    function showNotification(msg, type = 'error') {
+        const container = document.getElementById('notification-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle';
+        toast.innerHTML = `<i class="fas ${icon}"></i> <span>${msg}</span>`;
+        container.appendChild(toast);
+        
+        // Trigger reflow for animation
+        void toast.offsetWidth;
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // --- CUSTOM SELECT LOGIC ---
+    function initCustomSelects() {
+        document.querySelectorAll('.custom-select').forEach(el => {
+            const trigger = el.querySelector('.select-trigger');
+            const options = el.querySelectorAll('.option');
+            const triggerText = trigger.querySelector('span');
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close others
+                document.querySelectorAll('.custom-select').forEach(other => {
+                    if(other !== el) other.classList.remove('open');
+                });
+                el.classList.toggle('open');
+            });
+
+            options.forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const val = opt.getAttribute('data-value');
+                    const text = opt.innerText;
+                    
+                    el.setAttribute('data-value', val);
+                    triggerText.innerText = text;
+                    trigger.classList.add('has-value');
+                    
+                    // Update visual selection
+                    options.forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    el.classList.remove('open');
+
+                    // Special Logic for Body Fat Gender
+                    if(el.id === 'gender-bf') {
+                        document.getElementById('hip-container').style.display = (val === 'female') ? 'block' : 'none';
+                    }
+                });
+            });
+        });
+
+        // Close on click outside
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.custom-select').forEach(el => el.classList.remove('open'));
+        });
+    }
+
+    // --- HISTORY MANAGEMENT ---
+    function saveToHistory(entry) {
+      let history = JSON.parse(localStorage.getItem("fitHistory")) || [];
+      history.unshift(entry);
+      if (history.length > 20) history = history.slice(0, 20);
+      localStorage.setItem("fitHistory", JSON.stringify(history));
+      updateHistoryDisplay();
+    }
+    
+    function updateHistoryDisplay() {
+      let list = document.getElementById("history-list");
+      list.innerHTML = "";
+      let history = JSON.parse(localStorage.getItem("fitHistory")) || [];
+      
+      if (history.length > 0) {
+          history.forEach(item => {
+            let date = new Date(item.date);
+            let dateStr = `${date.toLocaleDateString()}`;
+            let div = document.createElement("div");
+            div.className = "history-item";
+            
+            let details = '';
+            if(item.type === 'BMI') details = `${item.val} (${item.cat})`;
+            else if(item.type === 'Body Fat') details = `${item.val}% (${item.cat})`;
+            else details = `${item.val} kg`;
+
+            div.innerHTML = `
+                <div>
+                    <strong style="color:var(--primary)">${item.type}</strong>
+                    <div style="font-size:0.9rem; margin-top:2px; color:#fff;">${details}</div>
+                </div>
+                <div class="history-date">${dateStr}</div>
+            `;
+            list.appendChild(div);
+          });
+      } else {
+          list.innerHTML = "<p style='text-align:center; color:#666;'>No records yet.</p>";
+      }
+    }
+
+    // --- CALCULATION LOGIC ---
+
+    document.addEventListener("DOMContentLoaded", function() {
+          initCustomSelects();
+          updateHistoryDisplay();
+
+          // Tabs
+          document.querySelectorAll(".tab").forEach(el => {
+              el.addEventListener("click", () => {
+                    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+                    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+                    el.classList.add("active");
+                    document.getElementById(el.dataset.tab).classList.add("active");
+              });
+          });
+
+          // Units Toggle
+          document.querySelectorAll(".unit-option").forEach(el => {
+                el.addEventListener("click", () => {
+                    document.querySelectorAll(".unit-option").forEach(u => u.classList.remove("active"));
+                    el.classList.add("active");
+                    const isMetric = el.dataset.unit === "metric";
+                    document.getElementById("metric-form").style.display = isMetric ? "block" : "none";
+                    document.getElementById("imperial-form").style.display = isMetric ? "none" : "block";
+                });
+          });
+
+          // 1. BMI CALCULATOR (Standard + New)
+          document.getElementById("calculate-bmi").addEventListener("click", function() {
+                let weight, height;
+                const isMetric = document.querySelector(".unit-option.active").dataset.unit === "metric";
+                
+                if (isMetric) {
+                    const wInput = document.getElementById("weight").value;
+                    const hInput = document.getElementById("height").value;
+                    if(!wInput || !hInput) return showNotification("Please enter weight and height.");
+                    weight = parseFloat(wInput);
+                    height = parseFloat(hInput) / 100; // cm to m
+                } else {
+                    const wLb = document.getElementById("weight-lb").value;
+                    const hFt = document.getElementById("height-ft").value;
+                    const hIn = document.getElementById("height-in").value;
+                    if(!wLb || !hFt) return showNotification("Please enter weight and height.");
+                    
+                    weight = parseFloat(wLb) * 0.453592;
+                    let inches = parseFloat(hIn) || 0;
+                    height = ((parseFloat(hFt) * 12) + inches) * 0.0254;
+                }
+
+                if(weight <= 0 || height <= 0) return showNotification("Values must be positive.");
+
+                // Standard BMI = kg / m^2
+                const bmiStandard = weight / (height * height);
+                
+                // New BMI (Oxford/Trefethen) = 1.3 * kg / m^2.5
+                const bmiNew = (1.3 * weight) / Math.pow(height, 2.5);
+                
+                const bmiAvg = (bmiStandard + bmiNew) / 2;
+
+                let category = "", pos = 0;
+                // Use average for classification
+                if (bmiAvg < 18.5) { category = "Underweight"; pos = 15; }
+                else if (bmiAvg < 25) { category = "Normal"; pos = 40; }
+                else if (bmiAvg < 30) { category = "Overweight"; pos = 65; }
+                else { category = "Obese"; pos = 90; }
+
+                // Display
+                const resDiv = document.getElementById("bmi-result");
+                document.getElementById("bmi-value").textContent = bmiAvg.toFixed(1);
+                document.getElementById("bmi-category").textContent = category;
+                
+                // Details
+                document.getElementById("val-bmi-std").textContent = bmiStandard.toFixed(1);
+                document.getElementById("val-bmi-new").textContent = bmiNew.toFixed(1);
+
+                document.getElementById("bmi-marker").style.left = `${Math.min(pos, 100)}%`;
+                
+                const minW = (18.5 * height * height).toFixed(1);
+                const maxW = (24.9 * height * height).toFixed(1);
+                document.getElementById("bmi-recommendations").innerHTML = `Healthy weight range for your height: <strong style="color:#fff">${minW} - ${maxW} kg</strong>`;
+                
+                resDiv.style.display = "block";
+                saveToHistory({ type: "BMI", val: bmiAvg.toFixed(1), cat: category, date: new Date() });
+          });
+
+          // 2. BODY FAT (Navy + BMI Method)
+          document.getElementById("calculate-body-fat").addEventListener("click", function() {
+                const gender = document.getElementById("gender-bf").getAttribute("data-value");
+                if(!gender) return showNotification("Please select gender.");
+
+                const waist = parseFloat(document.getElementById("waist").value);
+                const neck = parseFloat(document.getElementById("neck").value);
+                const height = parseFloat(document.getElementById("bf-height").value);
+                const age = parseFloat(document.getElementById("bf-age").value);
+                const weight = parseFloat(document.getElementById("bf-weight").value);
+                
+                if(!waist || !neck || !height || !age || !weight) return showNotification("Please fill all fields (Age & Weight included).");
+                
+                // 1. Navy Method
+                let bfNavy = 0;
+                if (gender === 'male') {
+                    if (waist - neck <= 0) return showNotification("Waist must be larger than neck.");
+                    bfNavy = 495 / (1.0324 - 0.19077 * Math.log10(waist - neck) + 0.15456 * Math.log10(height)) - 450;
+                } else {
+                    const hip = parseFloat(document.getElementById("hip").value);
+                    if(!hip) return showNotification("Please enter hip circumference.");
+                    if ((waist + hip - neck) <= 0) return showNotification("Check measurements. Invalid calculation.");
+                    bfNavy = 495 / (1.29579 - 0.35004 * Math.log10(waist + hip - neck) + 0.22100 * Math.log10(height)) - 450;
+                }
+
+                // 2. BMI Method (Deurenberg)
+                // BF% = (1.20 * BMI) + (0.23 * Age) - (10.8 * Sex) - 5.4
+                // Sex: Male = 1, Female = 0
+                const heightM = height / 100;
+                const bmi = weight / (heightM * heightM);
+                const sexFactor = (gender === 'male') ? 1 : 0;
+                const bfBMI = (1.20 * bmi) + (0.23 * age) - (10.8 * sexFactor) - 5.4;
+
+                // Average
+                let bfAvg = (bfNavy + bfBMI) / 2;
+
+                if (bfAvg < 2 || bfAvg > 70) return showNotification("Result out of realistic range. Check inputs.");
+
+                // Categorization (ACE Standard)
+                let cat = "Average";
+                if(gender === 'male') {
+                    if(bfAvg < 6) cat = "Essential Fat";
+                    else if(bfAvg < 14) cat = "Athletes";
+                    else if(bfAvg < 18) cat = "Fitness";
+                    else if(bfAvg < 25) cat = "Average";
+                    else cat = "Obese";
+                } else {
+                    if(bfAvg < 14) cat = "Essential Fat";
+                    else if(bfAvg < 21) cat = "Athletes";
+                    else if(bfAvg < 25) cat = "Fitness";
+                    else if(bfAvg < 32) cat = "Average";
+                    else cat = "Obese";
+                }
+
+                document.getElementById("body-fat-value").textContent = bfAvg.toFixed(1) + "%";
+                document.getElementById("val-bf-navy").textContent = bfNavy.toFixed(1) + "%";
+                document.getElementById("val-bf-bmi").textContent = bfBMI.toFixed(1) + "%";
+                
+                document.getElementById("body-fat-category").textContent = cat;
+                document.getElementById("body-fat-recommendations").innerText = "Averaged from U.S. Navy & BMI Deurenberg Formulas.";
+                document.getElementById("body-fat-result").style.display = "block";
+                
+                saveToHistory({ type: "Body Fat", val: bfAvg.toFixed(1), cat: cat, date: new Date() });
+          });
+
+          // 3. IDEAL WEIGHT (4 Formulas)
+          document.getElementById("calculate-ideal-weight").addEventListener("click", function() {
+                const heightCm = parseFloat(document.getElementById("iw-height").value);
+                const gender = document.getElementById("gender-iw").getAttribute("data-value");
+                
+                if(!heightCm || !gender) return showNotification("Please enter height and gender.");
+                
+                // Base Logic
+                // 5ft = 60 inches = 152.4 cm
+                const heightInches = heightCm / 2.54;
+                const inchesOver60 = heightInches - 60;
+                
+                if(inchesOver60 < 0) return showNotification("Height must be at least 153cm (5ft).");
+
+                // Formulas
+                let ibwDevine = 0, ibwRobinson = 0, ibwMiller = 0, ibwHamwi = 0;
+
+                if(gender === 'male') {
+                    ibwDevine = 50 + (2.3 * inchesOver60);
+                    ibwRobinson = 52 + (1.9 * inchesOver60);
+                    ibwMiller = 56.2 + (1.41 * inchesOver60);
+                    ibwHamwi = 48 + (2.7 * inchesOver60);
+                } else {
+                    ibwDevine = 45.5 + (2.3 * inchesOver60);
+                    ibwRobinson = 49 + (1.7 * inchesOver60);
+                    ibwMiller = 53.1 + (1.36 * inchesOver60);
+                    ibwHamwi = 45.5 + (2.2 * inchesOver60);
+                }
+
+                const ibwAvg = (ibwDevine + ibwRobinson + ibwMiller + ibwHamwi) / 4;
+
+                document.getElementById("ideal-weight-value").textContent = ibwAvg.toFixed(1) + " kg";
+                
+                document.getElementById("val-iw-devine").textContent = ibwDevine.toFixed(1);
+                document.getElementById("val-iw-robinson").textContent = ibwRobinson.toFixed(1);
+                document.getElementById("val-iw-miller").textContent = ibwMiller.toFixed(1);
+                document.getElementById("val-iw-hamwi").textContent = ibwHamwi.toFixed(1);
+
+                document.getElementById("ideal-weight-recommendations").innerText = "Consensus from 4 major medical standards.";
+                document.getElementById("ideal-weight-result").style.display = "block";
+                
+                saveToHistory({ type: "Ideal Weight", val: ibwAvg.toFixed(1), cat: "Consensus", date: new Date() });
+          });
+
+          // Clear History
+          document.getElementById("clear-history").addEventListener("click", function() {
+             if(confirm("Clear all history?")) {
+                 localStorage.removeItem("fitHistory");
+                 updateHistoryDisplay();
+             } 
+          });
+    });
+  </script>
+</body>
+</html>
