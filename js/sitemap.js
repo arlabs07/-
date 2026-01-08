@@ -12,7 +12,10 @@ const AR_DISCOVERY = {
             label: "Systems", 
             url: "app.html", 
             icon: "fas fa-layer-group",
-            children: [ { label: "Universal Converter", url: "app/1.html" } ]
+            children: [ 
+                { label: "Universal Converter", url: "app/1.html" },
+                { label: "Meta Inspector", url: "app/2.html" }
+            ]
         },
         {
             label: "Workbench", url: "#", icon: "fas fa-code-branch",
@@ -34,7 +37,7 @@ const AR_DISCOVERY = {
         { label: "FAQ", url: "faq.html", icon: "fas fa-question-circle" }
     ],
 
-    // --- UPDATED BLOGS FOR DEMO ---
+    // --- BLOGS ---
     blogs: [
         {
             id: "feature-showcase",
@@ -109,7 +112,8 @@ async function getData(url) {
         { id: "sys_001", title: "Universal Converter", description: "Advanced unit converter.", link: "app/1.html", iconClass: "fas fa-exchange-alt", isPlaceholder: false },
         { id: "sys_002", title: "Playground IDE", description: "In-browser code editor.", link: "playground.html", iconClass: "fas fa-code", isPlaceholder: false },
         { id: "sys_003", title: "Arai AI", description: "Intelligent coding assistant.", link: "arai.html", iconClass: "fas fa-robot", isPlaceholder: false },
-        { id: "sys_004", title: "CSS Glassmorphism", description: "CSS library for glass effects.", link: "arkit.html", iconClass: "fas fa-magic", isPlaceholder: false }
+        { id: "sys_004", title: "CSS Glassmorphism", description: "CSS library for glass effects.", link: "arkit.html", iconClass: "fas fa-magic", isPlaceholder: false },
+        { id: "sys_005", title: "Meta Inspector", description: "SEO & Social preview tool.", link: "app/2.html", iconClass: "fas fa-tags", isPlaceholder: false }
     ],
 
     projects: [
@@ -119,6 +123,9 @@ async function getData(url) {
     ],
 
     purpleTools: [ { id: 1, title: 'Merge PDF', desc: 'Combine PDFs.', icon: 'fa-layer-group', color: 'text-purple-400' } ],
-    ardevTools: [ { id: 1, title: 'JS Formatter', desc: 'Prettify JS.', icon: 'fa-code', color: 'text-green-400' } ],
+    ardevTools: [ 
+        { id: 1, title: 'Meta Inspector', desc: 'SEO & Social Previews.', icon: 'fa-tags', color: 'text-pink-400', link: 'app/2.html' },
+        { id: 2, title: 'JS Formatter', desc: 'Prettify JS.', icon: 'fa-code', color: 'text-green-400', link: '#' } 
+    ],
     arkitComponents: [ { id: 1, title: 'Glass Cards', desc: 'Frosted containers.', icon: 'fa-square', color: 'text-blue-400' } ]
 };
