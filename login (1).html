@@ -1,0 +1,152 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Auth System | ARhub</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- ARhub Styles -->
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/footer.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body class="min-h-screen relative flex flex-col justify-between">
+
+    <!-- Header (Copied from about.html structure) -->
+    <header class="header">
+        <div class="header-inner">
+            <a href="index.html" class="logo" aria-label="ARhub Home">
+                <img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub Logo" width="32" height="32">
+                ARhub
+            </a>
+            <nav class="nav-links" aria-label="Desktop Navigation">
+                <a href="index.html">Home</a>
+                <a href="about.html">About</a>
+                <a href="faq.html">FAQ</a>
+                <a href="contact.html">Contact</a>
+                <a href="privacy.html">Privacy</a>
+            </nav>
+            <div class="header-actions">
+                <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow flex items-center justify-center relative w-full pt-20">
+        <!-- Login Container -->
+        <div id="auth-container" class="flex flex-col items-center px-4 py-8 relative z-10 w-full">
+            <div class="glass-effect rounded-3xl shadow-2xl w-full max-w-md p-8 animate-fadeInUp">
+                <div class="text-center mb-8 animate-slideIn">
+                    <h1 id="header-title" class="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+                    <p id="header-subtitle" class="text-gray-300">Access your account to continue</p>
+                </div>
+
+                <!-- Sign In Form (Login) -->
+                <div id="signin-form" class="space-y-5 animate-slideIn animate-delay-200">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300 ml-1">Email Address</label>
+                        <div class="relative">
+                            <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10"></i>
+                            <input type="email" id="signin-email" class="w-full pl-12 pr-4 py-4 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl text-white placeholder-gray-400 focus:outline-none input-glow transition-all duration-300 hover:bg-opacity-15" placeholder="Enter your email">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300 ml-1">Password</label>
+                        <div class="relative">
+                            <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10"></i>
+                            <input type="password" id="signin-password" class="w-full pl-12 pr-4 py-4 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl text-white placeholder-gray-400 focus:outline-none input-glow transition-all duration-300 hover:bg-opacity-15" placeholder="Enter your password">
+                        </div>
+                    </div>
+                    <button id="signin-btn" class="w-full py-4 px-6 huly-btn-enhanced font-semibold rounded-full relative z-10 shadow-xl transform transition-all duration-300 hover:shadow-2xl">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+                    </button>
+                    <p class="text-center text-gray-400 text-sm mt-4">
+                        New user? <a href="#" id="switch-to-signup" class="text-amber-400 font-semibold hover:underline transition-colors duration-200">Create an account</a>
+                    </p>
+                </div>
+
+                <!-- Sign Up Form (Register) -->
+                <div id="signup-form" class="space-y-5 hidden animate-slideIn animate-delay-200">
+                     <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300 ml-1">Username (Display Name)</label>
+                        <div class="relative">
+                            <i class="fas fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10"></i>
+                            <input type="text" id="signup-username" class="w-full pl-12 pr-4 py-4 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl text-white placeholder-gray-400 focus:outline-none input-glow transition-all duration-300 hover:bg-opacity-15" placeholder="Choose a display name">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300 ml-1">Email Address</label>
+                        <div class="relative">
+                            <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10"></i>
+                            <input type="email" id="signup-email" class="w-full pl-12 pr-4 py-4 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl text-white placeholder-gray-400 focus:outline-none input-glow transition-all duration-300 hover:bg-opacity-15" placeholder="Enter your email">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-300 ml-1">Password</label>
+                        <div class="relative">
+                            <i class="fas fa-key absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10"></i>
+                            <input type="password" id="signup-password" class="w-full pl-12 pr-4 py-4 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl text-white placeholder-gray-400 focus:outline-none input-glow transition-all duration-300 hover:bg-opacity-15" placeholder="Create a password">
+                        </div>
+                    </div>
+
+                    <button id="signup-btn" class="w-full py-4 px-6 huly-btn-enhanced font-semibold rounded-full relative z-10 shadow-xl transform transition-all duration-300 hover:shadow-2xl">
+                        <i class="fas fa-user-plus mr-2"></i>Create New Account
+                    </button>
+                    <p class="text-center text-gray-400 text-sm mt-4">
+                        Already have an account? <a href="#" id="switch-to-signin" class="text-amber-400 font-semibold hover:underline transition-colors duration-200">Log in</a>
+                    </p>
+                </div>
+
+                <div id="message-box" class="mt-6 p-4 rounded-2xl text-sm hidden shadow-lg animate-slideIn">
+                    <i class="mr-2"></i><span></span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer" style="position: relative; z-index: 10;">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <a href="index.html" class="f-logo">
+                    <img src="https://arlabs07.netlify.app/images/index/web-app-manifest-192x192.png" alt="ARhub" width="32" height="32">
+                    ARhub
+                </a>
+                <p>Innovating with code. arlabs07 builds tools, libraries, and platforms like PurplePDF and ardev to empower the digital world.</p>
+            </div>
+            <div class="footer-links">
+                <h3 class="footer-heading">Ecosystem</h3>
+                <ul>
+                    <li><a href="index.html#featured-section">PurplePDF</a></li>
+                    <li><a href="index.html#featured-section">ardev</a></li>
+                    <li><a href="index.html#projects-section">Libraries</a></li>
+                </ul>
+            </div>
+            <div class="footer-links">
+                <h3 class="footer-heading">Company</h3>
+                <ul>
+                    <li><a href="about.html">About arlabs07</a></li>
+                    <li><a href="privacy.html">Privacy Policy</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; 2026 arlabs07. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/sitemap.js"></script>
+    <script src="js/secrets.js"></script>
+    <script src="js/server.js"></script>
+    <script src="js/header.js"></script>
+    <script src="js/login.js"></script>
+</body>
+</html>

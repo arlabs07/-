@@ -1,0 +1,122 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #000000; /* Solid black background */
+}
+
+@keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    0% { opacity: 0; transform: translateX(-20px); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fadeInUp { animation: fadeInUp 0.6s ease-out forwards; }
+.animate-slideIn { animation: slideIn 0.4s ease-out forwards; }
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.input-glow:focus {
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1), 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.huly-btn-enhanced {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #ffffff 0%, #fefefe 30%, #fff9e6 70%, #fef3c7 100%);
+    color: #1f2937;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+    border-radius: 9999px; /* More rounded */
+}
+
+.huly-btn-enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0; /* Position to the right */
+    width: 20%; /* Approximately 1/5th */
+    height: 100%;
+    /* White to yellow gradient, blending with transparency */
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.5) 20%, rgba(255, 255, 0, 0.7) 100%);
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.3s ease;
+    border-radius: 0 9999px 9999px 0; /* Rounded only on the right side */
+}
+
+.huly-btn-enhanced:hover::before {
+    opacity: 1; /* Visible on hover */
+}
+
+.huly-btn-enhanced::after {
+    content: '';
+    position: absolute;
+    top:-50%;
+    left:-50%;
+    width:200%;
+    height:200%;
+    background:linear-gradient(45deg,transparent,rgba(255,255,255,0.8),transparent);
+    transform:rotate(45deg);
+    transition:transform 0.6s ease;
+    opacity:0;
+}
+
+.huly-btn-enhanced:hover::after {
+    opacity:1;
+    transform:rotate(45deg) translate(100px,-100px);
+}
+
+.huly-btn-enhanced:hover {
+    transform:translateY(-2px) scale(1.02);
+    box-shadow:0 12px 40px rgba(0,0,0,0.15),0 4px 12px rgba(251,191,36,0.2);
+    border-color:rgba(251,191,36,0.3);
+}
+
+.huly-btn-enhanced:active {
+    transform:translateY(0) scale(0.98);
+}
+
+/* Updated Floating Orb Styles (Circular with Blue Gradient and Directional Orange Effects) */
+.floating-orb-container {
+    position: absolute;
+    border-radius: 50%; /* Circular shape */
+    background: linear-gradient(135deg, #0a0a2e 0%, #1a1a5c 50%, #2a2a8d 100%); /* Blue gradient */
+    filter: blur(0.5px); /* Apply blur */
+    box-shadow:
+        0 0 15px rgba(0, 0, 255, 0.3),    /* Subtle blue glow */
+        0 0 30px rgba(0, 0, 255, 0.2),    /* Larger blue glow */
+        25px 5px 60px rgba(255, 215, 0, 0.5), /* Yellowish-orange shadow, more spread */
+        -15px -5px 30px rgba(255, 140, 0, 0.4), /* Deeper orange reflection from top-left */
+        inset -10px -5px 20px rgba(255, 200, 0, 0.6); /* Inner yellow reflection from top-left */
+    animation: floatAndBreathe 6s ease-in-out infinite;
+    transform-origin: center center; /* Ensure scaling is from center */
+    z-index: 0;
+}
+
+@keyframes floatAndBreathe {
+    0%, 100% { transform: translateY(0px) rotate(0deg) scale(1.0); opacity: 0.8; }
+    25% { transform: translateY(-20px) rotate(90deg) scale(1.05); opacity: 0.9; }
+    50% { transform: translateY(-10px) rotate(180deg) scale(1.0); opacity: 0.8; }
+    75% { transform: translateY(-30px) rotate(270deg) scale(1.05); opacity: 0.9; }
+}
+
+/* Responsive adjustments for glass effect margin */
+@media (max-width: 640px) {
+    .glass-effect {
+        padding: 1.5rem; /* Reduce padding on small screens */
+        margin: 1rem; /* Add some margin to prevent sticking to edges */
+    }
+}
