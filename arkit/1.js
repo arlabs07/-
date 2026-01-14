@@ -1,35 +1,60 @@
 
 (function() {
     /* 
-     * ARKit 2.0 - Ultimate Notification System
-     * Features: Stacking, Promises, Actions, Sounds, Haptics, Positioning
+     * ARKit 2.1 - Ultimate Notification System
+     * Features: 3D Stacking, Physics, Promises, Actions, Sounds, Haptics, Full Customization
      */
 
     const DEFAULT_CONFIG = {
         position: 'top-right', // top-right, top-left, bottom-right, bottom-left, top-center, bottom-center
         duration: 5000,
-        maxStack: 7,
+        maxStack: 6,
         sound: false,
         haptics: true,
         blur: true,
-        grouping: true // Deduplicate identical messages
+        grouping: true, // Deduplicate identical messages
+        theme: {
+            // Default Theme Colors
+            '--ak-bg': 'rgba(15, 15, 15, 0.95)',
+            '--ak-text': '#ffffff',
+            '--ak-font': "'Outfit', system-ui, -apple-system, sans-serif",
+            '--ak-border': 'rgba(255,255,255,0.08)',
+            '--ak-radius': '16px',
+            '--ak-shadow': '0 10px 40px rgba(0,0,0,0.5)',
+            '--ak-accent': '#3b82f6'
+        }
     };
 
     class ArkitSystem {
         constructor() {
-            this.config = { ...DEFAULT_CONFIG };
+            // Merge User Config (pre-defined) -> Default Config
+            const userConfig = window.arkitConfig || {};
+            this.config = this.deepMerge(DEFAULT_CONFIG, userConfig);
+            
             this.queue = [];
             this.historyLog = [];
             this.container = null;
             this.audioCtx = null;
             this.activeNotificationGroups = new Map(); // For deduplication
+            this.activeElements = []; // For stacking order
             
             this.init();
+        }
+
+        deepMerge(target, source) {
+            for (const key in source) {
+                if (source[key] instanceof Object && key in target) {
+                    Object.assign(source[key], this.deepMerge(target[key], source[key]));
+                }
+            }
+            Object.assign(target || {}, source);
+            return target;
         }
 
         init() {
             this.injectStyles();
             this.createContainer();
+            this.applyTheme(this.config.theme);
             this.setupGlobalListeners();
             this.interceptConsole();
             this.interceptFetch();
@@ -39,52 +64,74 @@
             const css = `
             :root { 
                 --ak-z: 99999; 
-                --ak-font: 'Outfit', system-ui, sans-serif;
-                --ak-bg: rgba(15, 15, 15, 0.9);
-                --ak-border: rgba(255,255,255,0.08);
             }
             #arkit-container { 
                 position: fixed; z-index: var(--ak-z); 
-                display: flex; flex-direction: column; gap: 10px;
-                width: 380px; max-width: 90vw; pointer-events: none;
-                padding: 20px; perspective: 1000px;
-                transition: all 0.3s ease;
+                width: 380px; max-width: 92vw; pointer-events: none;
+                perspective: 1000px;
+                /* Reset standard layout for absolute stacking */
+                display: block;
+                height: 0;
             }
+            
             /* Positions */
-            .ak-pos-top-right { top: 0; right: 0; align-items: flex-end; }
-            .ak-pos-top-left { top: 0; left: 0; align-items: flex-start; }
-            .ak-pos-bottom-right { bottom: 0; right: 0; flex-direction: column-reverse; align-items: flex-end; }
-            .ak-pos-bottom-left { bottom: 0; left: 0; flex-direction: column-reverse; align-items: flex-start; }
-            .ak-pos-top-center { top: 0; left: 50%; transform: translateX(-50%); align-items: center; }
-            .ak-pos-bottom-center { bottom: 0; left: 50%; transform: translateX(-50%) !important; flex-direction: column-reverse; align-items: center; }
+            .ak-pos-top-right { top: 20px; right: 20px; }
+            .ak-pos-top-left { top: 20px; left: 20px; }
+            .ak-pos-bottom-right { bottom: 20px; right: 20px; }
+            .ak-pos-bottom-left { bottom: 20px; left: 20px; }
+            .ak-pos-top-center { top: 20px; left: 50%; transform: translateX(-50%); }
+            .ak-pos-bottom-center { bottom: 20px; left: 50%; transform: translateX(-50%); }
+
+            /* Mobile Adjustments */
+            @media (max-width: 768px) {
+                #arkit-container { width: 92vw; left: 50% !important; transform: translateX(-50%) !important; right: auto; top: 10px; }
+                .ak-pos-bottom-right, .ak-pos-bottom-left, .ak-pos-bottom-center { top: auto; bottom: 20px; }
+            }
 
             .ak-card {
                 pointer-events: auto;
                 background: var(--ak-bg);
-                backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+                color: var(--ak-text);
+                font-family: var(--ak-font);
                 border: 1px solid var(--ak-border);
-                color: #fff;
+                border-radius: var(--ak-radius);
+                box-shadow: var(--ak-shadow);
+                
                 width: 100%;
-                border-radius: 16px;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                /* Fixed default height for stack uniformity, expands if needed */
+                min-height: 70px;
+                position: absolute; /* Vital for stack effect */
+                top: 0; left: 0;
+                
                 display: flex; flex-direction: column;
-                transform-origin: center bottom;
-                transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s, height 0.3s;
-                overflow: hidden;
-                position: relative;
-                opacity: 0; transform: scale(0.9) translateY(20px);
+                overflow: visible; /* FIXED: Visible so badges can pop out */
+                
+                transform-origin: 50% -20px;
+                will-change: transform, opacity;
+                transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
+                
+                opacity: 0; transform: translateY(-30px) scale(0.9);
             }
-            .ak-card.ak-visible { opacity: 1; transform: scale(1) translateY(0); }
             
+            .ak-blur { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+            /* Internal Wrapper to handle clipping while keeping badge visible */
+            .ak-inner-content {
+                border-radius: var(--ak-radius);
+                overflow: hidden; 
+                width: 100%; height: 100%;
+                display: flex; flex-direction: column;
+            }
+
             .ak-main-row { display: flex; align-items: flex-start; padding: 16px; gap: 14px; width: 100%; }
             
             .ak-icon-box { 
                 flex-shrink: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; 
                 border-radius: 50%; font-size: 16px;
             }
-            .ak-content-box { flex: 1; min-width: 0; }
-            .ak-title { font-family: var(--ak-font); font-weight: 600; font-size: 14px; line-height: 1.4; margin-bottom: 2px; }
-            .ak-msg { font-family: var(--ak-font); font-size: 13px; color: #aaa; line-height: 1.4; word-break: break-word; }
+            .ak-content-box { flex: 1; min-width: 0; padding-right: 12px; }
+            .ak-title { font-weight: 600; font-size: 14px; line-height: 1.4; margin-bottom: 2px; }
+            .ak-msg { font-size: 13px; opacity: 0.8; line-height: 1.4; word-break: break-word; }
             
             /* Type Colors */
             .ak-t-success .ak-icon-box { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
@@ -93,36 +140,43 @@
             .ak-t-info .ak-icon-box { color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
             .ak-t-loading .ak-icon-box { color: #a78bfa; animation: ak-spin 1s linear infinite; }
 
-            /* Badge for Groups */
+            /* Badge for Groups - Now Popping OUT */
             .ak-badge { 
-                position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; 
-                font-size: 10px; font-weight: bold; height: 18px; min-width: 18px; border-radius: 9px; 
-                display: flex; align-items: center; justify-content: center; padding: 0 4px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 10; animation: ak-pop 0.3s;
+                position: absolute; top: -6px; right: -6px; 
+                background: #ef4444; color: white; 
+                font-size: 10px; font-weight: bold; 
+                height: 20px; min-width: 20px; 
+                border-radius: 10px; 
+                display: flex; align-items: center; justify-content: center; 
+                padding: 0 5px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4); 
+                z-index: 100; border: 2px solid #111; /* Contrast border */
+                animation: ak-pop 0.3s;
             }
 
             /* Progress Bar */
-            .ak-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 100%; transform-origin: left; }
+            .ak-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); width: 100%; transform-origin: left; z-index: 50; }
             
             /* Actions */
             .ak-actions { 
                 display: flex; gap: 8px; padding: 0 16px 16px 54px; 
             }
             .ak-btn {
-                background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                color: #ddd; padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
-                transition: all 0.2s; font-family: var(--ak-font);
+                background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+                color: inherit; opacity: 0.9; padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+                transition: all 0.2s; font-family: var(--ak-font); font-weight: 500;
             }
-            .ak-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+            .ak-btn:hover { background: rgba(255,255,255,0.2); opacity: 1; }
 
             /* Close Button */
             .ak-close-btn { 
-                position: absolute; top: 12px; right: 12px; width: 20px; height: 20px; 
+                position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; 
                 display: flex; align-items: center; justify-content: center; cursor: pointer; 
-                opacity: 0; transition: 0.2s; color: #666; font-size: 14px;
+                opacity: 0; transition: 0.2s; color: inherit; border-radius: 50%;
+                background: rgba(255,255,255,0.05); z-index: 20;
             }
             .ak-card:hover .ak-close-btn { opacity: 1; }
-            .ak-close-btn:hover { color: #fff; }
+            .ak-close-btn:hover { background: rgba(255,255,255,0.2); }
 
             @keyframes ak-spin { to { transform: rotate(360deg); } }
             @keyframes ak-pop { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
@@ -141,11 +195,26 @@
 
         updatePositionClass() {
             this.container.className = `ak-pos-${this.config.position}`;
+            // If position changes, we must re-calculate stack directions in reposition()
+            this.reposition();
+        }
+
+        applyTheme(themeObj) {
+            if(!themeObj) return;
+            const root = document.documentElement;
+            Object.entries(themeObj).forEach(([key, val]) => {
+                root.style.setProperty(key, val);
+            });
         }
 
         // --- Public API ---
 
         configure(opts) {
+            if (opts.theme) {
+                this.config.theme = { ...this.config.theme, ...opts.theme };
+                this.applyTheme(this.config.theme);
+                delete opts.theme; // Handled separately
+            }
             Object.assign(this.config, opts);
             if (opts.position) this.updatePositionClass();
         }
@@ -160,7 +229,10 @@
                 if (existing) {
                     this.incrementBadge(existing);
                     this.resetTimer(existing);
-                    return existing; // Return existing ID
+                    
+                    // Move to front of visual stack
+                    this.moveToFront(existing);
+                    return existing; 
                 }
             }
 
@@ -169,7 +241,7 @@
             
             // 3. Create Element
             const el = document.createElement('div');
-            el.className = `ak-card ak-t-${type}`;
+            el.className = `ak-card ak-t-${type} ${this.config.blur ? 'ak-blur' : ''}`;
             const id = Date.now() + Math.random().toString(36).substr(2, 9);
             el.dataset.id = id;
             el.dataset.groupKey = `${type}-${message}`;
@@ -183,34 +255,31 @@
                 actionHtml = `<div class="ak-actions"><button class="ak-btn">${options.action.text}</button></div>`;
             }
 
+            // Inner wrapper for safe overflow hidden
             el.innerHTML = `
-                <div class="ak-main-row">
-                    <div class="ak-icon-box">${iconSvg}</div>
-                    <div class="ak-content-box">
-                        ${titleHtml}
-                        <div class="ak-msg">${contentHtml}</div>
+                <div class="ak-inner-content">
+                    <div class="ak-main-row">
+                        <div class="ak-icon-box">${iconSvg}</div>
+                        <div class="ak-content-box">
+                            ${titleHtml}
+                            <div class="ak-msg">${contentHtml}</div>
+                        </div>
+                        <div class="ak-close-btn">✕</div>
                     </div>
-                    <div class="ak-close-btn">✕</div>
+                    ${actionHtml}
+                    ${!options.sticky && options.duration !== 0 ? '<div class="ak-progress"></div>' : ''}
                 </div>
-                ${actionHtml}
-                ${!options.sticky && options.duration !== 0 ? '<div class="ak-progress"></div>' : ''}
             `;
 
             // 4. Mount
-            if (this.config.position.includes('bottom')) {
-                this.container.appendChild(el); // Append for bottom stacks (uses column-reverse)
-            } else {
-                this.container.insertBefore(el, this.container.firstChild);
-            }
+            // For Absolute stacking, we just append. Visual order is handled by Z-Index and Transform.
+            this.container.appendChild(el);
 
-            // 5. Animate In
-            requestAnimationFrame(() => el.classList.add('ak-visible'));
-
-            // 6. Sound & Haptics
+            // 5. Sound & Haptics
             if (this.config.sound) this.playSound(type);
             if (this.config.haptics && (type === 'error' || type === 'warn') && navigator.vibrate) navigator.vibrate(50);
 
-            // 7. Logic
+            // 6. Logic
             const notificationObj = { 
                 id, 
                 el, 
@@ -223,6 +292,8 @@
             };
 
             this.activeNotificationGroups.set(el.dataset.groupKey, notificationObj);
+            // Add to the START of the array (Newest is index 0)
+            this.activeElements.unshift(notificationObj);
             this.historyLog.push({ type, message, time: new Date() });
 
             // Events
@@ -238,21 +309,75 @@
             // Timer
             if (!options.sticky) this.startTimer(notificationObj);
 
-            // Hover Pause
-            el.onmouseenter = () => this.pauseTimer(notificationObj);
-            el.onmouseleave = () => this.resumeTimer(notificationObj);
-
-            // Click to Copy/Expand (Simple logic)
-            el.onclick = (e) => {
-                if(e.target.tagName !== 'BUTTON') {
-                   // Could expand logic here if needed
-                }
+            // Hover Interactions
+            el.onmouseenter = () => {
+                this.pauseTimer(notificationObj);
+                // Expand logic if needed, or z-index boost
+                el.style.zIndex = '100000';
+            };
+            el.onmouseleave = () => {
+                this.resumeTimer(notificationObj);
+                this.reposition(); // Reset z-index
             };
 
             this.setupGestures(el, id);
-            this.manageStack();
+            
+            // 7. Render Stack
+            this.reposition();
 
             return { id, el: el };
+        }
+
+        // --- Stacking Physics ---
+
+        reposition() {
+            // Logic: The array `this.activeElements` has newest at [0].
+            // Visuals: [0] is front, [1] is behind and slightly moved, etc.
+            
+            const isBottom = this.config.position.includes('bottom');
+            const spacing = 14; // Pixels visible of card behind
+            const scaleStep = 0.05;
+
+            this.activeElements.forEach((obj, index) => {
+                const el = obj.el;
+                
+                // If stack limit reached, hide or remove
+                if (index >= this.config.maxStack) {
+                    el.style.opacity = '0';
+                    el.style.pointerEvents = 'none';
+                    // Optional: auto-dismiss invisible ones? 
+                    // this.dismiss(obj.id); 
+                    return;
+                }
+
+                // Calculate Transform
+                const yOffset = isBottom ? -(index * spacing) : (index * spacing);
+                const scale = 1 - (index * scaleStep);
+                const zIndex = this.config.maxStack - index + 100; // +100 base z-index
+
+                el.style.transform = `translateY(${yOffset}px) scale(${scale})`;
+                el.style.zIndex = zIndex;
+                el.style.opacity = index === 0 ? '1' : (1 - (index * 0.15)).toString(); // Fade back cards
+                el.style.pointerEvents = index === 0 ? 'auto' : 'none'; // Only top card interactive by default? Or allow clicking back ones to swap?
+                
+                // Allow clicking background cards to bring to front
+                if (index > 0) {
+                    el.style.pointerEvents = 'auto';
+                    el.onclick = () => {
+                        this.moveToFront(obj);
+                    };
+                } else {
+                    el.onclick = null; // Clear swap click
+                }
+            });
+        }
+
+        moveToFront(obj) {
+            // Remove from current position
+            this.activeElements = this.activeElements.filter(o => o.id !== obj.id);
+            // Add to start
+            this.activeElements.unshift(obj);
+            this.reposition();
         }
 
         // --- Promise Handler ---
@@ -280,7 +405,7 @@
             if (!badge) {
                 badge = document.createElement('div');
                 badge.className = 'ak-badge';
-                obj.el.appendChild(badge);
+                obj.el.appendChild(badge); // Appended to .ak-card, outside .ak-inner-content (overflow:visible)
             }
             badge.innerText = obj.count > 99 ? '99+' : obj.count;
             // Pop animation reset
@@ -293,7 +418,6 @@
             if (obj.duration <= 0) return;
             const progressBar = obj.el.querySelector('.ak-progress');
             
-            // CSS Animation approach for smoother performance
             if (progressBar) {
                 progressBar.style.transition = `transform ${obj.remaining}ms linear`;
                 requestAnimationFrame(() => progressBar.style.transform = 'scaleX(0)');
@@ -324,7 +448,6 @@
         }
 
         resetTimer(obj) {
-            // When grouped, reset the timer to full duration
             this.pauseTimer(obj);
             obj.remaining = obj.duration;
             const progressBar = obj.el.querySelector('.ak-progress');
@@ -336,20 +459,21 @@
         }
 
         dismiss(id) {
-            const el = this.container.querySelector(`[data-id="${id}"]`);
-            if (!el) return;
+            const obj = this.activeElements.find(o => o.id === id);
+            if (!obj) return;
+            const el = obj.el;
 
-            // Remove from maps
-            const groupKey = el.dataset.groupKey;
-            this.activeNotificationGroups.delete(groupKey);
+            // Remove from tracking
+            this.activeNotificationGroups.delete(el.dataset.groupKey);
+            this.activeElements = this.activeElements.filter(o => o.id !== id);
 
             // Animate out
+            el.style.transform = `${el.style.transform} translateX(50px)`;
             el.style.opacity = '0';
-            el.style.transform = 'scale(0.9) translateY(-20px)';
-            el.style.height = '0';
-            el.style.margin = '0';
-            el.style.padding = '0';
             
+            // Re-render others immediately to fill gap
+            this.reposition();
+
             setTimeout(() => {
                 if (el.parentNode) el.parentNode.removeChild(el);
             }, 400);
@@ -357,24 +481,8 @@
 
         clear() {
             this.activeNotificationGroups.clear();
+            this.activeElements = [];
             this.container.innerHTML = '';
-        }
-
-        manageStack() {
-            const children = Array.from(this.container.children);
-            if (children.length > this.config.maxStack) {
-                // Remove oldest (last in list if top-stack, first if bottom-stack? 
-                // Actually DOM order depends on append/prepend. 
-                // If prepending (top), last child is oldest.
-                // If appending (bottom), first child is oldest.
-                const toRemove = this.config.position.includes('bottom') 
-                    ? children[0] 
-                    : children[children.length - 1];
-                
-                if (toRemove && !toRemove.classList.contains('ak-leaving')) {
-                    this.dismiss(toRemove.dataset.id);
-                }
-            }
         }
 
         setupGestures(el, id) {
@@ -382,15 +490,15 @@
             const touchStart = (e) => { startX = e.touches[0].clientX; el.style.transition = 'none'; };
             const touchMove = (e) => {
                 currentX = e.touches[0].clientX - startX;
-                el.style.transform = `translateX(${currentX}px)`;
+                el.style.transform = `translateX(${currentX}px)`; // Just translate X, keep Y from reposition
                 el.style.opacity = Math.max(0, 1 - Math.abs(currentX) / 200);
             };
             const touchEnd = () => {
-                el.style.transition = 'all 0.4s ease';
+                el.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
                 if (Math.abs(currentX) > 100) this.dismiss(id);
                 else {
-                    el.style.transform = 'translateX(0)';
                     el.style.opacity = '1';
+                    this.reposition(); // Snap back
                 }
             };
             el.addEventListener('touchstart', touchStart, {passive: true});
@@ -399,15 +507,12 @@
         }
 
         setupGlobalListeners() {
-            // Pause on blur to prevent timers running when user not looking
-            window.addEventListener('blur', () => this.activeNotificationGroups.forEach(obj => this.pauseTimer(obj)));
-            window.addEventListener('focus', () => this.activeNotificationGroups.forEach(obj => this.resumeTimer(obj)));
+            window.addEventListener('blur', () => this.activeElements.forEach(obj => this.pauseTimer(obj)));
+            window.addEventListener('focus', () => this.activeElements.forEach(obj => this.resumeTimer(obj)));
             
-            // ESC key
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    const top = this.container.firstElementChild; // Or last depending on stack
-                    if (top) this.dismiss(top.dataset.id);
+                    if (this.activeElements.length > 0) this.dismiss(this.activeElements[0].id);
                 }
             });
         }
@@ -442,7 +547,6 @@
                 osc.start(now);
                 osc.stop(now + 0.2);
             } else {
-                // Generic pop
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(400, now);
                 gain.gain.setValueAtTime(0.05, now);
@@ -480,7 +584,6 @@
                 console[level] = (...args) => {
                     original[level].apply(console, args);
                     const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-                    // Map log -> info, error -> error
                     const type = level === 'log' ? 'info' : (level === 'warn' ? 'warn' : (level === 'error' ? 'error' : 'info'));
                     this.notify(type, msg);
                 };
@@ -504,6 +607,6 @@
 
     // Initialize
     window.arkit = new ArkitSystem();
-    console.log("%c ARKit 2.0 Ultimate ", "background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px;", "Loaded successfully");
+    console.log("%c ARKit 2.1 Loaded ", "background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px;");
 
 })();
