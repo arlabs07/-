@@ -1,0 +1,632 @@
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ARKit Notifications | ARhub Ecosystem</title>
+
+<!-- External Resources -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<!-- Google Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- 
+    =========================================
+    ARKit Library CSS (Embedded)
+    =========================================
+-->
+<style>
+    /* Root Variables */
+    :root {
+        --ak-bg: rgba(20, 20, 20, 0.95);
+        --ak-text: #ffffff;
+        --ak-font: 'Outfit', sans-serif;
+        --ak-radius: 16px;
+        --ak-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Container: Top Right (Desktop) / Top Center (Mobile) */
+    #arkit-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 360px;
+        height: 100vh; /* Area for stack to exist */
+        z-index: 99999;
+        pointer-events: none; /* Let clicks pass through empty space */
+        perspective: 1000px;
+    }
+
+    /* Mobile Override */
+    @media (max-width: 768px) {
+        #arkit-container {
+            right: auto;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92vw;
+            max-width: 360px;
+            top: 10px;
+        }
+    }
+
+    /* Notification Card - Stacked Style */
+    .ak-notification {
+        pointer-events: auto;
+        background: var(--ak-bg);
+        color: var(--ak-text);
+        font-family: var(--ak-font);
+        
+        /* Fixed Size initially */
+        width: 100%;
+        height: 70px;
+        
+        /* Absolute Positioning for Stacking */
+        position: absolute;
+        top: 0;
+        left: 0;
+        
+        padding: 0 20px;
+        border-radius: var(--ak-radius);
+        box-shadow: var(--ak-shadow);
+        
+        display: flex;
+        align-items: center; /* Center vertically in collapsed state */
+        gap: 16px;
+        
+        cursor: pointer;
+        user-select: none;
+        
+        /* Animations */
+        transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease, height 0.3s ease, background 0.2s;
+        will-change: transform, opacity;
+        
+        border: 1px solid rgba(255,255,255,0.08);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        
+        opacity: 0; 
+        transform-origin: 50% -20px;
+        overflow: hidden;
+    }
+    
+    .ak-notification:hover {
+        background: rgba(30, 30, 30, 0.98);
+    }
+
+    /* Expanded State */
+    .ak-notification.ak-expanded {
+        height: auto;
+        min-height: 70px;
+        align-items: flex-start; /* Align to top when text wraps */
+        padding-top: 23px; /* Adjust to match visual center of icon */
+        padding-bottom: 23px;
+        z-index: 10000 !important; /* Bring to front */
+    }
+
+    /* Icons */
+    .ak-icon {
+        font-family: 'Material Symbols Outlined';
+        font-size: 24px;
+        flex-shrink: 0;
+        /* Ensure icon doesn't shift awkwardly */
+        height: 24px;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Type Colors */
+    .ak-type-log .ak-icon { color: #9ca3af; }     
+    .ak-type-info .ak-icon { color: #3b82f6; }    
+    .ak-type-warn .ak-icon { color: #f59e0b; }    
+    .ak-type-error .ak-icon { color: #ef4444; }   
+    .ak-type-network .ak-icon { color: #10b981; } 
+
+    /* Content Text */
+    .ak-content {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 500;
+        
+        /* Truncation (Default) */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        
+        line-height: 1.5;
+        color: rgba(255,255,255,0.9);
+        transition: all 0.3s;
+    }
+
+    /* Content Expanded */
+    .ak-notification.ak-expanded .ak-content {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        padding-top: 2px; /* Slight adjust for alignment with icon */
+    }
+
+    /* Close Button */
+    .ak-close {
+        font-family: 'Material Symbols Outlined';
+        font-size: 16px;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        
+        /* Initially Hidden */
+        opacity: 0;
+        pointer-events: none;
+        
+        transition: all 0.2s;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.1);
+    }
+
+    /* Show Close on Hover or Expand */
+    .ak-notification:hover .ak-close,
+    .ak-notification.ak-expanded .ak-close {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .ak-close:hover {
+        background: rgba(255,255,255,0.25);
+        color: #fff;
+    }
+
+    /* Leaving Animation State */
+    .ak-notification.leaving {
+        pointer-events: none;
+    }
+    
+    /* Syntax Highlighting for Docs */
+    pre { background: #111; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid #333; }
+    code { font-family: monospace; color: #a5b4fc; }
+</style>
+
+<!-- 
+    =========================================
+    Demo Page Styles (Background & Layout)
+    =========================================
+-->
+<style>
+    body { background-color: #050505; color: #fff; font-family: 'Outfit', sans-serif; overflow-x: hidden; }
+    
+    .blob { position: absolute; filter: blur(80px); opacity: 0.3; z-index: -1; animation: blobFloat 10s infinite alternate; }
+    @keyframes blobFloat { 0%{transform:translate(0,0)} 100%{transform:translate(20px,40px)} }
+    
+    .glass-card { 
+        background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 16px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+    }
+    .glass-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(59, 130, 246, 0.3);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+    .glass-card:active { transform: scale(0.98); }
+
+    .gradient-text { background: linear-gradient(45deg, #3b82f6, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .glass-panel { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Background FX -->
+    <div class="blob bg-blue-900 w-96 h-96 rounded-full top-0 right-0"></div>
+    <div class="blob bg-purple-900 w-80 h-80 rounded-full bottom-0 left-0"></div>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <a href="#" class="flex items-center space-x-3 text-2xl font-bold tracking-tight">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-bell text-white text-lg"></i>
+                </div>
+                <span>AR<span class="text-blue-500">Kit</span></span>
+            </a>
+            <div class="flex items-center space-x-4">
+                <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-gray-400">v2.1 Expandable</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow pt-32 pb-20 container mx-auto px-6">
+        
+        <!-- Hero Section -->
+        <section class="text-center max-w-4xl mx-auto mb-20">
+            <h1 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
+                Intelligent <span class="gradient-text">Notifications</span>
+            </h1>
+            <p class="text-xl text-gray-400 leading-relaxed max-w-2xl mx-auto mb-10">
+                Stackable, swipeable, and expandable. The ultimate notification system for modern web apps.
+            </p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="#playground" class="px-8 py-3 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-all shadow-lg shadow-blue-500/25">
+                    <i class="fa-solid fa-play mr-2"></i> Try Demo
+                </a>
+                <a href="#docs" class="px-8 py-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold transition-all">
+                    <i class="fa-solid fa-code mr-2"></i> Documentation
+                </a>
+            </div>
+        </section>
+
+        <!-- Playground Section -->
+        <section id="playground" class="mb-32">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-bold"><i class="fa-solid fa-gamepad text-blue-500 mr-2"></i> Playground</h2>
+                <span class="text-sm text-gray-500">Interact to trigger notifications</span>
+            </div>
+
+            <!-- Grid Layout -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Group 1: Console Levels -->
+                <div class="col-span-full md:col-span-1 lg:col-span-1 flex flex-col gap-4">
+                    <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-2">Console Levels</h3>
+                    
+                    <button onclick="console.log('System initialized successfully.')" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400"><i class="fa-solid fa-terminal"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Log</div><div class="text-xs text-gray-500">Standard message</div></div>
+                    </button>
+
+                    <button onclick="console.info('Session updated: ID #8849')" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-900/30 flex items-center justify-center text-blue-400"><i class="fa-solid fa-info"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Info</div><div class="text-xs text-gray-500">User information</div></div>
+                    </button>
+
+                    <button onclick="console.warn('High memory usage (85%)')" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-yellow-900/30 flex items-center justify-center text-yellow-500"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Warning</div><div class="text-xs text-gray-500">Non-blocking</div></div>
+                    </button>
+
+                    <button onclick="console.error('Database Connection Timeout')" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-red-900/30 flex items-center justify-center text-red-500"><i class="fa-solid fa-bug"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Error</div><div class="text-xs text-gray-500">Critical failure</div></div>
+                    </button>
+                </div>
+
+                <!-- Group 2: Network Simulation -->
+                <div class="col-span-full md:col-span-1 lg:col-span-1 flex flex-col gap-4">
+                    <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-2">Network Events</h3>
+                    
+                    <button onclick="mockFetch(200)" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center text-green-500"><i class="fa-solid fa-wifi"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Fetch 200 OK</div><div class="text-xs text-gray-500">Successful request</div></div>
+                    </button>
+
+                    <button onclick="mockFetch(404)" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-orange-900/30 flex items-center justify-center text-orange-500"><i class="fa-solid fa-link-slash"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Fetch 404</div><div class="text-xs text-gray-500">Not Found error</div></div>
+                    </button>
+
+                    <button onclick="mockFetch(500)" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-red-900/30 flex items-center justify-center text-red-500"><i class="fa-solid fa-server"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Fetch 500</div><div class="text-xs text-gray-500">Server Error</div></div>
+                    </button>
+                </div>
+
+                <!-- Group 3: Data Types -->
+                <div class="col-span-full md:col-span-1 lg:col-span-1 flex flex-col gap-4">
+                    <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-2">Data Types</h3>
+                    
+                    <button onclick="console.log({id:1, user:'Admin', role:'Superuser', active:true, permissions: ['read', 'write', 'delete']})" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-teal-900/30 flex items-center justify-center text-teal-500"><i class="fa-solid fa-code"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Object Log</div><div class="text-xs text-gray-500">JSON Formatting</div></div>
+                    </button>
+
+                    <button onclick="console.log('This is a very long message that demonstrates the expandability feature. Click this notification card to read the full text. It wraps automatically and pushes content down.')" class="glass-card p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-300"><i class="fa-solid fa-align-left"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Long Text</div><div class="text-xs text-gray-500">Click to expand</div></div>
+                    </button>
+                </div>
+
+                <!-- Group 4: Stress Test -->
+                <div class="col-span-full md:col-span-1 lg:col-span-1 flex flex-col gap-4">
+                    <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-2">Stress Test</h3>
+                    
+                    <button onclick="spamLogs()" class="glass-card p-4 flex items-center gap-4 border-red-500/20 hover:border-red-500/50">
+                        <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500"><i class="fa-solid fa-fire"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Stack 'Em</div><div class="text-xs text-gray-500">Trigger 5 logs instantly</div></div>
+                    </button>
+
+                    <button onclick="mixedSpam()" class="glass-card p-4 flex items-center gap-4 border-purple-500/20 hover:border-purple-500/50">
+                        <div class="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500"><i class="fa-solid fa-shuffle"></i></div>
+                        <div class="text-left"><div class="font-bold text-sm">Chaos Mode</div><div class="text-xs text-gray-500">Random mixed events</div></div>
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Documentation Section -->
+        <section id="docs" class="max-w-4xl mx-auto mb-20">
+             <div class="glass-panel p-8 rounded-2xl mb-8 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-book text-8xl"></i></div>
+                
+                <h2 class="text-3xl font-bold mb-6">Documentation</h2>
+                
+                <div class="space-y-8">
+                    <!-- Quick Start -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 text-blue-400">1. Quick Integration</h3>
+                        <p class="text-gray-400 mb-4">Add the following script to your HTML file. It handles everything including styles.</p>
+                        <pre><code>&lt;script src="https://arlabs07.netlify.app/arkit/1.js"&gt;&lt;/script&gt;</code></pre>
+                    </div>
+
+                    <!-- Usage -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 text-blue-400">2. Usage</h3>
+                        <p class="text-gray-400 mb-4">ARKit automatically intercepts standard console methods and network errors.</p>
+                        <pre><code>// These will automatically trigger notifications
+console.log('Hello World');
+console.error('Something went wrong');
+
+// Or use the manual API
+window.arkit.notify('success', 'Operation Complete');</code></pre>
+                    </div>
+
+                    <!-- Features -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 text-blue-400">3. Features</h3>
+                        <ul class="list-disc list-inside text-gray-400 space-y-2">
+                            <li><strong>Stacking:</strong> Notifications stack with a 3D depth effect.</li>
+                            <li><strong>Expandable:</strong> Click on truncated text to view the full message.</li>
+                            <li><strong>Auto-Dismiss:</strong> Notifications disappear after 5 seconds (pauses on hover).</li>
+                            <li><strong>Swipe to Dismiss:</strong> Touch-enabled swipe gestures for mobile users.</li>
+                            <li><strong>Hover Controls:</strong> Close buttons appear only when interacting.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 
+        =========================================
+        Demo Logic
+        =========================================
+    -->
+    <script>
+        function mockFetch(status) {
+            const url = status === 200 ? 'https://api.example.com/data' : `https://api.example.com/error/${status}`;
+            fetch(url).catch(()=>{}); // Intercepted
+        }
+
+        function spamLogs() {
+            const messages = ["Processing request...", "Validating data...", "Updating cache...", "Saving to DB...", "Done!"];
+            messages.forEach((msg, i) => {
+                setTimeout(() => console.log(msg), i * 150);
+            });
+        }
+
+        function mixedSpam() {
+            const actions = [
+                () => console.log('Standard log'),
+                () => console.info('Info message'),
+                () => console.warn('Warning event'),
+                () => console.error('Critical error')
+            ];
+            for(let i=0; i<6; i++) {
+                setTimeout(() => actions[Math.floor(Math.random() * actions.length)](), i * 200);
+            }
+        }
+    </script>
+
+    <!-- 
+        =========================================
+        ARKit Notification Library (Inline Version)
+        =========================================
+    -->
+    <script>
+    (function() {
+        // --- Configuration ---
+        const CONFIG = {
+            types: ['log', 'info', 'warn', 'error', 'network'],
+            duration: 5000,
+            maxStack: 6
+        };
+
+        const container = document.createElement('div');
+        container.id = 'arkit-container';
+        document.body.appendChild(container);
+
+        const ICONS = {
+            log: 'terminal', info: 'info', warn: 'warning', error: 'error', network: 'wifi_tethering'
+        };
+
+        // --- Core Notification Logic ---
+        function notify(type, message) {
+            if (!CONFIG.types.includes(type)) return;
+
+            if (typeof message === 'object') {
+                try { message = JSON.stringify(message, null, 2); } catch (e) { message = '[Object]'; }
+            }
+            message = String(message);
+
+            const el = document.createElement('div');
+            el.className = `ak-notification ak-type-${type}`;
+            el.innerHTML = `
+                <span class="ak-icon">${ICONS[type] || 'circle'}</span>
+                <span class="ak-content">${escapeHtml(message)}</span>
+                <div class="ak-close"><span class="material-symbols-outlined">close</span></div>
+            `;
+
+            // Prepare for animation
+            el.style.transform = `translateY(-40px) scale(0.9)`;
+            el.style.opacity = '0';
+            el.style.zIndex = '1000'; 
+
+            // Insert at beginning (Front of stack)
+            if (container.firstChild) {
+                container.insertBefore(el, container.firstChild);
+            } else {
+                container.appendChild(el);
+            }
+
+            // Animate In and Stack
+            requestAnimationFrame(() => {
+                repositionStack();
+            });
+
+            // Auto Dismiss Logic
+            let timeout;
+            const startTimer = () => {
+                timeout = setTimeout(() => removeNotification(el), CONFIG.duration);
+            };
+            startTimer();
+
+            // Hover: Pause Timer
+            el.addEventListener('mouseenter', () => clearTimeout(timeout));
+            el.addEventListener('mouseleave', () => {
+                // Only resume if not expanded (reading)
+                if (!el.classList.contains('ak-expanded')) {
+                    startTimer();
+                }
+            });
+
+            // Click to Expand
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('.ak-close')) return; // Ignore close button click
+                
+                // Toggle Expansion
+                const isExpanded = el.classList.toggle('ak-expanded');
+                
+                if (isExpanded) {
+                    clearTimeout(timeout); // Keep open while reading
+                } else {
+                    startTimer(); // Resume timer if collapsed back
+                }
+            });
+
+            // Close Button
+            el.querySelector('.ak-close').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeNotification(el);
+            });
+
+            setupGestures(el);
+        }
+
+        // --- Stacking Engine ---
+        function repositionStack() {
+            const items = Array.from(container.children).filter(el => !el.classList.contains('leaving'));
+            
+            items.forEach((el, index) => {
+                if (index >= CONFIG.maxStack) {
+                    removeNotification(el);
+                    return;
+                }
+                
+                const yOffset = index * 14; 
+                const scale = 1 - (index * 0.05); 
+                const z = 1000 - index; 
+                const opacity = index === 0 ? 1 : (1 - (index * 0.15)); 
+
+                el.style.transform = `translateY(${yOffset}px) scale(${scale})`;
+                el.style.zIndex = z;
+                el.style.opacity = Math.max(0, opacity);
+                
+                if (opacity <= 0) el.style.visibility = 'hidden';
+                else el.style.visibility = 'visible';
+            });
+        }
+
+        function removeNotification(el) {
+            if (!el || el.classList.contains('leaving')) return;
+            el.classList.add('leaving');
+            
+            // Fly out animation
+            el.style.transform = `translateY(-50px) scale(0.8)`;
+            el.style.opacity = '0';
+            
+            setTimeout(() => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            }, 400);
+
+            repositionStack();
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // --- Gesture Logic (Swipe to Dismiss) ---
+        function setupGestures(el) {
+            let startX = 0, currentX = 0;
+            let isDragging = false;
+            
+            const start = (e) => {
+                if (e.target.closest('.ak-close') || el.classList.contains('ak-expanded')) return;
+                isDragging = true;
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                el.style.transition = 'none'; 
+            };
+
+            const move = (e) => {
+                if (!isDragging) return;
+                const cx = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                currentX = cx - startX;
+
+                el.style.transform = `${el.style.transform.split(' translateX')[0]} translateX(${currentX}px)`;
+                el.style.opacity = Math.max(0, 1 - Math.abs(currentX) / 200);
+            };
+
+            const end = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                el.style.transition = 'transform 0.4s ease, opacity 0.4s ease, height 0.3s ease'; 
+
+                if (Math.abs(currentX) > 100) {
+                    el.style.transform = `${el.style.transform.split(' translateX')[0]} translateX(${currentX * 2}px)`;
+                    el.style.opacity = '0';
+                    removeNotification(el);
+                } else {
+                    repositionStack();
+                }
+                currentX = 0;
+            };
+
+            el.addEventListener('mousedown', start);
+            window.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', end);
+            el.addEventListener('touchstart', start, {passive: true});
+            window.addEventListener('touchmove', move, {passive: false});
+            window.addEventListener('touchend', end);
+        }
+
+        // --- Interceptors ---
+        const originalConsole = { log: console.log, info: console.info, warn: console.warn, error: console.error };
+        ['log', 'info', 'warn', 'error'].forEach(type => {
+            console[type] = function(...args) {
+                originalConsole[type].apply(console, args);
+                notify(type, args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+            };
+        });
+
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            try {
+                const res = await originalFetch(...args);
+                if (!res.ok) notify('error', `HTTP ${res.status}`);
+                // else notify('network', `Fetch OK: ${args[0].split('/').pop()}`);
+                return res;
+            } catch (err) { notify('error', `Net Error`); throw err; }
+        };
+
+        console.log('ARKit Stacks Ready');
+    })();
+    </script>
+</body>
+</html>
