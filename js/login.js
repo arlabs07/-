@@ -2,15 +2,24 @@
 document.addEventListener('DOMContentLoaded', () => {
     const signinForm = document.getElementById('signin-form');
     const signupForm = document.getElementById('signup-form');
+    const userProfileContainer = document.getElementById('user-profile-container');
+    
     const signinBtn = document.getElementById('signin-btn');
     const signupBtn = document.getElementById('signup-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    
     const messageBox = document.getElementById('message-box');
     const messageIcon = messageBox.querySelector('i');
     const messageText = messageBox.querySelector('span');
+    
     const headerTitle = document.getElementById('header-title');
     const headerSubtitle = document.getElementById('header-subtitle');
 
-    // New navigation links
+    // Profile Elements
+    const profileUsername = document.getElementById('profile-username');
+    const profileEmail = document.getElementById('profile-email');
+
+    // Navigation links
     const switchToSignupLink = document.getElementById('switch-to-signup');
     const switchToSigninLink = document.getElementById('switch-to-signin');
 
@@ -18,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showMessage(message, type = 'error') {
         messageText.textContent = message;
         messageBox.classList.remove('hidden', 'bg-red-900', 'border-red-500', 'text-red-300', 'bg-green-900', 'border-green-500', 'text-green-300');
-        messageIcon.className = ''; // Clear previous icon classes
+        messageIcon.className = ''; 
 
         if (type === 'error') {
             messageBox.classList.add('bg-red-900', 'bg-opacity-30', 'backdrop-blur-sm', 'border', 'border-red-500', 'border-opacity-30', 'text-red-300');
@@ -36,13 +45,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
 
+    // Helper: Show Logged In State
+    function showLoggedInState(user) {
+        signinForm.classList.add('hidden');
+        signupForm.classList.add('hidden');
+        messageBox.classList.add('hidden');
+        
+        userProfileContainer.classList.remove('hidden');
+        
+        headerTitle.textContent = 'Welcome, ' + (user.display_name || 'User');
+        headerSubtitle.textContent = 'You are currently logged in';
+        
+        profileUsername.textContent = user.display_name || 'Anonymous User';
+        profileEmail.textContent = user.email || 'No Email';
+    }
+
     // Navigation link logic
     if (switchToSignupLink) {
         switchToSignupLink.onclick = (e) => {
             e.preventDefault();
             signinForm.classList.add('hidden');
             signupForm.classList.remove('hidden');
-            messageBox.classList.add('hidden'); // Hide message on switch
+            userProfileContainer.classList.add('hidden');
+            messageBox.classList.add('hidden');
             headerTitle.textContent = 'Create Your Account';
             headerSubtitle.textContent = 'Join us and get started!';
         };
@@ -53,7 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             signupForm.classList.add('hidden');
             signinForm.classList.remove('hidden');
-            messageBox.classList.add('hidden'); // Hide message on switch
+            userProfileContainer.classList.add('hidden');
+            messageBox.classList.add('hidden');
             headerTitle.textContent = 'Welcome Back';
             headerSubtitle.textContent = 'Access your account to continue';
         };
@@ -79,9 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.error) {
                     showMessage(result.error, 'error');
                 } else {
-                    showMessage('Sign In successful! Welcome back ' + (result.user.display_name || result.user.email), 'success');
-                    // Optional: Redirect
-                    setTimeout(() => window.location.href = 'index.html', 1500);
+                    showMessage('Sign In successful!', 'success');
+                    // Instead of redirecting, show profile immediately
+                    setTimeout(() => showLoggedInState(result.user), 500);
                 }
             } catch (err) {
                 showMessage('An unexpected error occurred.', 'error');
@@ -118,11 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.error) {
                     showMessage(result.error, 'error');
                 } else {
-                    showMessage(`Account for "${username}" created successfully!`, 'success');
-                    // Optional: Switch to login or redirect
-                    setTimeout(() => {
-                         window.location.href = 'index.html';
-                    }, 1500);
+                    showMessage(`Account created! You are now logged in.`, 'success');
+                    setTimeout(() => showLoggedInState(result.user), 500);
                 }
             } catch (err) {
                 showMessage('An unexpected error occurred.', 'error');
@@ -133,11 +156,22 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Check if already logged in
+    // Logout Button Handler
+    if (logoutBtn) {
+        logoutBtn.onclick = async () => {
+            logoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Logging Out...';
+            
+            await parqraAuth.logout();
+            
+            // Reset UI
+            window.location.reload(); 
+        };
+    }
+
+    // Check if already logged in on Load
     if (typeof parqraAuth !== 'undefined' && parqraAuth.isLoggedIn()) {
         const user = parqraAuth.getUser();
-        showMessage(`You are already logged in as ${user.display_name || user.email}`, 'success');
-        // Optionally redirect or change UI state
+        showLoggedInState(user);
     }
 
     // Dynamic Orb Generation (Visuals)
