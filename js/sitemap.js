@@ -353,4 +353,7 @@ function sayHi() {
     ],
     arkitComponents: [ { id: 1, title: 'Glass Cards', desc: 'Frosted containers.', icon: 'fa-square', color: 'text-blue-400' } ]
 };
+
          
+
+window.AR_DISCOVERY = AR_DISCOVERY;
