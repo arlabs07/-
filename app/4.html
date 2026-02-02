@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0">
+  <title>Live Chat - ARhub</title>
+  <script src="js/loader.js"></script>
+  <style>
+    .chat-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 300px);
+      min-height: 500px
+    }
+    
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+      background: rgba(0, 0, 0, .2);
+      border-radius: 12px;
+      margin-bottom: 20px
+    }
+    
+    .messages-container::-webkit-scrollbar {
+      width: 6px
+    }
+    
+    .messages-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, .2);
+      border-radius: 3px
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb {
+      background: rgba(0, 200, 255, .3);
+      border-radius: 3px
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 200, 255, .5)
+    }
+    
+    .message {
+      display: flex;
+      gap: 10px;
+      opacity: 0;
+      animation: fadeIn .3s forwards
+    }
+    
+    @keyframes fadeIn {
+      to {
+        opacity: 1
+      }
+    }
+    
+    .message.own {
+      flex-direction: row-reverse
+    }
+    
+    .message-avatar {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: .85rem;
+      color: #fff
+    }
+    
+    .message.own .message-avatar {
+      background: linear-gradient(135deg, #00c8ff, #0080ff)
+    }
+    
+    .message-content {
+      max-width: 65%;
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+    
+    .message.own .message-content {
+      align-items: flex-end
+    }
+    
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .8rem;
+      margin-bottom: 2px
+    }
+    
+    .message-author {
+      font-weight: 600;
+      color: #00c8ff
+    }
+    
+    .message.own .message-author {
+      color: #00ff88
+    }
+    
+    .message-time {
+      color: #666;
+      font-size: .75rem
+    }
+    
+    .message-bubble {
+      background: rgba(255, 255, 255, .08);
+      padding: 10px 14px;
+      border-radius: 12px;
+      word-wrap: break-word;
+      border: 1px solid rgba(255, 255, 255, .1);
+      line-height: 1.5
+    }
+    
+    .message.own .message-bubble {
+      background: rgba(0, 200, 255, .15);
+      border-color: rgba(0, 200, 255, .3)
+    }
+    
+    .input-area {
+      display: flex;
+      gap: 10px;
+      padding: 15px;
+      background: rgba(255, 255, 255, .05);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, .1)
+    }
+    
+    .message-input {
+      flex: 1;
+      background: rgba(0, 0, 0, .3);
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .2s;
+      font-family: inherit
+    }
+    
+    .message-input:focus {
+      border-color: #00c8ff
+    }
+    
+    .send-btn {
+      background: linear-gradient(135deg, #00c8ff, #0080ff);
+      border: none;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform .2s, box-shadow .2s;
+      white-space: nowrap
+    }
+    
+    .send-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 200, 255, .4)
+    }
+    
+    .send-btn:active:not(:disabled) {
+      transform: translateY(0)
+    }
+    
+    .send-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed
+    }
+    
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 40px 20px
+    }
+    
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      opacity: .3
+    }
+    
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(0, 200, 255, .08);
+      border: 1px solid rgba(0, 200, 255, .2);
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: .85rem
+    }
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #888
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00ff88;
+      animation: pulse 2s infinite
+    }
+    
+    @keyframes pulse {
+      
+      0%,
+      100% {
+        opacity: 1
+      }
+      
+      50% {
+        opacity: .4
+      }
+    }
+    
+    .loading-msg {
+      text-align: center;
+      color: #666;
+      padding: 10px;
+      font-size: .9rem
+    }
+    
+    @media(max-width:768px) {
+      .message-content {
+        max-width: 80%
+      }
+      
+      .input-area {
+        padding: 12px
+      }
+      
+      .send-btn span {
+        display: none
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header"></header>
+  <div class="breadcrumb-section"></div>
+  <main class="app-main">
+    <div class="app-main">
+      <div class="app-header-center">
+        <h1 class="app-h1">Live Chat
+        </h1>
+        <p class="app-desc">Real-time
+          messaging platform for ARhub
+          community<br>Connect and
+          collaborate with your team
+          instantly</p>
+      </div>
+      <div class="app-panel">
+        <div class="status-bar"
+          role="status"
+          aria-live="polite">
+          <div class="status-indicator">
+            <span class="status-dot"
+              aria-hidden="true"></span>
+            <span
+              id="statusText">Connecting...</span>
+          </div>
+          <div style="color:#666">
+            <i class="fas fa-users"></i>
+            <span
+              id="userInfo">Loading...</span>
+          </div>
+        </div>
+        <div class="chat-wrapper">
+          <div
+            class="messages-container"
+            id="messagesContainer"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            aria-label="Chat messages">
+            <div class="empty-state">
+              <i class="fas fa-comments"
+                aria-hidden="true"></i>
+              <p>No messages yet. Start
+                the conversation!</p>
+            </div>
+          </div>
+          <div class="input-area">
+            <label for="messageInput"
+              class="sr-only">Message
+              input</label>
+            <input type="text"
+              class="message-input"
+              id="messageInput"
+              placeholder="Type your message..."
+              aria-label="Type your message"
+              autocomplete="off"
+              maxlength="1000">
+            <button class="send-btn"
+              id="sendBtn"
+              onclick="sendMessage()"
+              aria-label="Send message">
+              <i class="fas fa-paper-plane"
+                aria-hidden="true"></i>
+              <span>Send</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer"></footer>
+  <script src="js/main.js"
+    data-name="Live Chat"
+    data-parent="Apps"
+    data-parent-url="https://arlabs07.netlify.app/app.html"
+    data-description="Real-time messaging platform for team collaboration">
+  </script>
+  <script>
+    const PARQRA_API = "PARQRA_API";
+    const PARQRA_KEY = "PARQRA_KEY";
+    const POLL_INTERVAL = 3000;
+    const MAX_MESSAGES = 100;
+    const BATCH_SIZE = 50;
+    class ParqraAuth {
+      constructor
+        () {
+          this.token = localStorage
+            .getItem('parqra_token');
+          this.user = JSON.parse(
+            localStorage.getItem(
+              'parqra_user') || 'null'
+          )
+        }
+      isLoggedIn() {
+        return !!
+          this
+          .token
+      }
+      getUser() {
+        return this
+          .user
+      }
+      getToken() {
+        return this
+          .token
+      }
+    }
+    class ParqraDB {
+      constructor(
+        tableName) {
+        this.table =
+          tableName;
+        this.requestQueue = [];
+        this.isProcessing =
+          false
+      }
+      get headers() {
+        const
+          h = { 'Content-Type': 'application/json', 'x-api-key': PARQRA_KEY };
+        const
+          token = localStorage
+          .getItem(
+            'parqra_token');
+        if (token)
+          h['x-auth-token'] =
+          token;
+        return h
+      }
+      async list(
+        options = {}) {
+        const
+          params =
+          new URLSearchParams(
+            options);
+        const res =
+          await fetch(
+            `${PARQRA_API}/db/${this.table}?${params}`, {
+              headers: this
+                .headers
+            });
+        if (!
+          res.ok) throw new Error(
+          'Failed to fetch messages'
+        );
+        return res
+          .json()
+      }
+      async create(
+        data) {
+        return new Promise((
+          resolve, reject
+        ) => {
+          this
+            .requestQueue
+            .push({
+              data,
+              resolve,
+              reject
+            });
+          this
+            .processQueue()
+        })
+      }
+      async processQueue() {
+        if (
+          this.isProcessing ||
+          this.requestQueue
+          .length === 0) return;
+        this.isProcessing =
+          true;
+        const batch = this
+          .requestQueue.splice(
+            0, 1);
+        for (const
+            req of
+            batch) {
+          try {
+            const
+              res = await fetch(
+                `${PARQRA_API}/db/${this.table}`, {
+                  method: 'POST',
+                  headers: this
+                    .headers,
+                  body: JSON
+                    .stringify({
+                      data: req
+                        .data
+                    })
+                }
+              );
+            const
+              result = await res
+              .json();
+            req.resolve(
+              result)
+          } catch (
+            error) {
+            req.reject(
+              error)
+          }
+        }
+        this
+          .isProcessing =
+          false;
+        if (this
+          .requestQueue.length >
+          0) {
+          setTimeout(() =>
+            this
+            .processQueue(),
+            100)
+        }
+      }
+    }
+    const auth = new ParqraAuth();
+    const messagesDB = new ParqraDB(
+      'Messaging');
+    let pollingInterval;
+    let lastMessageId = null;
+    let messageCache = new Map();
+    let isLoadingMessages = false;
+    let isSending = false;
+    let currentUserId = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    
+    function checkAuth() {
+      if (!auth
+        .isLoggedIn()) {
+        window.location
+          .href =
+          'https://arlabs07.netlify.app/login';
+        return false
+      }
+      return true
+    }
+    
+    function initChat() {
+      if (!
+        checkAuth()) return;
+      const
+        user = auth.getUser();
+      if (
+        user) {
+        currentUserId = user.id;
+        document.getElementById(
+            'userInfo').textContent =
+          user.display_name || user
+          .email;
+        document.getElementById(
+            'statusText').textContent =
+          'Connected'
+      }
+      loadMessages();
+      startPolling();
+      setupEventListeners()
+    }
+    
+    function setupEventListeners() {
+      const
+        input = document.getElementById(
+          'messageInput');
+      input.addEventListener('keypress',
+        (e) => {
+          if (e.key ===
+            'Enter' && !e.shiftKey
+          ) {
+            e.preventDefault();
+            sendMessage()
+          }
+        });
+      document.addEventListener(
+        'visibilitychange',
+        () => {
+          if (document
+            .hidden) {
+            stopPolling
+              ()
+          } else {
+            if (
+              checkAuth()) {
+              loadMessages
+                ();
+              startPolling()
+            }
+          }
+        })
+    }
+    async function loadMessages() {
+      if (
+        isLoadingMessages) return;
+      isLoadingMessages =
+        true;
+      try {
+        const result =
+          await messagesDB
+          .list({ limit: MAX_MESSAGES });
+        const
+          messages = (result.data ||
+          []).sort((a, b) => new Date(
+              a.created_at) -
+            new Date(b.created_at)
+          );
+        if (messages.length >
+          0) {
+          const latestId =
+            messages[messages.length -
+              1].id;
+          if (latestId !==
+            lastMessageId
+          ) {
+            renderMessages(
+              messages);
+            lastMessageId =
+              latestId
+          }
+        } else {
+          renderEmptyState
+            ()
+        }
+        document
+          .getElementById(
+            'statusText')
+          .textContent = 'Connected';
+        retryCount = 0
+      } catch (
+        error) {
+        console.error(
+          'Error loading messages:',
+          error);
+        retryCount++;
+        if (
+          retryCount >= MAX_RETRIES
+        ) {
+          document.getElementById(
+              'statusText')
+            .textContent =
+            'Connection error';
+          stopPolling
+            ()
+        } else {
+          document
+            .getElementById(
+              'statusText')
+            .textContent =
+            'Reconnecting...'
+        }
+      } finally {
+        isLoadingMessages
+          = false
+      }
+    }
+    
+    function renderMessages(
+      messages) {
+      const container =
+        document.getElementById(
+          'messagesContainer');
+      const
+        scrolledToBottom = container
+        .scrollHeight - container
+        .scrollTop <= container
+        .clientHeight + 50;
+      const
+        fragment = document
+        .createDocumentFragment();
+      messages.forEach(msg => {
+        if (
+          messageCache.has(msg.id))
+          return;
+        messageCache.set(msg.id,
+          true);
+        const messageData =
+          msg.data;
+        const isOwn =
+          msg.auth_user_id ===
+          currentUserId;
+        const
+          messageEl = document
+          .createElement('div');
+        messageEl.className =
+          `message ${isOwn?'own':''}`;
+        messageEl.setAttribute(
+          'role', 'article');
+        messageEl.setAttribute(
+          'aria-label',
+          `Message from ${messageData.author||'Anonymous'}`
+        );
+        const avatar = (
+            messageData.author ||
+            'U').charAt(0)
+          .toUpperCase();
+        const
+          time = new Date(msg
+            .created_at)
+          .toLocaleTimeString(
+            [], {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+        const
+          escapedText = escapeHtml(
+            messageData.text);
+        messageEl.innerHTML =
+          `<div class="message-avatar" aria-hidden="true">${avatar}</div><div class="message-content"><div class="message-header"><span class="message-author">${escapeHtml(messageData.author||'Anonymous')}</span><time class="message-time" datetime="${msg.created_at}">${time}</time></div><div class="message-bubble">${escapedText}</div></div>`;
+        fragment.appendChild(
+          messageEl)
+      });
+      if (fragment
+        .childElementCount > 0) {
+        if (
+          container.querySelector(
+            '.empty-state')) {
+          container
+            .innerHTML = ''
+        }
+        container
+          .appendChild(fragment);
+        if (
+          scrolledToBottom
+        ) {
+          requestAnimationFrame(
+            () => {
+              container
+                .scrollTop = container
+                .scrollHeight
+            }
+          )
+        }
+      }
+      if (messageCache.size >
+        MAX_MESSAGES * 2) {
+        const
+          entries = [...messageCache
+            .entries()
+          ];
+        entries.slice(0, entries
+            .length - MAX_MESSAGES)
+          .forEach(([key]) =>
+            messageCache.delete(key)
+          )
+      }
+    }
+    
+    function renderEmptyState() {
+      const
+        container = document
+        .getElementById(
+          'messagesContainer');
+      if (!
+        container.querySelector(
+          '.empty-state')) {
+        container
+          .innerHTML =
+          '<div class="empty-state"><i class="fas fa-comments" aria-hidden="true"></i><p>No messages yet. Start the conversation!</p></div>'
+      }
+    }
+    async function sendMessage() {
+      if (
+        isSending) return;
+      const
+        input = document
+        .getElementById(
+          'messageInput');
+      const
+        text = input.value
+        .trim();
+      if (!text || text
+        .length > 1000) return;
+      if (!
+        checkAuth()) return;
+      const
+        user = auth.getUser();
+      const
+        sendBtn = document
+        .getElementById('sendBtn');
+      isSending = true;
+      sendBtn.disabled = true;
+      input.disabled =
+        true;
+      try {
+        await messagesDB
+          .create({
+            text: text,
+            author: user
+              .display_name || user
+              .email,
+            timestamp: Date.now()
+          });
+        input.value = '';
+        await loadMessages()
+      } catch (
+        error) {
+        console.error(
+          'Error sending message:',
+          error);
+        alert(
+          'Failed to send message. Please try again.'
+        )
+      } finally {
+        isSending =
+          false;
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus()
+      }
+    }
+    
+    function startPolling() {
+      if (
+        pollingInterval) return;
+      pollingInterval = setInterval(
+        () => {
+          if (!document.hidden &&
+            checkAuth()
+          ) { loadMessages() }
+        },
+        POLL_INTERVAL)
+    }
+    
+    function stopPolling() {
+      if (
+        pollingInterval) {
+        clearInterval
+          (pollingInterval);
+        pollingInterval = null
+      }
+    }
+    
+    function escapeHtml(text) {
+      const
+        div = document.createElement(
+          'div');
+      div.textContent = text;
+      return div
+        .innerHTML
+    }
+    window.addEventListener(
+      'DOMContentLoaded', initChat);
+    window.addEventListener(
+      'beforeunload', stopPolling);
+  </script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/eruda">
+  </script>
+  <script>
+    eruda.init();
+  </script>
+</body>
+
+</html>
