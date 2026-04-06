@@ -1,1 +1,245 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Instagram — a place to share photos and videos">
+  <title>Instagram</title>
+
+  <!-- Favicon (inline SVG data URI) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='url(%23g)'/><defs><radialGradient id='g' cx='30%25' cy='107%25' r='130%25'><stop offset='0%25' stop-color='%23fdf497'/><stop offset='5%25' stop-color='%23fdf497'/><stop offset='45%25' stop-color='%23fd5949'/><stop offset='60%25' stop-color='%23d6249f'/><stop offset='90%25' stop-color='%23285AEB'/></radialGradient></defs><circle cx='50' cy='50' r='26' stroke='white' stroke-width='9' fill='none'/><circle cx='73' cy='27' r='7' fill='white'/></svg>">
+
+  <!-- Stylesheets (order matters) -->
+  <link rel="stylesheet" href="main.css?v=14">
+  <link rel="stylesheet" href="home.css?v=14">
+  <link rel="stylesheet" href="story.css?v=14">
+  <link rel="stylesheet" href="postcard.css?v=14">
+  <link rel="stylesheet" href="explore.css?v=14">
+  <link rel="stylesheet" href="reels.css?v=14">
+  <link rel="stylesheet" href="profile.css?v=14">
+  <link rel="stylesheet" href="notification.css?v=14">
+  <link rel="stylesheet" href="messenger.css?v=14">
+  <link rel="stylesheet" href="upload.css?v=14">
+
+  <!-- Extra micro-styles for loading screen -->
+  <style>
+    /* ── App loading screen ── */
+    #app-loader {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      z-index: 9999;
+      transition: opacity 0.4s ease;
+    }
+
+    #app-loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .loader-logo svg {
+      width: 56px;
+      height: 56px;
+      animation: logoBreath 1.8s ease-in-out infinite;
+    }
+
+    @keyframes logoBreath {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.06); }
+    }
+
+    .loader-logo-text {
+      font-family: 'Pacifico', 'Georgia', cursive;
+      font-size: 36px;
+      color: #fff;
+    }
+
+    .loader-spinner-wrap {
+      position: absolute;
+      bottom: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .loader-ring {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: rgba(255,255,255,0.7);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    .loader-meta {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      font-family: system-ui, sans-serif;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Smooth page transitions ── */
+    .page {
+      animation: none;
+    }
+    .page.active {
+      animation: pageSlideIn 0.22s ease forwards;
+    }
+    @keyframes pageSlideIn {
+      from { opacity: 0.7; transform: translateY(6px); }
+      to   { opacity: 1;   transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LOADING SCREEN
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="app-loader">
+    <div class="loader-logo">
+      <!-- Inline Instagram-style gradient icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <defs>
+          <radialGradient id="ig_load_grad" cx="30%" cy="107%" r="130%">
+            <stop offset="0%"  stop-color="#fdf497"/>
+            <stop offset="5%"  stop-color="#fdf497"/>
+            <stop offset="45%" stop-color="#fd5949"/>
+            <stop offset="60%" stop-color="#d6249f"/>
+            <stop offset="90%" stop-color="#285AEB"/>
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" rx="22" fill="url(#ig_load_grad)"/>
+        <circle cx="50" cy="50" r="26" stroke="white" stroke-width="9" fill="none"/>
+        <circle cx="73" cy="27" r="7" fill="white"/>
+      </svg>
+      <span class="loader-logo-text">Instagram</span>
+    </div>
+    <div class="loader-spinner-wrap">
+      <div class="loader-ring"></div>
+      <div class="loader-meta">from Meta</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       APP SHELL
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="app" style="opacity:0;transition:opacity 0.4s ease">
+
+    <!-- ─── LEFT SIDEBAR (Desktop) ─────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Populated by main.js: buildSidebar() -->
+    </aside>
+
+    <!-- ─── MAIN CONTENT WRAPPER ────────────────────────────────────────── -->
+    <div class="main-wrapper" id="main-wrapper">
+
+      <!-- Mobile Header (≤768px) -->
+      <header class="mobile-header" id="mobile-header">
+        <!-- Populated by main.js: buildMobileHeader() -->
+      </header>
+
+      <!-- ═══════════════
+           PAGES
+      ═══════════════ -->
+
+      <!-- HOME PAGE -->
+      <main class="page" id="page-home">
+        <!-- Rendered by HomePage.render() -->
+      </main>
+
+      <!-- EXPLORE PAGE -->
+      <main class="page" id="page-explore">
+        <!-- Rendered by HomePage.renderExplorePage() -->
+      </main>
+
+      <!-- REELS PAGE -->
+      <main class="page" id="page-reels">
+        <!-- Rendered by HomePage.renderReelsPage() -->
+      </main>
+
+      <!-- NOTIFICATIONS PAGE -->
+      <main class="page" id="page-notifications">
+        <!-- Rendered by HomePage.renderNotificationsPage() -->
+      </main>
+
+      <!-- MESSAGES PAGE -->
+      <main class="page" id="page-messages">
+        <!-- Rendered by HomePage.renderMessagesPage() -->
+      </main>
+
+      <!-- UPLOAD PAGE -->
+      <main class="page" id="page-upload">
+        <!-- Rendered by UploadManager.render() -->
+      </main>
+
+      <!-- PROFILE PAGE -->
+      <main class="page" id="page-profile" data-hide-header="true" data-hide-header-on="mobile">
+        <!-- Rendered by HomePage.renderProfilePage() -->
+      </main>
+
+    </div><!-- /main-wrapper -->
+
+    <!-- ─── BOTTOM NAV (Mobile ≤768px) ──────────────────────────────────── -->
+    <nav class="bottom-nav" id="bottom-nav">
+      <!-- Populated by main.js: buildBottomNav() -->
+    </nav>
+
+  </div><!-- /app -->
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TOAST CONTAINER (injected by main.js)
+  ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SCRIPTS — Load in dependency order
+  ═══════════════════════════════════════════════════════════════ -->
+  <script src="data.js?v=14"></script>
+  <script src="icons.js?v=14"></script>
+  <script src="story.js?v=14"></script>
+  <script src="postcard.js?v=14"></script>
+  <script src="reels.js?v=14"></script>
+  <script src="explore.js?v=14"></script>
+  <script src="notification.js?v=14"></script>
+  <script src="profile.js?v=14"></script>
+  <script src="messenger.js?v=14"></script>
+  <script src="home.js?v=14"></script>
+  <script src="upload.js?v=14"></script>
+  <script src="main.js?v=14"></script>
+
+  <!-- Boot: hide loader, show app -->
+  <script>
+    window.addEventListener('load', () => {
+      // Simulate a brief loading delay for the splash screen
+      const loader = document.getElementById('app-loader');
+      const app    = document.getElementById('app');
+
+      setTimeout(() => {
+        if (loader) loader.classList.add('hidden');
+        if (app)    app.style.opacity = '1';
+        setTimeout(() => {
+          if (loader) loader.style.display = 'none';
+        }, 450);
+      }, 1200);
+    });
+  </script>
+
+</body>
+</html>
 
