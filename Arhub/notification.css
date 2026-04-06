@@ -1,0 +1,227 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   notification.css  —  Notifications Page Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#page-notifications {
+  align-items: flex-start !important;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* ── Page wrapper ─────────────────────────────────────────────────────────── */
+
+.notif-root {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 0 40px;
+}
+
+/* ── Mobile top bar ───────────────────────────────────────────────────────── */
+
+.notif-mobile-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--border);
+  z-index: 12;
+}
+
+@media (max-width: 768px) {
+  .notif-mobile-topbar { display: flex; }
+}
+
+.notif-page-title { font-size: 20px; font-weight: 700; }
+
+.notif-mark-all {
+  font-size: 13px; font-weight: 700; color: var(--accent);
+  cursor: pointer; padding: 4px 0;
+  transition: color 0.15s;
+}
+.notif-mark-all:hover { color: var(--text-primary); }
+
+/* ── Desktop page title ───────────────────────────────────────────────────── */
+
+.notif-desktop-header {
+  display: none;
+  padding: 20px 16px 8px;
+}
+@media (min-width: 769px) { .notif-desktop-header { display: block; } }
+.notif-desktop-header h2 { font-size: 22px; font-weight: 700; }
+
+/* ── Section headers ──────────────────────────────────────────────────────── */
+
+.notif-section {
+  padding: 0;
+}
+
+.notif-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 14px 16px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Notification row ─────────────────────────────────────────────────────── */
+
+.notif-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+  text-decoration: none;
+  color: inherit;
+}
+.notif-item:hover { background: var(--bg-2); }
+.notif-item.unread { background: rgba(0,149,246,0.07); }
+.notif-item.unread:hover { background: rgba(0,149,246,0.12); }
+
+/* Unread indicator */
+.notif-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
+/* ── Avatar + type badge ──────────────────────────────────────────────────── */
+
+.notif-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.notif-avatar {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.notif-avatar:hover { transform: scale(1.05); }
+
+.notif-type-badge {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2.5px solid var(--bg-0);
+  display: flex; align-items: center; justify-content: center;
+}
+.notif-type-badge.like    { background: var(--danger); }
+.notif-type-badge.comment { background: #4db6fc; }
+.notif-type-badge.follow  { background: var(--accent); }
+.notif-type-badge.mention { background: #a855f7; }
+.notif-type-badge.tag     { background: var(--success); }
+.notif-type-badge svg { width: 11px; height: 11px; fill: white; }
+
+/* ── Text ──────────────────────────────────────────────────────────────────── */
+
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+.notif-text .notif-username {
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.notif-text .notif-username:hover { opacity: 0.7; }
+
+.notif-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* ── Right side content (thumb or follow button) ─────────────────────────── */
+
+.notif-post-thumb {
+  width: 46px; height: 46px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.notif-post-thumb:hover { opacity: 0.85; }
+.notif-post-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.notif-follow-btn {
+  flex-shrink: 0;
+  font-size: 13px; font-weight: 700;
+  padding: 7px 16px; border-radius: 8px;
+  background: var(--accent); color: white;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  border: none; white-space: nowrap;
+}
+.notif-follow-btn:hover { background: var(--accent-hover); }
+.notif-follow-btn:active { transform: scale(0.96); }
+.notif-follow-btn.following {
+  background: var(--bg-3);
+  color: var(--text-primary);
+}
+.notif-follow-btn.following:hover { background: var(--bg-4); }
+
+/* ── Divider ───────────────────────────────────────────────────────────────── */
+
+.notif-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+
+.notif-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 80px 20px; gap: 12px; text-align: center;
+}
+.notif-empty-icon { color: var(--text-muted); opacity: 0.35; }
+.notif-empty-icon svg { width: 52px; height: 52px; }
+.notif-empty-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.notif-empty-sub   { font-size: 14px; color: var(--text-muted); max-width: 260px; line-height: 1.6; }
+
+/* ── Filter bar ───────────────────────────────────────────────────────────── */
+
+.notif-filter-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.notif-filter-bar::-webkit-scrollbar { display: none; }
+
+.notif-filter-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  background: var(--bg-3); color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.notif-filter-chip:hover { background: var(--bg-4); color: var(--text-primary); }
+.notif-filter-chip.active { background: var(--text-primary); color: var(--bg-0); }
