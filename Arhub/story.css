@@ -1,0 +1,588 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   story.css  —  Story Rings, Story Viewer Modal, Controls
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Stories Strip ─────────────────────────────────────────────────────────── */
+
+.stories-strip {
+  width: 100%;
+  max-width: 100%;
+  background: var(--bg-0);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 0;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.stories-scroll {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding: 0 14px;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stories-scroll::-webkit-scrollbar { display: none; }
+
+/* Story item (ring + label) */
+.story-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.story-item:active { transform: scale(0.93); }
+
+/* The gradient ring wrapper */
+.story-ring {
+  padding: 2.5px;
+  border-radius: 50%;
+  background: var(--story-grad);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.story-ring.viewed {
+  background: var(--bg-4);
+}
+
+.story-ring-inner {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 2.5px solid var(--bg-0);
+  overflow: hidden;
+  display: block;
+}
+
+.story-ring-inner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Add story button (own story) */
+.story-ring.add-story {
+  background: var(--bg-3);
+}
+
+.story-add-icon {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: 2px solid var(--bg-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.story-add-icon svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 3;
+}
+
+/* Story username label */
+.story-username {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-primary);
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.story-item.own .story-username {
+  color: var(--text-secondary);
+}
+
+/* ── Story Viewer Modal ─────────────────────────────────────────────────── */
+
+#story-viewer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+#story-viewer.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Close button (outside the card) */
+.story-viewer-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  z-index: 10;
+  background: rgba(0,0,0,0.3);
+  border-radius: 50%;
+  transition: background var(--transition);
+}
+
+.story-viewer-close:hover { background: rgba(0,0,0,0.5); }
+
+.story-viewer-close svg {
+  width: 24px;
+  height: 24px;
+  stroke: white;
+}
+
+/* Story Card */
+.story-card {
+  position: relative;
+  width: min(420px, 95vw);
+  aspect-ratio: 9/16;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--bg-1);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8);
+  animation: storyCardIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes storyCardIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* Story image / media */
+.story-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+}
+
+.story-media-fallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--bg-3), var(--bg-1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+}
+
+/* Gradient overlay */
+.story-gradient-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 35%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.story-gradient-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30%;
+  background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Progress bars */
+.story-progress-bars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  padding: 10px 10px 0;
+}
+
+.story-progress-segment {
+  flex: 1;
+  height: 2.5px;
+  background: rgba(255,255,255,0.35);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.story-progress-fill {
+  height: 100%;
+  background: rgba(255,255,255,0.92);
+  border-radius: 2px;
+  width: 0%;
+  transition: width linear;
+}
+
+.story-progress-segment.done .story-progress-fill { width: 100%; }
+.story-progress-segment.active .story-progress-fill { /* animated via JS */ }
+
+/* Story header */
+.story-header {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.story-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.story-header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.8);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.story-header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.story-header-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.story-header-time {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+}
+
+.story-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.story-mute-btn,
+.story-more-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: transform 0.15s;
+}
+
+.story-mute-btn:hover, .story-more-btn:hover { transform: scale(1.1); }
+
+.story-mute-btn svg, .story-more-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: white;
+}
+
+/* ── Explicit prev/next buttons (no invisible zones) ── */
+.story-prev-btn,
+.story-next-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  background: rgba(255,255,255,0.18);
+  border-radius: 50%;
+  color: white;
+  transition: background 0.15s, opacity 0.15s;
+  /* show only on hover on desktop, always on mobile */
+  opacity: 0;
+}
+
+.story-card:hover .story-prev-btn,
+.story-card:hover .story-next-btn { opacity: 1; }
+
+/* On mobile: always show slightly */
+@media (max-width: 768px) {
+  .story-prev-btn, .story-next-btn { opacity: 0.6; }
+}
+
+.story-prev-btn:hover, .story-next-btn:hover { background: rgba(255,255,255,0.32); }
+.story-prev-btn { left: 10px; }
+.story-next-btn { right: 10px; }
+.story-prev-btn svg, .story-next-btn svg { width: 20px; height: 20px; stroke: white; }
+
+/* Nav arrows (show on hover desktop) */
+.story-nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.story-card:hover .story-nav-arrow { opacity: 1; }
+
+.story-nav-arrow.prev { left: 12px; }
+.story-nav-arrow.next { right: 12px; }
+
+.story-nav-arrow svg {
+  width: 20px;
+  height: 20px;
+  stroke: white;
+}
+
+/* Story footer */
+.story-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.story-reply-input {
+  flex: 1;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: 24px;
+  padding: 10px 16px;
+  color: white;
+  font-size: 14px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.story-reply-input::placeholder { color: rgba(255,255,255,0.65); }
+
+.story-reply-input:focus {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.6);
+}
+
+.story-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.story-footer-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: transform 0.15s;
+}
+
+.story-footer-btn:hover { transform: scale(1.15); }
+
+.story-footer-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: white;
+}
+
+/* Adjacent stories (prev/next user previews) */
+.story-adjacent {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 80px;
+  aspect-ratio: 9/16;
+  border-radius: 10px;
+  overflow: hidden;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+  display: none;
+}
+
+.story-adjacent:hover {
+  opacity: 0.75;
+  transform: translateY(-50%) scale(1.03);
+}
+
+@media (min-width: 900px) {
+  .story-adjacent { display: block; }
+}
+
+.story-adjacent.prev-story { right: calc(100% + 16px); }
+.story-adjacent.next-story { left: calc(100% + 16px); }
+
+.story-adjacent img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Loading spinner in story */
+.story-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  background: var(--bg-0);
+}
+
+.story-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Mobile-specific story strip ─────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .stories-strip {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    max-width: 100%;
+    padding: 12px 0;
+  }
+
+  .stories-scroll { padding: 0 8px; }
+
+  .story-ring-inner {
+    width: 58px;
+    height: 58px;
+  }
+
+  .story-item { padding: 2px 6px; }
+}
+
+/* ── Story comment icon (opens comment sheet) ── */
+.story-comment-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: white;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+.story-comment-btn:hover { transform: scale(1.15); }
+.story-comment-btn svg { width: 24px; height: 24px; stroke: white; }
+
+/* ── Story reply wrap with send button ───────────────────────────────────── */
+
+.story-reply-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.story-reply-input {
+  flex: 1;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: 24px;
+  padding: 10px 44px 10px 16px;  /* right padding for send btn */
+  color: white;
+  font-size: 14px;
+  width: 100%;
+  transition: background 0.2s, border-color 0.2s;
+}
+.story-reply-input::placeholder { color: rgba(255,255,255,0.65); }
+.story-reply-input:focus {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.6);
+}
+
+.story-send-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.story-send-btn:hover { transform: translateY(-50%) scale(1.1); }
+
+/* ── Pause button in header ──────────────────────────────────────────────── */
+
+.story-pause-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.25);
+}
+.story-pause-btn:hover { transform: scale(1.1); background: rgba(0,0,0,0.4); }
