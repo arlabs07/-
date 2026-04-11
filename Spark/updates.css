@@ -1,0 +1,338 @@
+/* ═══════════════════════════════════════════════════════════
+   updates.css — Status / Updates page
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Page layout ────────────────────────────────────────────── */
+.updates-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── My Status card ──────────────────────────────────────────── */
+.my-status-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.my-status-card:active { background: var(--bg-3); }
+
+.my-status-av-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.add-status-ring {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  border: 2px dashed var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  flex-shrink: 0;
+}
+.add-status-ring .material-icons-round { color: var(--accent); font-size: 22px; }
+
+.status-ring-has {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--story-grad);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.status-ring-has .status-av-img {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--bg-0);
+  object-fit: cover;
+  background: var(--bg-4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: var(--text-1);
+  overflow: hidden;
+}
+
+.my-status-info { flex: 1; min-width: 0; }
+.my-status-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 2px;
+}
+.my-status-sub {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.my-status-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ── Status items (other users) ──────────────────────────────── */
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.status-item:active { background: var(--bg-3); }
+
+.status-item-ring {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--story-grad);
+  flex-shrink: 0;
+}
+.status-item-ring.viewed {
+  background: var(--bg-5);
+}
+.status-item-av {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--bg-0);
+  object-fit: cover;
+  background: var(--bg-4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: var(--text-1);
+  overflow: hidden;
+}
+
+.status-item-info { flex: 1; min-width: 0; }
+.status-item-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-item-time {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+/* ── Status viewer overlay ───────────────────────────────────── */
+.status-viewer {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.status-viewer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 10;
+}
+
+.status-progress-bars {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.status-progress-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.status-progress-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 3px;
+  width: 0%;
+  transition: none;
+}
+.status-progress-fill.done { width: 100%; }
+.status-progress-fill.active {
+  animation: progressFill 5s linear forwards;
+}
+@keyframes progressFill { from { width: 0%; } to { width: 100%; } }
+
+.status-viewer-av { flex-shrink: 0; }
+.status-viewer-info { flex: 1; min-width: 0; }
+.status-viewer-name { font-size: 14px; font-weight: 700; color: #fff; }
+.status-viewer-time { font-size: 11px; color: rgba(255,255,255,0.65); }
+
+.status-close-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; cursor: pointer;
+}
+.status-close-btn:active { background: rgba(255,255,255,0.15); }
+
+/* Status content */
+.status-content-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px 60px;
+  position: relative;
+}
+
+.status-text-content {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.4;
+  word-break: break-word;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  max-width: 340px;
+  width: 100%;
+}
+
+.status-img-content {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+/* Nav zones */
+.status-nav-prev,
+.status-nav-next {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 40%;
+  z-index: 5;
+  cursor: pointer;
+}
+.status-nav-prev { left: 0; }
+.status-nav-next { right: 0; }
+
+/* ── Create status sheet ──────────────────────────────────────── */
+.create-status-wrap {
+  padding: 20px 20px 30px;
+}
+.create-status-wrap h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-1);
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.status-type-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.status-type-tab {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-3);
+  border: 2px solid var(--border-light);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font);
+}
+.status-type-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.status-text-input {
+  width: 100%;
+  min-height: 120px;
+  background: var(--bg-3);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-1);
+  font-size: 16px;
+  font-family: var(--font);
+  padding: 14px;
+  outline: none;
+  resize: none;
+  transition: border-color 0.2s;
+  margin-bottom: 14px;
+}
+.status-text-input:focus { border-color: var(--accent); }
+.status-text-input::placeholder { color: var(--text-3); }
+
+.status-bg-colors {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.status-bg-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s;
+  border: 3px solid transparent;
+}
+.status-bg-dot.sel { border-color: #fff; transform: scale(1.1); }
+
+.status-img-preview {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  display: none;
+}
+
+.status-submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.status-submit-btn:active { opacity: 0.8; }
+
+.status-delete-btn {
+  width: 100%;
+  padding: 14px;
+  background: rgba(237,73,86,0.1);
+  color: var(--danger);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--danger);
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background 0.2s;
+}
+.status-delete-btn:active { background: rgba(237,73,86,0.2); }

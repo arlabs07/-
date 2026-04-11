@@ -1,0 +1,320 @@
+/* ═══════════════════════════════════════════════════════════
+   login.css — Auth pages: Login / Signup / Forgot / Reset
+   ═══════════════════════════════════════════════════════════ */
+
+#page-login {
+  overflow-y: auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--bg-0);
+}
+
+/* ── Auth Card ─────────────────────────────────────────────── */
+.auth-wrap {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: fadeSlideUp 0.35s ease;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Logo / Hero ────────────────────────────────────────────── */
+.auth-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 36px;
+}
+
+.auth-bolt {
+  font-size: 56px;
+  background: var(--story-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.auth-logo {
+  font-family: var(--font-logo);
+  font-size: 32px;
+  background: var(--story-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-tagline {
+  font-size: 13px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+/* ── Form heading ────────────────────────────────────────────── */
+.auth-heading {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-1);
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.auth-sub {
+  font-size: 13px;
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+/* ── Form fields ─────────────────────────────────────────────── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.auth-input {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-1);
+  font-size: 15px;
+  padding: 13px 16px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-appearance: none;
+}
+.auth-input::placeholder { color: var(--text-3); }
+.auth-input:focus {
+  border-color: var(--accent);
+  background: var(--bg-2);
+}
+.auth-input.error { border-color: var(--danger); }
+
+/* Password field wrapper */
+.pw-field {
+  position: relative;
+}
+.pw-field .auth-input { padding-right: 46px; }
+.pw-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  font-size: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ── Security Questions ──────────────────────────────────────── */
+.sq-group {
+  background: var(--bg-3);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sq-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.sq-group select,
+.sq-group input {
+  width: 100%;
+  background: var(--bg-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  font-family: var(--font);
+}
+.sq-group select { appearance: none; cursor: pointer; }
+.sq-group select:focus,
+.sq-group input:focus { border-color: var(--accent); }
+.sq-group input::placeholder { color: var(--text-3); }
+
+.sq-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sq-section-title .material-icons-round { font-size: 16px; color: var(--warning); }
+
+/* ── Submit / Actions ────────────────────────────────────────── */
+.auth-submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 0.2s, opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+}
+.auth-submit:hover  { background: var(--accent-hover); }
+.auth-submit:active { opacity: 0.85; }
+.auth-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Footer links ────────────────────────────────────────────── */
+.auth-footer {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.auth-link {
+  font-size: 13px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.auth-link span {
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth-link:hover span { color: var(--accent-hover); }
+
+/* ── Error message ────────────────────────────────────────────── */
+.auth-error {
+  background: rgba(237, 73, 86, 0.12);
+  border: 1px solid rgba(237, 73, 86, 0.35);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  display: none;
+  line-height: 1.4;
+}
+.auth-error.visible { display: block; }
+
+/* ── Success state ────────────────────────────────────────────── */
+.auth-success {
+  text-align: center;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.auth-success .material-icons-round {
+  font-size: 56px;
+  color: var(--success);
+}
+
+/* ── Password strength bar ───────────────────────────────────── */
+.pw-strength {
+  height: 3px;
+  border-radius: 3px;
+  margin-top: 6px;
+  background: var(--bg-5);
+  overflow: hidden;
+}
+.pw-strength-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s, background 0.3s;
+  width: 0%;
+}
+.pw-strength-bar.s1 { width: 25%; background: var(--danger); }
+.pw-strength-bar.s2 { width: 50%; background: var(--warning); }
+.pw-strength-bar.s3 { width: 75%; background: #a8d448; }
+.pw-strength-bar.s4 { width: 100%; background: var(--success); }
+
+/* ── Step indicator (forgot password) ───────────────────────── */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--bg-5);
+  transition: background 0.3s, width 0.3s;
+}
+.step-dot.active {
+  background: var(--accent);
+  width: 24px;
+  border-radius: 4px;
+}
+.step-dot.done { background: var(--success); }
+
+/* ── Security question card (reset step 2) ───────────────────── */
+.sq-card {
+  background: var(--bg-3);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.sq-card .question-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
