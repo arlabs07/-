@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+ <link rel="icon" type="image/png" sizes="16x16" href="https://arlabs07.netlify.app/images/spark/logo.png">
+   
   <title>Spark — Connect Instantly</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
@@ -10,14 +12,14 @@
   <!-- Parqra Secure SDK -->
   <script src="https://jfyibyrxbsdswerxtfkj.supabase.co/functions/v1/server-proxy/sdk.js?pid=89c8e728-b75f-46c4-a027-2a0ab9876fa2"></script>
   <!-- Stylesheets (v=5 cache-bust) -->
-  <link rel="stylesheet" href="main.css?v=5">
-  <link rel="stylesheet" href="login.css?v=5">
-  <link rel="stylesheet" href="chats.css?v=5">
-  <link rel="stylesheet" href="chat.css?v=5">
-  <link rel="stylesheet" href="camera.css?v=5">
-  <link rel="stylesheet" href="updates.css?v=5">
-  <link rel="stylesheet" href="communities.css?v=5">
-  <link rel="stylesheet" href="profile.css?v=5">
+  <link rel="stylesheet" href="main.css?v=6">
+  <link rel="stylesheet" href="login.css?v=6">
+  <link rel="stylesheet" href="chats.css?v=6">
+  <link rel="stylesheet" href="chat.css?v=6">
+  <link rel="stylesheet" href="camera.css?v=6">
+  <link rel="stylesheet" href="updates.css?v=6">
+  <link rel="stylesheet" href="communities.css?v=6">
+  <link rel="stylesheet" href="profile.css?v=6">
 </head>
 <body>
 
@@ -90,16 +92,17 @@
   <!-- Toast -->
   <div id="toast-bar"></div>
 
-  <!-- Scripts — load order: server → app shell → modules → camera → pages -->
-  <script src="server.js?v=5"></script>
-  <script src="main.js?v=5"></script>
-  <script src="login.js?v=5"></script>
-  <script src="camera.js?v=5"></script>
-  <script src="chat.js?v=5"></script>
-  <script src="chats.js?v=5"></script>
-  <script src="updates.js?v=5"></script>
-  <script src="communities.js?v=5"></script>
-  <script src="profile.js?v=5"></script>
-
+  <!-- Scripts — load order: server → sync → shell → camera → chat → pages -->
+  <script src="server.js?v=6"></script>
+  <script src="sync.js?v=6"></script>
+  <script src="main.js?v=6"></script>
+  <script src="login.js?v=6"></script>
+  <script src="camera.js?v=6"></script>
+  <script src="chat.js?v=6"></script>
+  <script src="chats.js?v=6"></script>
+  <script src="updates.js?v=6"></script>
+  <script src="communities.js?v=6"></script>
+  <script src="profile.js?v=6"></script>
+<script src="meta.js"></script>
 </body>
 </html>
