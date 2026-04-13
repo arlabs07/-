@@ -26,13 +26,31 @@ html, body {
   background: var(--bg-0); color: var(--text-1);
   font-family: var(--font); font-size: 15px;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-  user-select: none; -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  /* kill system text-selection handles and callouts globally */
+  -webkit-touch-callout: none;
+}
+
+/* Disable iOS/Android image long-press system overlays */
+img {
+  display: block; max-width: 100%;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: auto;
+}
+
+/* Inputs/textareas keep normal selection */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 button { background: none; border: none; cursor: pointer; font-family: var(--font); }
 input, textarea, select { font-family: var(--font); }
 a { text-decoration: none; color: inherit; }
-img { display: block; max-width: 100%; }
 
 /* ── Splash ─────────────────────────────────────────────────── */
 #app-loader {
@@ -302,7 +320,20 @@ img { display: block; max-width: 100%; }
 .fab:active { transform: scale(0.92); }
 .fab .material-icons-round { font-size: 24px; }
 
-::-webkit-scrollbar       { width: 4px; }
+/* ── Toggle switch ──────────────────────────────────────────── */
+.toggle-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+  width: 44px; height: 24px; background: var(--bg-5); border-radius: 12px;
+  transition: background 0.2s; flex-shrink: 0; position: relative;
+}
+.toggle-track::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  transition: transform 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.toggle-switch input:checked + .toggle-track { background: var(--accent); }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(20px); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg-5); border-radius: 4px; }
 
