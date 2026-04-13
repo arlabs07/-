@@ -284,6 +284,14 @@ const App = (() => {
     });
 
     navigate(window.location.hash || (_isAuth ? '#chats' : '#login'));
+
+    // Disable system image long-press overlay and text-selection handles
+    document.addEventListener('contextmenu', e => e.preventDefault(), { passive: false });
+    document.addEventListener('selectstart', e => {
+      const t = e.target;
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+    }, { passive: false });
   };
 
   return {
