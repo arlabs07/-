@@ -259,31 +259,14 @@
 .status-submit-btn:active { opacity: 0.8; }
 .status-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Visibility section */
+/* Visibility section — kept for potential future use */
 .vis-section {
   background: var(--bg-3); border-radius: var(--radius-md);
   padding: 14px; display: flex; flex-direction: column; gap: 10px;
 }
-.vis-section-title {
-  font-size: 12px; font-weight: 700; color: var(--text-2);
-  text-transform: uppercase; letter-spacing: 0.3px;
-  display: flex; align-items: center; gap: 6px;
-}
-.vis-section-title .material-icons-round { font-size: 14px; color: var(--text-3); }
-.vis-opt {
-  display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0;
-}
-.vis-opt input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; }
-.vis-opt label { font-size: 14px; color: var(--text-1); cursor: pointer; }
-.vis-opt small { font-size: 11px; color: var(--text-3); display: block; margin-top: 1px; }
 
-/* Restriction chip */
-.restriction-chip {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--bg-4); border-radius: var(--radius-pill);
-  padding: 5px 10px 5px 8px; font-size: 12px; font-weight: 600; color: var(--text-2);
-  border: 1px solid var(--border-light);
+/* ── Comments overlay animation ──────────────────────────────── */
+@keyframes slideUpSheet {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
-.restriction-chip .material-icons-round { font-size: 14px; color: var(--danger); }
-.restriction-chip .rm-x { font-size: 14px !important; cursor: pointer; opacity: 0.6; }
-.restriction-chip .rm-x:hover { opacity: 1; }
