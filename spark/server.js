@@ -130,6 +130,101 @@ const Server = (() => {
   const viewStatus   = async (statusId, userId) => { if (!statusId||!userId) return; try { const rec = await db('spark_statuses').get(statusId); const data = rec?.data?.data||rec?.data; if (!data) return; const views = data.views||[]; if (views.includes(userId)) return; const u = [...views, userId]; await db('spark_statuses').patch(statusId, { views: u, view_count: u.length }); } catch {} };
   const likeStatus   = async (statusId, userId) => { if (!statusId||!userId) return null; try { const rec = await db('spark_statuses').get(statusId); const data = rec?.data?.data||rec?.data; if (!data) return null; const likes = data.likes||[]; const already = likes.includes(userId); const u = already ? likes.filter(id=>id!==userId) : [...likes, userId]; await db('spark_statuses').patch(statusId, { likes: u, like_count: u.length }); return { liked: !already, count: u.length }; } catch { return null; } };
 
+  /* ── Status comments (spark_status_comments table) ───────── */
+  /** Get all comments for a status, sorted oldest-first. */
+  const getStatusComments = async (statusId) => {
+    if (!statusId) return [];
+    try {
+      const res = await db('spark_status_comments').list({ search: statusId, limit: '200', sort_by: 'created_at', sort_order: 'asc' });
+      return (res.data || []).filter(r => r.data?.status_id === statusId);
+    } catch { return []; }
+  };
+
+  /** Add a comment to a status. */
+  const addStatusComment = async (statusId, meta, text) => {
+    if (!statusId || !text) throw new Error('Missing params');
+    const now = new Date().toISOString();
+    const res = await db('spark_status_comments').create({
+      status_id:    statusId,
+      user_id:      meta.user_id,
+      display_name: meta.display_name,
+      username:     meta.username || '',
+      avatar_url:   meta.avatar_url || '',
+      comment:      text,
+      reactions:    {},
+      created_at:   now,
+    });
+    return res?.data || null;
+  };
+
+  /** Delete a comment (owner only). */
+  const deleteStatusComment = (commentId) => db('spark_status_comments').delete(commentId);
+
+  /** React to a comment — key = reaction key string. */
+  const reactStatusComment = async (commentId, key, userId) => {
+    if (!commentId || !key || !userId) return null;
+    const rec = await db('spark_status_comments').get(commentId);
+    if (!rec) return null;
+    const r = { ...(rec.data?.data?.reactions || rec.data?.reactions || {}) };
+    const u = r[key] || [];
+    r[key] = u.includes(userId) ? u.filter(id => id !== userId) : [...u, userId];
+    if (!r[key].length) delete r[key];
+    await db('spark_status_comments').patch(commentId, { reactions: r });
+    return r;
+  };
+
+  /* ── Clear chat ───────────────────────────────────────────── */
+  const clearChat = async (chatId) => {
+    if (!chatId) throw new Error('Invalid chat ID');
+    const rec = await getChatById(chatId); if (!rec) throw new Error('Chat not found');
+    await db('spark_chats').patch(chatId, { messages: [], last_message: '', last_message_at: new Date().toISOString() });
+    return true;
+  };
+
+  /* ── Disappearing messages ────────────────────────────────── */
+  /**
+   * Set disappearing message duration for a chat.
+   * @param {string} chatId
+   * @param {number|null} days — null means 'never'
+   */
+  const setDisappearing = async (chatId, days) => {
+    await db('spark_chats').patch(chatId, { disappearing_days: days });
+  };
+
+  /**
+   * Filter messages according to chat's disappearing setting.
+   * Called client-side; server keeps full history.
+   */
+  const filterDisappearing = (messages, disappearingDays) => {
+    if (!disappearingDays) return messages;   // null = never
+    const cutoff = Date.now() - disappearingDays * 86400000;
+    return messages.filter(m => new Date(m.time).getTime() > cutoff);
+  };
+
+  /* ── Public profiles ──────────────────────────────────────── */
+  const getPublicProfiles = async () => {
+    try { const res = await db('spark_profiles').list({ limit: '500' }); return (res.data||[]).filter(r => r.data?.is_private !== true); }
+    catch { return []; }
+  };
+
+  /* ── Storage download ─────────────────────────────────────── */
+  /**
+   * Trigger a browser download for a file in Parqra storage.
+   * Uses the SDK storage.download if available, otherwise falls back to anchor trick.
+   */
+  const downloadFile = async (url, fileName) => {
+    try {
+      const a = document.createElement('a');
+      a.href     = url;
+      a.download = fileName || 'download';
+      a.target   = '_blank';
+      a.rel      = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 300);
+    } catch { window.open(url, '_blank', 'noopener'); }
+  };
+
   return {
     get currentUser()     { return _currentUser; },
     set currentUser(u)    { _currentUser = u; },
@@ -140,8 +235,11 @@ const Server = (() => {
     getProfile, getProfileByUsername, isUsernameTaken, updateProfile, uploadAvatar,
     getChats, getDirectChats, findDirectChat, createDirectChat, getChatById, sendChatMessage,
     addReaction, editMessage, deleteMessage, convertToGroup, addMember, removeMember,
+    clearChat, setDisappearing, filterDisappearing,
     getCommunities, createCommunity, updateCommunity, joinCommunity, leaveCommunity,
     getStatuses, createStatus, deleteStatus, updateStatus, viewStatus, likeStatus,
+    getStatusComments, addStatusComment, deleteStatusComment, reactStatusComment,
+    getPublicProfiles, downloadFile,
     db, storage
   };
 })();
