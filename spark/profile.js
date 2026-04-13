@@ -97,7 +97,7 @@ const ProfilePage = (() => {
             <span style="margin-left:6px;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:700;
               background:${isPrivate ? 'rgba(240,160,48,0.15)' : 'rgba(45,213,91,0.15)'};
               color:${isPrivate ? 'var(--warning)' : 'var(--success)'}">
-              ${isPrivate ? '🔒 Private' : '🌐 Public'}
+              ${isPrivate ? ' Private' : ' Public'}
             </span>
           </div>
           <div class="profile-bio ${bio ? '' : 'empty'}">${bio ? _esc(bio) : 'Tap edit to add a bio…'}</div>
@@ -180,7 +180,7 @@ const ProfilePage = (() => {
         Server.currentProfile = _profileRec;
         App.cache.set(CACHE_KEY, _profileRec);
       }
-      App.showToast(newVal ? '🔒 Profile set to Private' : '🌐 Profile set to Public', 'success');
+      App.showToast(newVal ? 'Profile set to Private' : ' Profile set to Public', 'success');
       await _render(_profileRec);
     } catch { App.showToast('Failed to update privacy', 'error'); }
   };
