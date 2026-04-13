@@ -1,22 +1,30 @@
 /**
- * chats.js — Chats Page v5
- * + Skeleton loading (App.skel.threads)
- * + Smart cache: no reload on back-nav unless dirty
- * + Profile discovery (public profiles shown on search)
+ * chats.js — Chats Page v6
+ *
+ * Changes:
+ *  • Public profiles shown in a "People" tab — one-tap to start a chat
+ *  • Private profiles: still reachable via exact-username search bar
+ *  • SyncManager handles background thread-list refresh
+ *  • Smart cache: no reload on back-nav unless dirty
  */
 
 const ChatsPage = (() => {
 
-  const CACHE_KEY = 'chats_threads';
+  const CACHE_THREADS  = 'chats_threads';
+  const CACHE_PEOPLE   = 'chats_people';
+  const SYNC_KEY       = 'chats_sync';
+
   let _container  = null;
   let _srTimer    = null;
+  let _activeTab  = 'chats';   // 'chats' | 'people'
 
-  /* ─── DESTROY ─────────────────────────────────────────────── */
+  /* ── DESTROY ──────────────────────────────────────────────── */
   const destroy = () => {
+    SyncManager.unwatch(SYNC_KEY);
     if (ChatWindow.isOpen()) ChatWindow.close();
   };
 
-  /* ─── RENDER ──────────────────────────────────────────────── */
+  /* ── RENDER ───────────────────────────────────────────────── */
   const render = async (container, chatId) => {
     _container = container;
 
@@ -24,43 +32,89 @@ const ChatsPage = (() => {
 
     if (!chatId) {
       ChatWindow.close();
-      _buildList();
-      await _loadList();
+      _buildShell();
+      await _loadTab(_activeTab);
     } else {
-      _buildList();
-      // Load list silently in background if cache fresh, else show skeletons
-      if (App.cache.stale(CACHE_KEY)) {
-        await _loadList(false);
-      } else {
-        _loadList(true);  // non-blocking from cache
-      }
+      _buildShell();
+      _loadTab(_activeTab, true);   // non-blocking from cache
       _openChat(chatId, false);
     }
+
+    // Register background sync (only re-fetches when cache is stale)
+    SyncManager.watch(SYNC_KEY, async () => {
+      App.cache.dirty(CACHE_THREADS);
+      const list = document.getElementById('ch-list');
+      if (list && _activeTab === 'chats') await _loadThreads(false);
+    }, 20000);
   };
 
-  /* ─── BUILD LIST VIEW ─────────────────────────────────────── */
-  const _buildList = () => {
+  /* ── SHELL (tabs + search) ────────────────────────────────── */
+  const _buildShell = () => {
     _container.innerHTML = `
       <div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+
+        <!-- Tab bar -->
+        <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0">
+          <button class="ch-tab active" data-tab="chats"
+            style="flex:1;padding:12px 0;font-size:13px;font-weight:700;
+              color:var(--accent);border-bottom:2px solid var(--accent);
+              background:none;font-family:var(--font);">
+            <span class="material-icons-round" style="font-size:16px;vertical-align:middle;margin-right:4px">chat_bubble_outline</span>
+            Chats
+          </button>
+          <button class="ch-tab" data-tab="people"
+            style="flex:1;padding:12px 0;font-size:13px;font-weight:700;
+              color:var(--text-3);border-bottom:2px solid transparent;
+              background:none;font-family:var(--font);">
+            <span class="material-icons-round" style="font-size:16px;vertical-align:middle;margin-right:4px">people_outline</span>
+            People
+          </button>
+        </div>
+
+        <!-- Search bar (always visible) -->
         <div class="chat-search-wrap">
           <div class="chat-search-inner">
             <span class="material-icons-round">search</span>
             <input id="ch-sr" class="chat-search-input" type="text"
-              placeholder="Search username to start a chat…"
+              placeholder="Search by username..."
               autocomplete="off" inputmode="search">
             <span class="material-icons-round" id="ch-clear"
               style="display:none;cursor:pointer;color:var(--text-3)">close</span>
           </div>
         </div>
+
+        <!-- Search results dropdown -->
         <div id="ch-dropdown"></div>
-        <div class="thread-list" id="ch-list" style="flex:1;overflow-y:auto"></div>
+
+        <!-- Content area -->
+        <div id="ch-content" style="flex:1;overflow-y:auto"></div>
+
       </div>`;
 
+    /* Tab switching */
+    _container.querySelectorAll('.ch-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        _activeTab = tab.dataset.tab;
+        _container.querySelectorAll('.ch-tab').forEach(t => {
+          const active = t.dataset.tab === _activeTab;
+          t.style.color        = active ? 'var(--accent)' : 'var(--text-3)';
+          t.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+        });
+        document.getElementById('ch-dropdown').innerHTML = '';
+        document.getElementById('ch-sr').value = '';
+        document.getElementById('ch-clear').style.display = 'none';
+        _loadTab(_activeTab);
+      });
+    });
+
+    /* Search */
     const inp  = document.getElementById('ch-sr');
     const clr  = document.getElementById('ch-clear');
     const drop = document.getElementById('ch-dropdown');
 
-    clr.onclick = () => { inp.value = ''; clr.style.display = 'none'; drop.innerHTML = ''; inp.focus(); };
+    clr.onclick = () => {
+      inp.value = ''; clr.style.display = 'none'; drop.innerHTML = ''; inp.focus();
+    };
     inp.addEventListener('input', () => {
       const q = inp.value.trim();
       clr.style.display = q ? 'block' : 'none';
@@ -70,50 +124,53 @@ const ChatsPage = (() => {
     });
   };
 
-  /* ─── LOAD LIST ───────────────────────────────────────────── */
-  const _loadList = async (skipIfFresh = false) => {
-    const list = document.getElementById('ch-list'); if (!list) return;
-    const me = Server.currentUser; if (!me) return;
-
-    // If cache is fresh and caller wants to skip → render from cache immediately
-    if (App.cache.fresh(CACHE_KEY) && skipIfFresh) {
-      _renderList(list, App.cache.get(CACHE_KEY), me.id);
-      return;
+  /* ── LOAD TAB ─────────────────────────────────────────────── */
+  const _loadTab = async (tab, skipIfFresh = false) => {
+    if (tab === 'chats') {
+      await _loadThreads(skipIfFresh);
+    } else {
+      await _loadPeople(skipIfFresh);
     }
-
-    // Show skeleton only if list is currently empty (first load)
-    if (!list.children.length || list.innerHTML.trim() === '') {
-      list.innerHTML = App.skel.threads(6);
-    }
-
-    const chats = await Server.getDirectChats(me.id);
-    App.cache.set(CACHE_KEY, chats);
-    _renderList(list, chats, me.id);
   };
 
-  const _renderList = (list, chats, myId) => {
+  /* ── THREAD LIST ──────────────────────────────────────────── */
+  const _loadThreads = async (skipIfFresh = false) => {
+    const list = document.getElementById('ch-content'); if (!list) return;
+    const me   = Server.currentUser; if (!me) return;
+
+    if (App.cache.fresh(CACHE_THREADS) && skipIfFresh) {
+      _renderThreads(list, App.cache.get(CACHE_THREADS), me.id); return;
+    }
+
+    if (!list.firstChild) list.innerHTML = App.skel.threads(6);
+
+    const chats = await Server.getDirectChats(me.id);
+    App.cache.set(CACHE_THREADS, chats);
+    _renderThreads(list, chats, me.id);
+  };
+
+  const _renderThreads = (list, chats, myId) => {
     if (!chats.length) {
       list.innerHTML = `
         <div class="empty-state">
           <span class="material-icons-round">chat_bubble_outline</span>
           <h3>No chats yet</h3>
-          <p>Search for a username above<br>to start a conversation</p>
+          <p>Search for a username above<br>or browse People to start a conversation</p>
         </div>`;
       return;
     }
     list.innerHTML = chats.map(r => _threadRow(r, myId)).join('');
-    list.querySelectorAll('.thread-item').forEach(el => {
+    list.querySelectorAll('.thread-item').forEach(el =>
       el.addEventListener('click', () => {
         const cid = el.dataset.cid;
         if (cid && cid !== 'undefined') _openChat(cid, false);
-      });
-    });
+      })
+    );
   };
 
   const _threadRow = (rec, myId) => {
     if (!rec?.id || !rec?.data) return '';
-    const d       = rec.data;
-    const pm      = d.participant_meta || {};
+    const d       = rec.data; const pm = d.participant_meta || {};
     const otherId = (d.participants || []).find(id => id !== myId);
     if (!otherId) return '';
     const other   = pm[otherId] || { display_name: 'User', username: '?', avatar_url: '' };
@@ -132,7 +189,83 @@ const ChatsPage = (() => {
       </div>`;
   };
 
-  /* ─── OPEN CHAT ───────────────────────────────────────────── */
+  /* ── PEOPLE LIST (public profiles) ───────────────────────── */
+  const _loadPeople = async (skipIfFresh = false) => {
+    const list = document.getElementById('ch-content'); if (!list) return;
+    const me   = Server.currentUser; if (!me) return;
+
+    if (App.cache.fresh(CACHE_PEOPLE) && skipIfFresh) {
+      _renderPeople(list, App.cache.get(CACHE_PEOPLE), me.id); return;
+    }
+
+    list.innerHTML = App.skel.threads(6);
+
+    const profiles = await Server.getPublicProfiles();
+    App.cache.set(CACHE_PEOPLE, profiles);
+    _renderPeople(list, profiles, me.id);
+  };
+
+  const _renderPeople = (list, profiles, myId) => {
+    const others = profiles.filter(r => r.data?.user_id !== myId);
+
+    if (!others.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <span class="material-icons-round">people_outline</span>
+          <h3>No public profiles yet</h3>
+          <p>Users with public profiles will appear here</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = others.map(r => {
+      const d = r.data || {};
+      return `
+        <div class="thread-item people-row" data-uid="${d.user_id}" data-rid="${r.id}"
+             style="position:relative">
+          ${App.avatar(d.avatar_url, d.display_name, 'av-md')}
+          <div class="thread-info">
+            <div class="thread-top">
+              <span class="thread-name">${_esc(d.display_name || 'User')}</span>
+              <span style="font-size:10px;padding:2px 7px;border-radius:99px;font-weight:700;
+                background:rgba(45,213,91,0.15);color:var(--success)">Public</span>
+            </div>
+            <div class="thread-preview" style="display:flex;align-items:center;gap:4px">
+              <span class="material-icons-round" style="font-size:13px">alternate_email</span>
+              ${_esc(d.username || '')}
+              ${d.bio ? ` · ${_esc(d.bio.slice(0,30))}${d.bio.length>30?'...':''}` : ''}
+            </div>
+          </div>
+          <!-- Plus button to start chat -->
+          <button class="people-chat-btn" data-uid="${d.user_id}" title="Start chat"
+            style="width:36px;height:36px;border-radius:50%;background:var(--accent);
+              color:#fff;display:flex;align-items:center;justify-content:center;
+              flex-shrink:0;border:none;cursor:pointer;transition:transform 0.15s">
+            <span class="material-icons-round" style="font-size:18px">add</span>
+          </button>
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.people-chat-btn').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        const uid = btn.dataset.uid;
+        const rec = profiles.find(r => r.data?.user_id === uid);
+        if (rec) await _startChatWith(rec);
+      });
+    });
+
+    // Tapping the row also opens chat
+    list.querySelectorAll('.people-row').forEach(row => {
+      row.addEventListener('click', async () => {
+        const uid = row.dataset.uid;
+        const rec = profiles.find(r => r.data?.user_id === uid);
+        if (rec) await _startChatWith(rec);
+      });
+    });
+  };
+
+  /* ── OPEN CHAT ────────────────────────────────────────────── */
   const _openChat = (chatId, isNew) => {
     if (!chatId || chatId === 'undefined') return;
     let slot = document.getElementById('ch-slot');
@@ -144,25 +277,26 @@ const ChatsPage = (() => {
       document.body.appendChild(slot);
     }
     slot.style.display = 'flex';
+
     ChatWindow.open(chatId, slot, {
       isNew,
       onClose: () => {
         slot.style.display = 'none';
         slot.innerHTML     = '';
         App.setHash('#chats');
-        App.cache.dirty(CACHE_KEY);  // mark dirty so next open refreshes
-        _loadList(false);            // refresh list
+        App.cache.dirty(CACHE_THREADS);
+        _loadThreads(false);
       }
     });
   };
 
-  /* ─── SEARCH ──────────────────────────────────────────────── */
+  /* ── SEARCH ───────────────────────────────────────────────── */
   const _doSearch = async (q, inp, clr, drop) => {
     drop.innerHTML = `
       <div class="search-results">
         <div class="search-result-item">
           <div class="spinner" style="width:20px;height:20px;border-width:2px"></div>
-          <span style="font-size:13px;color:var(--text-3)">Searching…</span>
+          <span style="font-size:13px;color:var(--text-3)">Searching...</span>
         </div>
       </div>`;
 
@@ -181,19 +315,13 @@ const ChatsPage = (() => {
       }
 
       const fd = found.data;
-
-      // Check if profile is private
-      if (fd.is_private) {
-        // Only show basic info, user still can message
-      }
-
       drop.innerHTML = `
         <div class="search-results">
           <div class="search-result-item" id="sr-hit">
             ${App.avatar(fd.avatar_url, fd.display_name, 'av-md')}
             <div>
               <div class="search-result-name">${_esc(fd.display_name)}</div>
-              <div class="search-result-uname">@${_esc(fd.username)}${fd.is_private ? ' 🔒' : ''}</div>
+              <div class="search-result-uname">@${_esc(fd.username)}${fd.is_private ? ' <span class="material-icons-round" style="font-size:12px;vertical-align:middle;color:var(--warning)">lock</span>' : ''}</div>
             </div>
             <span class="material-icons-round" style="color:var(--accent);margin-left:auto">chevron_right</span>
           </div>
@@ -211,13 +339,13 @@ const ChatsPage = (() => {
     }
   };
 
-  /* ─── START CHAT WITH ─────────────────────────────────────── */
+  /* ── START CHAT WITH ──────────────────────────────────────── */
   const _startChatWith = async (otherRec) => {
     const me        = Server.currentUser;
     const myProfile = Server.currentProfile;
     if (!me || !myProfile) return;
 
-    const list = document.getElementById('ch-list');
+    const list = document.getElementById('ch-content');
     if (list) list.innerHTML = App.skel.threads(3);
 
     let chatRec = await Server.findDirectChat(me.id, otherRec.data.user_id);
@@ -226,19 +354,20 @@ const ChatsPage = (() => {
     if (!chatRec) {
       isNew   = true;
       chatRec = await Server.createDirectChat(
-        { user_id: me.id, display_name: myProfile.data.display_name, username: myProfile.data.username, avatar_url: myProfile.data.avatar_url || '' },
-        { user_id: otherRec.data.user_id, display_name: otherRec.data.display_name, username: otherRec.data.username, avatar_url: otherRec.data.avatar_url || '' }
+        { user_id: me.id, display_name: myProfile.data.display_name,
+          username: myProfile.data.username, avatar_url: myProfile.data.avatar_url || '' },
+        { user_id: otherRec.data.user_id, display_name: otherRec.data.display_name,
+          username: otherRec.data.username, avatar_url: otherRec.data.avatar_url || '' }
       );
-      App.cache.dirty(CACHE_KEY);
+      App.cache.dirty(CACHE_THREADS);
     }
 
     if (!chatRec?.id) {
       App.showToast('Could not open chat — please try again.', 'error');
-      _loadList(false);
-      return;
+      _loadThreads(false); return;
     }
 
-    await _loadList(true);
+    await _loadThreads(true);
     _openChat(chatRec.id, isNew);
   };
 
