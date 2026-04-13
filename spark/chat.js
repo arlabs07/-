@@ -1,55 +1,100 @@
 /**
- * chat.js — ChatWindow v5
- * New: audio messages, video messages (MediaRecorder),
- *      working polls, camera integration (CameraOverlay),
- *      skeleton loading, smart poll voting via optimistic updates.
+ * chat.js — ChatWindow v7
+ *
+ * New:
+ *  - Markdown formatting (bold, italic, code, codeblock, blockquote, h1-h3, lists, strikethrough)
+ *  - Wider message bubbles (86% max-width)
+ *  - Improved reply: animated scroll + soft highlight on target
+ *  - Poll type: standard (vote many) + Quiz (single choice, reveals answer)
+ *  - Disappearing messages (configurable: 10/30/60/90/never days)
+ *  - Communities admin-only mode: non-admins see disabled input
+ *  - Storage download via Server.downloadFile
+ *  - SyncManager v2 store integration
  */
 
 const ChatWindow = (() => {
 
-  const EMOJIS  = ['❤️','😂','😮','😢','👍'];
-  const COLORS  = ['#0095f6','#ed4956','#2dd55b','#f0a030','#bc1888','#8a2be2'];
-  const URL_RE  = /https?:\/\/(www\.)?[-\w@:%._+~#=]{1,256}\.[a-zA-Z]{1,6}\b([-\w@:%_+.~#?&//=]*)/g;
-  const POLL_MS = 4000;
+  const REACTIONS = [
+    { icon: 'favorite',                 color: '#ed4956', key: 'heart' },
+    { icon: 'sentiment_very_satisfied', color: '#f0a030', key: 'laugh' },
+    { icon: 'sentiment_surprised',      color: '#f0a030', key: 'wow'   },
+    { icon: 'sentiment_dissatisfied',   color: '#58d1f7', key: 'sad'   },
+    { icon: 'thumb_up',                 color: '#0095f6', key: 'like'  },
+  ];
 
-  let _chatId    = null; let _chatRec  = null; let _msgs     = [];
-  let _msgHash   = '';   let _container= null; let _pollTimer= null;
-  let _onClose   = null; let _isNew    = false; let _attachOpen= false; let _raf = null;
-  // Audio recording state
-  let _audioRec  = null; let _audioChunks = []; let _audioTimer = null; let _audioSecs = 0;
-  let _isRecording = false;
+  const COLORS    = ['#0095f6','#ed4956','#2dd55b','#f0a030','#bc1888','#8a2be2'];
+  const URL_RE    = /https?:\/\/(www\.)?[-\w@:%._+~#=]{1,256}\.[a-zA-Z]{1,6}\b([-\w@:%_+.~#?&//=]*)/g;
+  const SYNC_KEY  = (id) => `chat_poll_${id}`;
+  const DISAPPEAR_OPTIONS = [
+    { label: '10 days', days: 10 },
+    { label: '30 days', days: 30 },
+    { label: '60 days', days: 60 },
+    { label: '90 days', days: 90 },
+    { label: 'Never',   days: null },
+  ];
 
-  /* ── Public ─────────────────────────────────────────────────── */
+  let _chatId    = null; let _chatRec   = null; let _msgs      = [];
+  let _msgHash   = '';   let _container = null; let _onClose   = null;
+  let _isNew     = false; let _attachOpen = false; let _raf     = null;
+  let _replyTo   = null;
+  let _audioRec  = null; let _audioChunks = []; let _audioTimer = null;
+  let _audioSecs = 0;    let _isRecording = false;
+
+  /* ── PUBLIC ─────────────────────────────────────────────── */
+
   const open = async (chatId, overlayEl, opts = {}) => {
-    if (!chatId || chatId === 'undefined') { App.showToast('Cannot open chat — invalid ID.', 'error'); return; }
+    if (!chatId || chatId === 'undefined') { App.showToast('Cannot open chat.', 'error'); return; }
     close();
-    _chatId = chatId; _container = overlayEl; _onClose = opts.onClose || null; _isNew = opts.isNew || false;
+    _chatId = chatId; _container = overlayEl;
+    _onClose = opts.onClose || null; _isNew = opts.isNew || false;
+
     App.setHash(`#${_hashPrefix()}/${chatId}`);
     App.hideChrome();
     _container.innerHTML = App.skel.messages(8);
     _container.style.display = 'flex';
+
     _chatRec = await Server.getChatById(chatId);
-    if (!_chatRec) { _container.innerHTML = _errHTML(); document.getElementById('cw-err-back')?.addEventListener('click', _close); return; }
-    _msgs = [...(_chatRec.data.messages || [])];
+    if (!_chatRec) {
+      _container.innerHTML = _errHTML();
+      document.getElementById('cw-err-back')?.addEventListener('click', _close);
+      return;
+    }
+
+    _msgs    = [...(_chatRec.data.messages || [])];
+    _msgs    = _applyDisappearing(_msgs);
     _msgHash = JSON.stringify(_msgs);
     _buildUI();
-    if (_isNew && !_msgs.length) setTimeout(() => _sendText('Hi 👋'), 350);
-    _pollTimer = setInterval(_poll, POLL_MS);
+
+    if (_isNew && !_msgs.length) setTimeout(() => _sendText('Hi'), 350);
+
+    SyncManager.watch(SYNC_KEY(chatId), _pollFetch, {
+      ms: 4000,
+      onUpdate: () => { /* render already done inside _pollFetch */ }
+    });
   };
 
   const close = () => {
-    clearInterval(_pollTimer); cancelAnimationFrame(_raf);
-    _stopAudioRec();
-    _pollTimer = _raf = null; _chatId = _chatRec = null;
-    _msgs = []; _msgHash = ''; _isNew = false; _attachOpen = false;
+    if (_chatId) SyncManager.unwatch(SYNC_KEY(_chatId));
+    cancelAnimationFrame(_raf); _stopAudioRec();
+    _raf = null; _chatId = _chatRec = null;
+    _msgs = []; _msgHash = ''; _isNew = false; _attachOpen = false; _replyTo = null;
   };
 
   const isOpen = () => !!_chatId;
 
-  /* ── Build UI ───────────────────────────────────────────────── */
+  /* ── BUILD UI ─────────────────────────────────────────────── */
+
   const _buildUI = () => {
-    const d = _chatRec.data; const isGroup = d.type === 'group'; const me = Server.currentUser;
+    const d          = _chatRec.data;
+    const isGroup    = d.type === 'group';
+    const me         = Server.currentUser;
+    const adminOnly  = d.admin_only_messages === true;
+    const isAdmin    = d.created_by === me?.id;
+    const canMessage = !adminOnly || isAdmin;
+    const disappDays = d.disappearing_days ?? 90;   // default 90
+
     let hName, hSub, hAvHtml, privBadge = '';
+
     if (isGroup) {
       const color = d.color || '#0095f6'; const initial = (d.name || 'G')[0].toUpperCase();
       const count = d.member_count || (d.participants || []).length;
@@ -60,27 +105,62 @@ const ChatWindow = (() => {
       privBadge = `<span class="privacy-badge ${pub ? 'public' : 'private'}">
         <span class="material-icons-round">${pub ? 'public' : 'lock'}</span>${pub ? 'Public' : 'Private'}</span>`;
     } else {
-      const pm = d.participant_meta || {}; const oid = (d.participants || []).find(id => id !== me?.id) || '';
-      const o = pm[oid] || { display_name: 'User', username: '?', avatar_url: '' };
+      const pm  = d.participant_meta || {}; const oid = (d.participants || []).find(id => id !== me?.id) || '';
+      const o   = pm[oid] || { display_name: 'User', username: '?', avatar_url: '' };
       hName = o.display_name; hSub = `@${o.username}`;
       hAvHtml = `<div id="cw-av-btn">${App.avatar(o.avatar_url, o.display_name, 'av-md')}</div>`;
     }
 
+    const disappBadge = disappDays
+      ? `<span class="disappearing-badge" title="Messages disappear after ${disappDays} days">
+           <span class="material-icons-round">timer</span>${disappDays}d
+         </span>` : '';
+
+    /* Admin-only banner for non-admins */
+    const adminBanner = (adminOnly && !isAdmin)
+      ? `<div style="padding:8px 14px;background:var(--bg-3);border-bottom:1px solid var(--border);
+           display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3)">
+           <span class="material-icons-round" style="font-size:16px;color:var(--warning)">admin_panel_settings</span>
+           Only admins can send messages
+         </div>` : '';
+
     _container.innerHTML = `
       <div class="chat-fullscreen">
         <div class="cw-header">
-          <button class="cw-back icon-btn" id="cw-back"><span class="material-icons-round">arrow_back</span></button>
+          <button class="cw-back icon-btn" id="cw-back">
+            <span class="material-icons-round">arrow_back</span>
+          </button>
           <div class="cw-av">${hAvHtml}</div>
           <div class="cw-info" id="cw-info-txt">
-            <div class="cw-name">${_esc(hName)} ${privBadge}</div>
+            <div class="cw-name">${_esc(hName)} ${privBadge} ${disappBadge}</div>
             <div class="cw-sub">${_esc(hSub)}</div>
           </div>
           <div class="cw-actions">
-            <button class="icon-btn" id="cw-more"><span class="material-icons-round">more_vert</span></button>
+            <button class="icon-btn" id="cw-more">
+              <span class="material-icons-round">more_vert</span>
+            </button>
           </div>
         </div>
+
+        ${adminBanner}
+
         <div class="cw-messages" id="cw-msgs"></div>
-        <div class="cw-input-bar" id="cw-input-bar">
+
+        <!-- Reply bar -->
+        <div class="reply-bar" id="reply-bar">
+          <div class="reply-bar-inner">
+            <div class="reply-bar-icon"><span class="material-icons-round">reply</span></div>
+            <div class="reply-bar-content">
+              <div class="reply-bar-sender" id="reply-bar-sender"></div>
+              <div class="reply-bar-preview" id="reply-bar-preview"></div>
+            </div>
+          </div>
+          <button class="reply-bar-close" id="reply-bar-close">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+
+        <div class="cw-input-bar" id="cw-input-bar" style="${canMessage ? '' : 'pointer-events:none;opacity:0.4'}">
           <div class="attach-overlay" id="attach-overlay">
             <div class="attach-grid">
               <div class="attach-item" data-attach="image">
@@ -99,25 +179,40 @@ const ChatWindow = (() => {
                 <div class="attach-icon-wrap green"><span class="material-icons-round">poll</span></div>
                 <span class="attach-label">Poll</span>
               </div>
+              <div class="attach-item" data-attach="quiz">
+                <div class="attach-icon-wrap orange"><span class="material-icons-round">quiz</span></div>
+                <span class="attach-label">Quiz</span>
+              </div>
               <div class="attach-item" data-attach="camera">
-                <div class="attach-icon-wrap orange"><span class="material-icons-round">photo_camera</span></div>
+                <div class="attach-icon-wrap teal"><span class="material-icons-round">photo_camera</span></div>
                 <span class="attach-label">Camera</span>
               </div>
               <div class="attach-item" data-attach="audio">
-                <div class="attach-icon-wrap teal"><span class="material-icons-round">mic</span></div>
-                <span class="attach-label">Audio</span>
+                <div class="attach-icon-wrap pink"><span class="material-icons-round">audio_file</span></div>
+                <span class="attach-label">Audio File</span>
               </div>
             </div>
           </div>
+
           <input type="file" id="cw-img-in"   accept="image/*"   style="display:none">
           <input type="file" id="cw-file-in"  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.csv" style="display:none">
           <input type="file" id="cw-video-in" accept="video/*"   style="display:none">
-          <button class="cw-insert-btn" id="cw-insert"><span class="material-icons-round">add_circle_outline</span></button>
-          <textarea id="cw-ta" class="cw-textarea" placeholder="${isGroup ? 'Message group…' : 'Message…'}" rows="1"></textarea>
-          <button class="cw-mic-btn" id="cw-mic" title="Hold to record audio">
+          <input type="file" id="cw-audio-in" accept="audio/*"   style="display:none">
+
+          <button class="cw-insert-btn" id="cw-insert">
+            <span class="material-icons-round">add_circle_outline</span>
+          </button>
+
+          <textarea id="cw-ta" class="cw-textarea"
+            placeholder="${isGroup ? 'Message group...' : 'Message...'}"
+            rows="1" ${canMessage ? '' : 'disabled'}></textarea>
+
+          <button class="cw-mic-btn" id="cw-mic" title="Voice message">
             <span class="material-icons-round">mic</span>
           </button>
-          <button class="cw-send-btn" id="cw-send"><span class="material-icons-round">send</span></button>
+          <button class="cw-send-btn" id="cw-send">
+            <span class="material-icons-round">send</span>
+          </button>
         </div>
       </div>`;
 
@@ -127,97 +222,170 @@ const ChatWindow = (() => {
     document.getElementById('cw-info-txt')?.addEventListener('click', infoH);
     document.getElementById('cw-more').onclick = () => isGroup ? _showGroupInfo() : _showDirectMenu();
 
-    const ta = document.getElementById('cw-ta');
-    ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
-    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendFromInput(); } });
-    document.getElementById('cw-send').onclick = _sendFromInput;
-    document.getElementById('cw-insert').onclick = _toggleAttach;
-    document.getElementById('cw-msgs').addEventListener('click', _closeAttach);
-
-    // Mic button — click to toggle audio recording
-    document.getElementById('cw-mic').addEventListener('click', () => {
-      _isRecording ? _stopAudioRec() : _startAudioRec();
-    });
-
-    document.querySelectorAll('.attach-item').forEach(item => {
-      if (item.classList.contains('disabled')) return;
-      item.addEventListener('click', () => {
-        _closeAttach();
-        const type = item.dataset.attach;
-        if (type === 'image')  document.getElementById('cw-img-in').click();
-        if (type === 'file')   document.getElementById('cw-file-in').click();
-        if (type === 'video')  document.getElementById('cw-video-in').click();
-        if (type === 'poll')   _showPollSheet();
-        if (type === 'camera') CameraOverlay.open((url, mediaType) => {
-          const msg = { ..._myMeta(), message: url, time: _now(), msg_type: mediaType === 'video' ? 'video' : 'image' };
-          _optimisticSend(msg);
-        });
-        if (type === 'audio')  _startAudioRec();
+    if (canMessage) {
+      const ta = document.getElementById('cw-ta');
+      ta.addEventListener('input', () => {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
       });
-    });
+      ta.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendFromInput(); }
+      });
+      document.getElementById('cw-send').onclick   = _sendFromInput;
+      document.getElementById('cw-insert').onclick  = _toggleAttach;
+      document.getElementById('reply-bar-close').onclick = _clearReply;
+      document.getElementById('cw-mic').addEventListener('click', () =>
+        _isRecording ? _stopAudioRec() : _startAudioRec()
+      );
 
-    document.getElementById('cw-img-in').addEventListener('change', async e => {
-      const f = e.target.files[0]; if (!f) return; e.target.value = ''; await _sendImageFile(f);
-    });
-    document.getElementById('cw-video-in').addEventListener('change', async e => {
-      const f = e.target.files[0]; if (!f) return; e.target.value = ''; await _sendVideoFile(f);
-    });
-    document.getElementById('cw-file-in').addEventListener('change', async e => {
-      const f = e.target.files[0]; if (!f) return; e.target.value = ''; await _sendGenericFile(f);
-    });
+      document.querySelectorAll('.attach-item').forEach(item => {
+        if (item.classList.contains('disabled')) return;
+        item.addEventListener('click', () => {
+          _closeAttach();
+          const type = item.dataset.attach;
+          if (type === 'image')  document.getElementById('cw-img-in').click();
+          if (type === 'file')   document.getElementById('cw-file-in').click();
+          if (type === 'video')  document.getElementById('cw-video-in').click();
+          if (type === 'audio')  document.getElementById('cw-audio-in').click();
+          if (type === 'poll')   _showPollSheet('poll');
+          if (type === 'quiz')   _showPollSheet('quiz');
+          if (type === 'camera') CameraOverlay.open((url, mediaType) => {
+            const msg = { ..._myMeta(), message: url, time: _now(),
+              msg_type: mediaType === 'video' ? 'video' : 'image' };
+            _optimisticSend(msg);
+          });
+        });
+      });
 
+      document.getElementById('cw-img-in').addEventListener('change', async e => {
+        const f = e.target.files[0]; if (!f) return; e.target.value = ''; await _sendImageFile(f);
+      });
+      document.getElementById('cw-video-in').addEventListener('change', async e => {
+        const f = e.target.files[0]; if (!f) return; e.target.value = ''; await _sendVideoFile(f);
+      });
+      document.getElementById('cw-file-in').addEventListener('change', async e => {
+        const f = e.target.files[0]; if (!f) return; e.target.value = ''; await _sendGenericFile(f);
+      });
+      document.getElementById('cw-audio-in').addEventListener('change', async e => {
+        const f = e.target.files[0]; if (!f) return; e.target.value = ''; await _sendAudioFile(f);
+      });
+    }
+
+    document.getElementById('cw-msgs').addEventListener('click', _closeAttach);
     _renderMessages();
   };
 
-  /* ── Close ──────────────────────────────────────────────────── */
-  const _close = () => {
-    App.showChrome(); close();
-    if (typeof _onClose === 'function') _onClose();
+  /* ── CLOSE ────────────────────────────────────────────────── */
+  const _close = () => { App.showChrome(); close(); if (typeof _onClose === 'function') _onClose(); };
+
+  /* ── DISAPPEARING FILTER ──────────────────────────────────── */
+  const _applyDisappearing = (msgs) => {
+    const days = _chatRec?.data?.disappearing_days ?? 90;
+    return Server.filterDisappearing(msgs, days);
   };
 
-  /* ── Polling ─────────────────────────────────────────────────── */
-  const _poll = async () => {
-    if (!_chatId) return;
-    if (!document.getElementById('cw-msgs')) { close(); return; }
+  /* ── SYNC POLL ────────────────────────────────────────────── */
+  const _pollFetch = async () => {
+    if (!_chatId || !document.getElementById('cw-msgs')) { close(); return; }
     const fresh = await Server.getChatById(_chatId);
     if (!fresh) return;
-    const serverMsgs = fresh.data.messages || [];
-    const newHash = JSON.stringify(serverMsgs);
+    const serverMsgs = _applyDisappearing(fresh.data.messages || []);
+    const newHash    = JSON.stringify(serverMsgs);
     if (newHash === _msgHash) return;
-    const area = document.getElementById('cw-msgs');
+    const area   = document.getElementById('cw-msgs');
     const wasBot = area ? area.scrollHeight - area.scrollTop - area.clientHeight < 100 : true;
-    _msgs = _mergeMessages(_msgs, serverMsgs);
+    _msgs    = _mergeMessages(_msgs, serverMsgs);
     _msgHash = JSON.stringify(_msgs); _chatRec = fresh;
     _renderMessages();
     if (wasBot) _scrollBottom();
+    SyncManager.store.set(SYNC_KEY(_chatId), _msgHash);
   };
 
   const _mergeMessages = (local, server) => {
-    const serverTimes = new Set(server.map(m => m.time));
-    const optimistic  = local.filter(m => m._optimistic && !serverTimes.has(m.time));
-    return [...server, ...optimistic];
+    const st = new Set(server.map(m => m.time));
+    return [...server, ...local.filter(m => m._optimistic && !st.has(m.time))];
   };
 
-  /* ── Render ──────────────────────────────────────────────────── */
+  /* ── MARKDOWN PARSER ──────────────────────────────────────── */
+  const _parseMarkdown = (raw) => {
+    // Escape HTML first
+    let text = String(raw || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // Fenced code blocks ```...```
+    text = text.replace(/```([\s\S]*?)```/g, (_, c) =>
+      `<code class="md-codeblock">${c.trim()}</code>`
+    );
+
+    // Inline code `...`
+    text = text.replace(/`([^`\n]+)`/g, (_, c) => `<span class="md-code">${c}</span>`);
+
+    // Headings (# ## ###)
+    text = text.replace(/^### (.+)$/gm, (_, t) => `<span class="md-h3">${t}</span>`);
+    text = text.replace(/^## (.+)$/gm,  (_, t) => `<span class="md-h2">${t}</span>`);
+    text = text.replace(/^# (.+)$/gm,   (_, t) => `<span class="md-h1">${t}</span>`);
+
+    // Blockquote
+    text = text.replace(/^&gt; (.+)$/gm, (_, t) => `<blockquote class="md-blockquote">${t}</blockquote>`);
+
+    // Bold **text** or __text__
+    text = text.replace(/\*\*(.+?)\*\*/g, (_, t) => `<strong class="md-bold">${t}</strong>`);
+    text = text.replace(/__(.+?)__/g,     (_, t) => `<strong class="md-bold">${t}</strong>`);
+
+    // Italic *text* or _text_
+    text = text.replace(/\*([^*\n]+)\*/g, (_, t) => `<em class="md-italic">${t}</em>`);
+    text = text.replace(/_([^_\n]+)_/g,   (_, t) => `<em class="md-italic">${t}</em>`);
+
+    // Strikethrough ~~text~~
+    text = text.replace(/~~(.+?)~~/g, (_, t) => `<span class="md-strike">${t}</span>`);
+
+    // Bullet lists (- item or * item)
+    text = text.replace(/((?:^[-*] .+\n?)+)/gm, (block) => {
+      const items = block.trim().split('\n').map(l =>
+        `<li>${l.replace(/^[-*] /, '')}</li>`
+      ).join('');
+      return `<ul class="md-ul">${items}</ul>`;
+    });
+
+    // Numbered lists (1. item)
+    text = text.replace(/((?:^\d+\. .+\n?)+)/gm, (block) => {
+      const items = block.trim().split('\n').map(l =>
+        `<li>${l.replace(/^\d+\. /, '')}</li>`
+      ).join('');
+      return `<ol class="md-ol">${items}</ol>`;
+    });
+
+    // Newlines to <br> (outside block elements)
+    text = text.replace(/\n/g, '<br>');
+
+    return text;
+  };
+
+  /* ── RENDER ───────────────────────────────────────────────── */
   const _renderMessages = () => {
     const area = document.getElementById('cw-msgs'); if (!area) return;
-    const me = Server.currentUser; const isGroup = _chatRec?.data?.type === 'group';
-    const wasBot = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+    const me      = Server.currentUser;
+    const isGroup = _chatRec?.data?.type === 'group';
+    const wasBot  = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
 
     if (!_msgs.length) {
-      area.innerHTML = `<div class="empty-state"><span class="material-icons-round">waving_hand</span>
-        <p style="font-size:14px;color:var(--text-3)">Say hi to start the conversation 👋</p></div>`;
+      area.innerHTML = `<div class="empty-state">
+        <span class="material-icons-round">waving_hand</span>
+        <p style="font-size:14px;color:var(--text-3)">Say hi to start the conversation</p>
+      </div>`;
       return;
     }
 
     let html = '', prevDate = '', prevSender = '';
+
     _msgs.forEach(msg => {
       if (!msg?.sender_id) return;
-      const isSent = msg.sender_id === me?.id;
-      const isSystem = msg.msg_type === 'system';
+      const isSent    = msg.sender_id === me?.id;
+      const isSystem  = msg.msg_type === 'system';
       const isDeleted = msg.deleted === true || msg.msg_type === 'deleted';
-      const isOpt = !!msg._optimistic; const isFailed = !!msg._failed;
-      const time = App.formatTime(msg.time); const dateStr = _dateLabel(msg.time);
+      const isOpt     = !!msg._optimistic;
+      const isFailed  = !!msg._failed;
+      const time      = App.formatTime(msg.time);
+      const dateStr   = _dateLabel(msg.time);
 
       if (dateStr !== prevDate) {
         html += `<div class="msg-date-sep"><span>${dateStr}</span></div>`;
@@ -229,100 +397,151 @@ const ChatWindow = (() => {
         prevSender = 'system'; return;
       }
 
-      const cls = isSent ? 'sent' : 'recv';
-      const showName = isGroup && !isSent && msg.sender_id !== prevSender;
-      prevSender = msg.sender_id;
+      const cls       = isSent ? 'sent' : 'recv';
+      const showName  = isGroup && !isSent && msg.sender_id !== prevSender;
+      prevSender      = msg.sender_id;
       const reactHtml = _reactionsHtml(msg, me?.id);
 
+      /* Reply quote */
+      const rq = msg.reply_to;
+      const replyQuote = rq ? `
+        <div class="reply-quote" data-scroll-to="${_attr(rq.time)}">
+          <span class="material-icons-round">${
+            rq.msg_type === 'image' ? 'image' : rq.msg_type === 'video' ? 'videocam' :
+            rq.msg_type === 'audio' ? 'mic'   : rq.msg_type === 'file'  ? 'attach_file' :
+            rq.msg_type === 'poll'  ? 'poll'  : rq.msg_type === 'quiz'  ? 'quiz' : 'reply'
+          }</span>
+          <div style="flex:1;min-width:0">
+            <div class="reply-quote-sender">${_esc(rq.sender_name || 'Message')}</div>
+            <div class="reply-quote-text">${_esc(
+              ['image','video','audio','file','poll','quiz'].includes(rq.msg_type)
+                ? rq.msg_type.charAt(0).toUpperCase() + rq.msg_type.slice(1)
+                : (rq.message || '').slice(0, 60)
+            )}</div>
+          </div>
+        </div>` : '';
+
       let bubbleContent = '';
+
       if (isDeleted) {
         bubbleContent = `<div class="bubble deleted-msg">
           <span class="material-icons-round" style="font-size:14px;vertical-align:middle">delete</span>
           This message was deleted</div>`;
       } else if (msg.msg_type === 'image') {
         bubbleContent = `<div class="bubble bubble-img" data-img="${_attr(msg.message)}">
-          <img src="${_attr(msg.message)}" alt="Image" loading="lazy" onerror="this.src='data:image/svg+xml,<svg/>'"></div>`;
+          ${replyQuote}<img src="${_attr(msg.message)}" alt="" loading="lazy"></div>`;
       } else if (msg.msg_type === 'video') {
         bubbleContent = `<div class="bubble" style="padding:4px">
-          <div class="bubble-video" data-vid="${_attr(msg.message)}">
+          ${replyQuote}<div class="bubble-video" data-vid="${_attr(msg.message)}">
             <video src="${_attr(msg.message)}" preload="metadata" playsinline></video>
-            <div class="video-play-overlay"><span class="material-icons-round">play_circle_filled</span></div>
+            <div class="video-play-overlay">
+              <span class="material-icons-round">play_circle_filled</span>
+            </div>
           </div></div>`;
       } else if (msg.msg_type === 'audio') {
         bubbleContent = `<div class="bubble" style="padding:10px 12px">
-          ${_audioBubbleHtml(msg.message, msg.time)}</div>`;
+          ${replyQuote}${_audioBubbleHtml(msg.message, msg.time)}</div>`;
       } else if (msg.msg_type === 'file') {
-        bubbleContent = `<div class="bubble" style="padding:10px 12px">${_fileBubbleHtml(msg.message, isSent)}</div>`;
+        bubbleContent = `<div class="bubble" style="padding:10px 12px">
+          ${replyQuote}${_fileBubbleHtml(msg.message)}</div>`;
       } else if (msg.msg_type === 'poll') {
         bubbleContent = `<div class="bubble" style="padding:10px 12px">
-          ${_pollBubbleHtml(msg, me?.id)}</div>`;
+          ${replyQuote}${_pollBubbleHtml(msg, me?.id, 'poll')}</div>`;
+      } else if (msg.msg_type === 'quiz') {
+        bubbleContent = `<div class="bubble" style="padding:10px 12px">
+          ${replyQuote}${_pollBubbleHtml(msg, me?.id, 'quiz')}</div>`;
       } else {
-        const url = _extractUrl(msg.message);
-        const editMark = msg.edited ? `<span class="edited-mark">(edited)</span>` : '';
-        const failBubbleCls = isFailed ? ' failed-bubble' : '';
-        bubbleContent = `<div class="bubble${failBubbleCls}" data-t="${_attr(msg.time)}">
-          ${_escNl(msg.message)}${editMark}${url ? _linkPreviewHtml(url, isSent) : ''}</div>`;
+        const url  = _extractUrl(msg.message);
+        const edit = msg.edited ? `<span class="edited-mark">(edited)</span>` : '';
+        bubbleContent = `<div class="bubble${isFailed?' failed-bubble':''}" data-t="${_attr(msg.time)}">
+          ${replyQuote}${_parseMarkdown(msg.message)}${edit}${url ? _linkPreviewHtml(url) : ''}
+        </div>`;
       }
 
       const tickIcon = isFailed
-        ? '<span class="material-icons-round msg-tick" style="color:var(--danger)">error</span>'
-        : isOpt ? '<span class="material-icons-round msg-tick pending">schedule</span>'
-        : '<span class="material-icons-round msg-tick">done_all</span>';
+        ? `<span class="material-icons-round msg-tick" style="color:var(--danger)">error</span>`
+        : isOpt
+        ? `<span class="material-icons-round msg-tick pending">schedule</span>`
+        : `<span class="material-icons-round msg-tick">done_all</span>`;
 
-      html += `<div class="msg-row ${cls}${isOpt?' optimistic':''}${isFailed?' failed':''}" data-t="${_attr(msg.time)}">
-        ${showName ? `<div class="msg-sender-name">${_esc(msg.display_name || 'User')}</div>` : ''}
-        ${bubbleContent}
-        <div class="msg-meta">
-          <span class="msg-time">${time}</span>
-          ${isSent ? tickIcon : ''}
-          ${isFailed ? `<span class="retry-btn" data-t="${_attr(msg.time)}">Retry</span>` : ''}
-        </div>
-        ${reactHtml}
-      </div>`;
+      html += `
+        <div class="msg-row ${cls}${isOpt?' optimistic':''}${isFailed?' failed':''}"
+             data-t="${_attr(msg.time)}">
+          ${showName ? `<div class="msg-sender-name">${_esc(msg.display_name||'User')}</div>` : ''}
+          ${bubbleContent}
+          <div class="msg-meta">
+            <span class="msg-time">${time}</span>
+            ${isSent ? tickIcon : ''}
+            ${isFailed ? `<span class="retry-btn" data-t="${_attr(msg.time)}">Retry</span>` : ''}
+          </div>
+          ${reactHtml}
+        </div>`;
     });
 
     area.innerHTML = html;
+    _bindAreaEvents(area);
+    if (wasBot) _scrollBottom();
+  };
 
-    // Wire up image clicks
+  const _bindAreaEvents = (area) => {
     area.querySelectorAll('.bubble-img').forEach(el =>
-      el.addEventListener('click', () => _showImgFS(el.dataset.img))
-    );
-    // Wire up video clicks
+      el.addEventListener('click', () => _showImgFS(el.dataset.img)));
     area.querySelectorAll('.bubble-video').forEach(el =>
-      el.addEventListener('click', () => _showVideoFS(el.dataset.vid))
-    );
-    // Wire up audio players
+      el.addEventListener('click', () => _showVideoFS(el.dataset.vid)));
     area.querySelectorAll('.audio-bubble-el').forEach(el => _bindAudioBubble(el));
-    // Long-press on bubbles
+
     area.querySelectorAll('[data-t]').forEach(el => {
       const t = el.dataset.t; if (!t) return;
       const msg = _findMsg(t);
       if (!msg || msg.msg_type === 'system' || msg.deleted) return;
-      const bubble = el.closest('.bubble') || el;
-      _attachLongPress(bubble, msg);
+      _attachLongPress(el.closest('.bubble') || el, msg);
     });
-    // Reaction pills
+
     area.querySelectorAll('.reaction-pill').forEach(pill =>
-      pill.addEventListener('click', e => { e.stopPropagation(); _toggleReaction(pill.dataset.t, pill.dataset.e); })
-    );
-    // Retry
-    area.querySelectorAll('.retry-btn').forEach(btn =>
-      btn.addEventListener('click', () => { const msg = _findMsg(btn.dataset.t); if (msg) _retryFailed(msg); })
-    );
-    // Link preview
-    area.querySelectorAll('.link-preview').forEach(a =>
-      a.addEventListener('click', e => { e.stopPropagation(); window.open(a.href, '_blank', 'noopener'); })
-    );
-    // Poll options
-    area.querySelectorAll('.poll-opt-btn').forEach(btn => {
-      btn.addEventListener('click', () => _votePoll(btn.dataset.t, btn.dataset.idx));
-    });
-    // External links
-    area.querySelectorAll('.link-preview').forEach(a =>
-      a.addEventListener('click', e => { e.stopPropagation(); window.open(a.href, '_blank', 'noopener'); })
+      pill.addEventListener('click', e => {
+        e.stopPropagation();
+        _toggleReaction(pill.dataset.t, pill.dataset.key);
+      })
     );
 
-    if (wasBot) _scrollBottom();
+    area.querySelectorAll('.retry-btn').forEach(btn =>
+      btn.addEventListener('click', () => { const m = _findMsg(btn.dataset.t); if (m) _retryFailed(m); })
+    );
+
+    area.querySelectorAll('.link-preview').forEach(a =>
+      a.addEventListener('click', e => { e.stopPropagation(); window.open(a.href,'_blank','noopener'); })
+    );
+
+    area.querySelectorAll('.poll-opt-btn').forEach(btn =>
+      btn.addEventListener('click', () =>
+        _votePoll(btn.dataset.t, btn.dataset.idx, btn.dataset.ptype || 'poll')
+      )
+    );
+
+    area.querySelectorAll('.file-dl').forEach(a =>
+      a.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        Server.downloadFile(a.href, a.dataset.name || 'file');
+      })
+    );
+
+    /* Reply quote → smooth scroll + highlight */
+    area.querySelectorAll('.reply-quote[data-scroll-to]').forEach(el =>
+      el.addEventListener('click', () => {
+        const scrollTo = el.dataset.scrollTo;
+        const target   = area.querySelector(`[data-t="${scrollTo}"]`);
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const bubble = target.querySelector('.bubble') || target;
+        bubble.style.transition  = 'background 0s';
+        bubble.style.background  = 'var(--accent-dim)';
+        setTimeout(() => {
+          bubble.style.transition = 'background 0.8s ease';
+          bubble.style.background = '';
+          setTimeout(() => { bubble.style.transition = ''; }, 800);
+        }, 60);
+      })
+    );
   };
 
   const _scrollBottom = () => {
@@ -333,12 +552,39 @@ const ChatWindow = (() => {
     });
   };
 
-  /* ── Attach overlay ─────────────────────────────────────────── */
-  const _toggleAttach = () => _attachOpen ? _closeAttach() : _openAttach();
-  const _openAttach  = () => { document.getElementById('attach-overlay')?.classList.add('open'); document.getElementById('cw-insert')?.classList.add('active'); _attachOpen = true; };
-  const _closeAttach = () => { document.getElementById('attach-overlay')?.classList.remove('open'); document.getElementById('cw-insert')?.classList.remove('active'); _attachOpen = false; };
+  /* ── REPLY ───────────────────────────────────────────────── */
+  const _setReply = (msg) => {
+    _replyTo = msg;
+    const bar    = document.getElementById('reply-bar');
+    const sender = document.getElementById('reply-bar-sender');
+    const prev   = document.getElementById('reply-bar-preview');
+    if (!bar || !sender || !prev) return;
+    sender.textContent = msg.display_name || msg.username || 'Message';
+    prev.textContent   = ['image','video','audio','file','poll','quiz'].includes(msg.msg_type)
+      ? msg.msg_type.charAt(0).toUpperCase() + msg.msg_type.slice(1)
+      : (msg.message || '').slice(0, 80);
+    bar.classList.add('show');
+    document.getElementById('cw-ta')?.focus();
+  };
+  const _clearReply = () => {
+    _replyTo = null;
+    document.getElementById('reply-bar')?.classList.remove('show');
+  };
 
-  /* ── Audio recording ─────────────────────────────────────────── */
+  /* ── ATTACH ──────────────────────────────────────────────── */
+  const _toggleAttach = () => _attachOpen ? _closeAttach() : _openAttach();
+  const _openAttach   = () => {
+    document.getElementById('attach-overlay')?.classList.add('open');
+    document.getElementById('cw-insert')?.classList.add('active');
+    _attachOpen = true;
+  };
+  const _closeAttach  = () => {
+    document.getElementById('attach-overlay')?.classList.remove('open');
+    document.getElementById('cw-insert')?.classList.remove('active');
+    _attachOpen = false;
+  };
+
+  /* ── AUDIO RECORDING ─────────────────────────────────────── */
   const _startAudioRec = async () => {
     if (_isRecording) return;
     try {
@@ -350,344 +596,376 @@ const ChatWindow = (() => {
       _audioRec.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         if (_audioSecs < 1) { App.showToast('Recording too short', 'error'); return; }
-        const blob = new Blob(_audioChunks, { type: mimeType });
-        await _sendAudioBlob(blob, _audioSecs);
+        await _sendAudioBlob(new Blob(_audioChunks, { type: mimeType }), _audioSecs);
       };
       _audioRec.start(100);
-
-      // Update mic button
-      const micBtn = document.getElementById('cw-mic');
-      if (micBtn) { micBtn.classList.add('recording'); micBtn.querySelector('.material-icons-round').textContent = 'stop'; }
-
+      const btn = document.getElementById('cw-mic');
+      if (btn) { btn.classList.add('recording'); btn.querySelector('.material-icons-round').textContent = 'stop'; }
       _audioTimer = setInterval(() => {
         _audioSecs++;
-        const m = Math.floor(_audioSecs / 60), s = String(_audioSecs % 60).padStart(2,'0');
-        const micBtn = document.getElementById('cw-mic');
-        if (micBtn) micBtn.title = `${m}:${s} — tap to stop`;
+        const m = Math.floor(_audioSecs/60), s = String(_audioSecs%60).padStart(2,'0');
+        const b = document.getElementById('cw-mic'); if (b) b.title = `${m}:${s} — tap to stop`;
       }, 1000);
-    } catch {
-      App.showToast('Microphone access denied', 'error'); _isRecording = false;
-    }
+    } catch { App.showToast('Microphone access denied', 'error'); _isRecording = false; }
   };
-
   const _stopAudioRec = () => {
     if (!_isRecording) return;
-    clearInterval(_audioTimer); _isRecording = false;
-    _audioRec?.stop();
-    const micBtn = document.getElementById('cw-mic');
-    if (micBtn) { micBtn.classList.remove('recording'); micBtn.querySelector('.material-icons-round').textContent = 'mic'; micBtn.title = 'Record audio'; }
+    clearInterval(_audioTimer); _isRecording = false; _audioRec?.stop();
+    const btn = document.getElementById('cw-mic');
+    if (btn) { btn.classList.remove('recording'); btn.querySelector('.material-icons-round').textContent = 'mic'; btn.title = 'Voice message'; }
   };
 
-  /* ── Send helpers ────────────────────────────────────────────── */
+  /* ── SEND ────────────────────────────────────────────────── */
   const _myMeta = () => {
-    const me = Server.currentUser; const mpD = Server.currentProfile?.data || {};
-    return { sender_id: me?.id || '', username: mpD.username || '', display_name: mpD.display_name || me?.display_name || 'Me' };
+    const me = Server.currentUser; const d = Server.currentProfile?.data || {};
+    return { sender_id: me?.id||'', username: d.username||'', display_name: d.display_name||me?.display_name||'Me' };
+  };
+  const _buildReplyTo = () => {
+    if (!_replyTo) return undefined;
+    return { time: _replyTo.time, sender_name: _replyTo.display_name||_replyTo.username||'Message', message: _replyTo.message, msg_type: _replyTo.msg_type };
   };
 
   const _optimisticSend = async (msg) => {
-    const tempMsg = { ...msg, _optimistic: true };
-    _msgs.push(tempMsg); _msgHash = JSON.stringify(_msgs); _renderMessages(); _scrollBottom();
+    const tmp = { ...msg, _optimistic: true };
+    _msgs.push(tmp); _msgHash = JSON.stringify(_msgs);
+    _renderMessages(); _scrollBottom(); _clearReply();
     try {
       const serverMsgs = await Server.sendChatMessage(_chatId, msg);
-      _msgs = serverMsgs; _msgHash = JSON.stringify(_msgs); _renderMessages();
+      _msgs = _applyDisappearing(serverMsgs); _msgHash = JSON.stringify(_msgs);
+      SyncManager.store.set(SYNC_KEY(_chatId), _msgHash); _renderMessages();
     } catch {
-      _msgs = _msgs.map(m => m === tempMsg ? { ...m, _optimistic: false, _failed: true } : m);
+      _msgs = _msgs.map(m => m === tmp ? { ...m, _optimistic: false, _failed: true } : m);
       _msgHash = JSON.stringify(_msgs); _renderMessages();
     }
   };
-
   const _retryFailed = async (msg) => {
     _msgs = _msgs.filter(m => m !== msg && m.time !== msg.time);
-    const cleanMsg = { ...msg }; delete cleanMsg._failed; delete cleanMsg._optimistic;
-    await _optimisticSend(cleanMsg);
+    const c = { ...msg }; delete c._failed; delete c._optimistic; await _optimisticSend(c);
   };
-
   const _sendFromInput = async () => {
-    const ta = document.getElementById('cw-ta'); const text = ta?.value.trim();
-    if (!text) return; ta.value = ''; ta.style.height = 'auto'; await _sendText(text);
+    const ta = document.getElementById('cw-ta'); const text = ta?.value.trim(); if (!text) return;
+    ta.value = ''; ta.style.height = 'auto'; await _sendText(text);
   };
   const _sendText = async (text) => {
     if (!_chatId || !text) return;
-    await _optimisticSend({ ..._myMeta(), message: text, time: _now(), msg_type: 'text' });
+    const rt = _buildReplyTo();
+    const msg = { ..._myMeta(), message: text, time: _now(), msg_type: 'text' };
+    if (rt) msg.reply_to = rt; await _optimisticSend(msg);
   };
-  const _sendImageFile = async (file) => {
-    App.showToast('Compressing…');
-    const url = await Server.uploadCompressedImage(file, 'spark_chat_imgs');
-    if (!url) { App.showToast('Image upload failed', 'error'); return; }
-    await _optimisticSend({ ..._myMeta(), message: url, time: _now(), msg_type: 'image' });
+  const _sendImageFile = async (f) => {
+    App.showToast('Compressing...');
+    const url = await Server.uploadCompressedImage(f, 'spark_chat_imgs');
+    if (!url) { App.showToast('Upload failed','error'); return; }
+    const rt = _buildReplyTo(); const msg = { ..._myMeta(), message: url, time: _now(), msg_type:'image' };
+    if (rt) msg.reply_to = rt; await _optimisticSend(msg);
   };
-  const _sendVideoFile = async (file) => {
-    App.showToast(`Uploading video…`);
-    const data = await Server.uploadFile(file, 'spark_chat_videos');
-    if (!data) { App.showToast('Video upload failed', 'error'); return; }
-    await _optimisticSend({ ..._myMeta(), message: data.url, time: _now(), msg_type: 'video' });
+  const _sendVideoFile = async (f) => {
+    App.showToast('Uploading video...');
+    const data = await Server.uploadFile(f, 'spark_chat_videos');
+    if (!data) { App.showToast('Upload failed','error'); return; }
+    const rt = _buildReplyTo(); const msg = { ..._myMeta(), message: data.url, time: _now(), msg_type:'video' };
+    if (rt) msg.reply_to = rt; await _optimisticSend(msg);
   };
-  const _sendGenericFile = async (file) => {
-    App.showToast(`Uploading ${file.name}…`);
-    const data = await Server.uploadFile(file, 'spark_files');
-    if (!data) { App.showToast('File upload failed', 'error'); return; }
-    await _optimisticSend({ ..._myMeta(), message: JSON.stringify(data), time: _now(), msg_type: 'file' });
+  const _sendGenericFile = async (f) => {
+    App.showToast(`Uploading ${f.name}...`);
+    const data = await Server.uploadFile(f, 'spark_files');
+    if (!data) { App.showToast('Upload failed','error'); return; }
+    const rt = _buildReplyTo(); const msg = { ..._myMeta(), message: JSON.stringify(data), time: _now(), msg_type:'file' };
+    if (rt) msg.reply_to = rt; await _optimisticSend(msg);
   };
-  const _sendAudioBlob = async (blob, durationSecs) => {
-    App.showToast('Sending audio…');
+  const _sendAudioFile = async (f) => {
+    App.showToast('Uploading audio...');
+    const data = await Server.uploadFile(f, 'spark_chat_audio');
+    if (!data) { App.showToast('Upload failed','error'); return; }
+    const payload = JSON.stringify({ url: data.url, duration: 0, name: f.name });
+    const rt = _buildReplyTo(); const msg = { ..._myMeta(), message: payload, time: _now(), msg_type:'audio' };
+    if (rt) msg.reply_to = rt; await _optimisticSend(msg);
+  };
+  const _sendAudioBlob = async (blob, secs) => {
+    App.showToast('Sending voice message...');
     try {
-      const file = new File([blob], 'audio.webm', { type: blob.type });
-      const data = await Server.uploadFile(file, 'spark_chat_audio');
+      const f    = new File([blob], 'voice.webm', { type: blob.type });
+      const data = await Server.uploadFile(f, 'spark_chat_audio');
       if (!data) throw new Error();
-      const payload = JSON.stringify({ url: data.url, duration: durationSecs });
-      await _optimisticSend({ ..._myMeta(), message: payload, time: _now(), msg_type: 'audio' });
-    } catch { App.showToast('Audio send failed', 'error'); }
+      const payload = JSON.stringify({ url: data.url, duration: secs });
+      const rt = _buildReplyTo(); const msg = { ..._myMeta(), message: payload, time: _now(), msg_type:'audio' };
+      if (rt) msg.reply_to = rt; await _optimisticSend(msg);
+    } catch { App.showToast('Voice send failed','error'); }
   };
 
-  /* ── Poll ────────────────────────────────────────────────────── */
-  const _showPollSheet = () => {
-    let options = ['', ''];
+  /* ── POLL + QUIZ SHEET ───────────────────────────────────── */
+  const _showPollSheet = (pollType = 'poll') => {
+    const isQuiz = pollType === 'quiz';
+    let options  = ['',''];
+    let correctIdx = 0;   // quiz only
 
     const renderOpts = () => {
       const list = document.getElementById('poll-opts-list'); if (!list) return;
       list.innerHTML = options.map((o, i) => `
-        <div class="poll-opt-row">
-          <input type="text" class="poll-opt-inp" data-i="${i}" placeholder="Option ${i+1}" value="${_attr(o)}" maxlength="60">
-          ${options.length > 2 ? `<div class="poll-opt-del" data-i="${i}"><span class="material-icons-round" style="font-size:18px">close</span></div>` : ''}
+        <div class="poll-opt-row" style="${isQuiz ? 'align-items:center' : ''}">
+          ${isQuiz ? `<button class="quiz-correct-btn ${i === correctIdx ? 'active' : ''}"
+            data-i="${i}" title="Mark as correct answer"
+            style="width:28px;height:28px;border-radius:50%;border:2px solid ${i===correctIdx?'var(--success)':'var(--border-light)'};
+              background:${i===correctIdx?'rgba(45,213,91,0.15)':'none'};
+              display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;
+              transition:all 0.15s">
+              <span class="material-icons-round" style="font-size:14px;color:${i===correctIdx?'var(--success)':'var(--text-3)'}">
+                ${i===correctIdx?'check_circle':'radio_button_unchecked'}
+              </span>
+            </button>` : ''}
+          <input type="text" class="poll-opt-inp" data-i="${i}"
+            placeholder="Option ${i+1}" value="${_attr(o)}" maxlength="60">
+          ${options.length > 2 ? `<div class="poll-opt-del" data-i="${i}">
+            <span class="material-icons-round" style="font-size:18px">close</span>
+          </div>` : ''}
         </div>`).join('');
-      list.querySelectorAll('.poll-opt-inp').forEach(inp => {
-        inp.addEventListener('input', e => { options[+e.target.dataset.i] = e.target.value; });
-      });
-      list.querySelectorAll('.poll-opt-del').forEach(btn => {
-        btn.addEventListener('click', () => { options.splice(+btn.dataset.i, 1); renderOpts(); });
-      });
+
+      list.querySelectorAll('.poll-opt-inp').forEach(inp =>
+        inp.addEventListener('input', e => { options[+e.target.dataset.i] = e.target.value; })
+      );
+      list.querySelectorAll('.poll-opt-del').forEach(btn =>
+        btn.addEventListener('click', () => { options.splice(+btn.dataset.i, 1); if (correctIdx >= options.length) correctIdx = 0; renderOpts(); })
+      );
+      if (isQuiz) {
+        list.querySelectorAll('.quiz-correct-btn').forEach(btn =>
+          btn.addEventListener('click', () => { correctIdx = +btn.dataset.i; renderOpts(); })
+        );
+      }
     };
 
     const close = App.showModal(`
       <div class="poll-sheet">
-        <h3>Create Poll</h3>
+        <h3 style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <span class="material-icons-round" style="color:var(--accent)">${isQuiz ? 'quiz' : 'poll'}</span>
+          Create ${isQuiz ? 'Quiz' : 'Poll'}
+        </h3>
+        ${isQuiz ? `<p style="font-size:12px;color:var(--text-3);text-align:center;margin-top:-8px">
+          Mark the correct answer with the circle button
+        </p>` : ''}
         <div>
           <label class="auth-label" style="display:block;margin-bottom:6px">Question *</label>
-          <input id="poll-q" class="input-field" type="text" placeholder="Ask a question…" maxlength="120">
+          <input id="poll-q" class="input-field" type="text"
+            placeholder="${isQuiz ? 'Ask a question with one correct answer...' : 'Ask a question...'}"
+            maxlength="200">
         </div>
+        ${isQuiz ? `<div>
+          <label class="auth-label" style="display:block;margin-bottom:6px">Explanation (shown after answering)</label>
+          <input id="poll-explain" class="input-field" type="text"
+            placeholder="Optional: explain the correct answer..." maxlength="200">
+        </div>` : ''}
         <div>
           <label class="auth-label" style="display:block;margin-bottom:8px">Options</label>
           <div class="poll-options-list" id="poll-opts-list"></div>
           <div class="poll-add-opt" id="poll-add-opt">
-            <span class="material-icons-round" style="font-size:18px">add_circle_outline</span> Add option
+            <span class="material-icons-round" style="font-size:18px">add_circle_outline</span>
+            Add option
           </div>
         </div>
         <div id="poll-err" class="auth-error"></div>
         <button class="poll-submit" id="poll-submit">
-          <span class="material-icons-round" style="font-size:18px">poll</span> Create Poll
+          <span class="material-icons-round" style="font-size:18px">${isQuiz ? 'quiz' : 'poll'}</span>
+          Create ${isQuiz ? 'Quiz' : 'Poll'}
         </button>
       </div>`);
 
     renderOpts();
-
     document.getElementById('poll-add-opt').onclick = () => {
-      if (options.length >= 8) return;
-      options.push(''); renderOpts();
+      if (options.length >= 8) return; options.push(''); renderOpts();
     };
-
     document.getElementById('poll-submit').onclick = async () => {
-      const question = document.getElementById('poll-q').value.trim();
+      const question  = document.getElementById('poll-q').value.trim();
+      const explain   = isQuiz ? (document.getElementById('poll-explain')?.value.trim() || '') : '';
       const validOpts = options.map(o => o.trim()).filter(Boolean);
-      const errEl = document.getElementById('poll-err'); errEl.classList.remove('visible');
-      if (!question) { errEl.textContent = 'Enter a question.'; errEl.classList.add('visible'); return; }
+      const errEl     = document.getElementById('poll-err'); errEl.classList.remove('visible');
+      if (!question)            { errEl.textContent = 'Enter a question.'; errEl.classList.add('visible'); return; }
       if (validOpts.length < 2) { errEl.textContent = 'Add at least 2 options.'; errEl.classList.add('visible'); return; }
-      const pollData = { question, options: validOpts.map(text => ({ text, votes: [] })), created_at: _now(), expires_at: null };
+
+      const data = {
+        question, explanation: explain,
+        options: validOpts.map((text, i) => ({
+          text, votes: [],
+          is_correct: isQuiz ? i === correctIdx : undefined
+        })),
+        created_at: _now(),
+        poll_type: pollType,
+      };
+
       close();
-      await _optimisticSend({ ..._myMeta(), message: JSON.stringify(pollData), time: _now(), msg_type: 'poll' });
+      const rt = _buildReplyTo();
+      const msg = { ..._myMeta(), message: JSON.stringify(data), time: _now(), msg_type: pollType };
+      if (rt) msg.reply_to = rt;
+      await _optimisticSend(msg);
     };
   };
 
-  const _votePoll = async (msgTime, optIdx) => {
-    const me = Server.currentUser;
+  /* ── VOTE POLL / QUIZ ────────────────────────────────────── */
+  const _votePoll = async (msgTime, optIdx, pollType = 'poll') => {
+    const me  = Server.currentUser;
     const msg = _findMsg(msgTime); if (!msg) return;
-    const pollData = _safeJson(msg.message); if (!pollData) return;
+    const pd  = _safeJson(msg.message); if (!pd) return;
 
-    // Toggle vote — remove from all others, add to this
-    const opts = pollData.options.map((opt, i) => ({
+    const isQuiz   = pollType === 'quiz';
+    const hasVoted = pd.options.some(o => (o.votes || []).includes(me.id));
+    if (hasVoted) return;   // quiz & poll: can't change vote
+
+    const opts = pd.options.map((opt, i) => ({
       ...opt,
-      votes: i === +optIdx
-        ? opt.votes.includes(me.id) ? opt.votes.filter(id => id !== me.id) : [...opt.votes, me.id]
-        : opt.votes.filter(id => id !== me.id)
+      votes: i === +optIdx ? [...(opt.votes || []), me.id] : (opt.votes || []),
     }));
 
-    const updated = { ...pollData, options: opts };
+    const updated = { ...pd, options: opts };
     _msgs = _msgs.map(m => m.time === msgTime ? { ...m, message: JSON.stringify(updated) } : m);
     _msgHash = JSON.stringify(_msgs); _renderMessages();
-
-    // Persist
     Server.editMessage(_chatId, msgTime, JSON.stringify(updated)).catch(() => {});
   };
 
-  /* ── Poll bubble HTML ────────────────────────────────────────── */
-  const _pollBubbleHtml = (msg, myId) => {
-    const pollData = _safeJson(msg.message); if (!pollData) return _esc(msg.message);
-    const { question, options } = pollData;
+  /* ── POLL BUBBLE ─────────────────────────────────────────── */
+  const _pollBubbleHtml = (msg, myId, pollType = 'poll') => {
+    const pd = _safeJson(msg.message); if (!pd) return _esc(msg.message);
+    const isQuiz     = pollType === 'quiz';
+    const { question, options, explanation } = pd;
     const totalVotes = options.reduce((s, o) => s + (o.votes || []).length, 0);
-    const hasVoted = options.some(o => (o.votes || []).includes(myId));
+    const hasVoted   = options.some(o => (o.votes || []).includes(myId));
+    const myOptIdx   = options.findIndex(o => (o.votes || []).includes(myId));
 
     const optHtml = options.map((opt, i) => {
       const votes = (opt.votes || []).length;
       const pct   = totalVotes ? Math.round(votes / totalVotes * 100) : 0;
-      const mine  = (opt.votes || []).includes(myId);
-      return `<div class="poll-option ${hasVoted ? 'voted' : ''} ${mine ? 'my-vote' : ''} poll-opt-btn"
-          data-t="${_attr(msg.time)}" data-idx="${i}">
-        <div class="poll-option-bar" style="width:${hasVoted ? pct : 0}%"></div>
+      const mine  = i === myOptIdx;
+
+      if (isQuiz) {
+        const isCorrect = opt.is_correct === true;
+        const showResult = hasVoted;
+        let stateCls = '', iconName = '', iconColor = '';
+        if (showResult) {
+          if (mine && isCorrect)  { stateCls = 'correct-ans'; iconName = 'check_circle'; iconColor = 'var(--success)'; }
+          else if (mine)          { stateCls = 'wrong-ans';   iconName = 'cancel';       iconColor = 'var(--danger)'; }
+          else if (isCorrect)     { stateCls = 'correct-ans'; iconName = 'check_circle'; iconColor = 'var(--success)'; }
+          else                    { stateCls = 'neutral-ans'; }
+        }
+        return `<div class="quiz-option ${stateCls} ${!hasVoted?'poll-opt-btn':''}"
+          data-t="${_attr(msg.time)}" data-idx="${i}" data-ptype="quiz">
+          <div class="quiz-option-bar" style="width:${showResult ? pct : 0}%"></div>
+          <div class="quiz-option-content">
+            <span class="quiz-opt-text">${_esc(opt.text)}</span>
+            <div class="quiz-opt-right ${iconName === 'check_circle' ? 'correct' : iconName === 'cancel' ? 'wrong' : ''}">
+              ${showResult && pct > 0 ? `<span class="quiz-opt-pct">${pct}%</span>` : ''}
+              ${showResult && iconName ? `<span class="material-icons-round" style="color:${iconColor}">${iconName}</span>` : ''}
+              ${!showResult ? `<span class="material-icons-round" style="font-size:16px;color:rgba(255,255,255,0.3)">radio_button_unchecked</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }
+
+      // Regular poll
+      return `<div class="poll-option ${hasVoted?'voted':''} ${mine?'my-vote':''} ${!hasVoted?'poll-opt-btn':''}"
+          data-t="${_attr(msg.time)}" data-idx="${i}" data-ptype="poll">
+        <div class="poll-option-bar" style="width:${hasVoted?pct:0}%"></div>
         <div class="poll-option-content">
           <span>${_esc(opt.text)}</span>
           <div style="display:flex;align-items:center;gap:4px">
             ${hasVoted ? `<span class="poll-pct">${pct}%</span>` : ''}
-            <span class="material-icons-round check" style="font-size:16px;color:inherit">check_circle</span>
+            <span class="material-icons-round check" style="font-size:16px">check_circle</span>
           </div>
         </div>
       </div>`;
     }).join('');
 
+    if (isQuiz) {
+      const explainHtml = hasVoted && explanation
+        ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.08);border-radius:8px;
+            border-left:3px solid var(--success);font-size:12px;line-height:1.4;opacity:0.85">
+            <span class="material-icons-round" style="font-size:13px;vertical-align:middle;color:var(--success)">info</span>
+            ${_esc(explanation)}
+          </div>` : '';
+      return `<div class="quiz-bubble">
+        <div class="quiz-question">${_esc(question)}</div>
+        <div class="quiz-meta">
+          <span class="material-icons-round">quiz</span> Quiz
+          ${hasVoted ? `<span class="quiz-answered-badge">Answered</span>` : ''}
+        </div>
+        ${optHtml}${explainHtml}
+        <div class="quiz-footer">${totalVotes} answer${totalVotes!==1?'s':''}</div>
+      </div>`;
+    }
+
     return `<div class="poll-bubble">
       <div class="poll-question">${_esc(question)}</div>
       ${optHtml}
-      <div class="poll-footer">${totalVotes} vote${totalVotes !== 1 ? 's' : ''}</div>
+      <div class="poll-footer">${totalVotes} vote${totalVotes!==1?'s':''}</div>
     </div>`;
   };
 
-  /* ── Audio bubble HTML ───────────────────────────────────────── */
-  const _audioBubbleHtml = (messageStr, msgTime) => {
-    const data = _safeJson(messageStr);
-    const url  = data?.url || messageStr;
-    const dur  = data?.duration || 0;
-    const m = Math.floor(dur / 60), s = String(dur % 60).padStart(2,'0');
-    const BARS = 24;
-    const bars = Array.from({length: BARS}, (_, i) => {
-      const h = 6 + Math.sin(i * 0.7 + 1) * 8 + Math.random() * 6;
-      return `<div class="audio-bar" style="height:${h}px"></div>`;
-    }).join('');
-
-    return `<div class="audio-bubble audio-bubble-el" data-url="${_attr(url)}" data-dur="${dur}" data-t="${_attr(msgTime)}">
-      <button class="audio-play-btn" data-playing="0">
-        <span class="material-icons-round">play_arrow</span>
-      </button>
-      <div class="audio-waveform">${bars}</div>
-      <span class="audio-dur">${m}:${s}</span>
-    </div>`;
-  };
-
-  /* ── Bind audio player ───────────────────────────────────────── */
-  const _bindAudioBubble = (el) => {
-    const url = el.dataset.url; if (!url) return;
-    const playBtn = el.querySelector('.audio-play-btn');
-    const bars    = el.querySelectorAll('.audio-bar');
-    const durEl   = el.querySelector('.audio-dur');
-    if (!playBtn) return;
-
-    const audio = new Audio(url);
-    let prog = 0;
-
-    audio.ontimeupdate = () => {
-      if (!audio.duration) return;
-      prog = audio.currentTime / audio.duration;
-      const played = Math.floor(prog * bars.length);
-      bars.forEach((b, i) => b.classList.toggle('played', i < played));
-      const rem = Math.ceil(audio.duration - audio.currentTime);
-      const m = Math.floor(rem / 60), s = String(rem % 60).padStart(2,'0');
-      if (durEl) durEl.textContent = `${m}:${s}`;
-    };
-    audio.onended = () => {
-      playBtn.dataset.playing = '0';
-      playBtn.querySelector('.material-icons-round').textContent = 'play_arrow';
-      bars.forEach(b => b.classList.remove('played'));
-    };
-
-    playBtn.onclick = () => {
-      if (audio.paused) {
-        // Pause all other audio
-        document.querySelectorAll('.audio-bubble-el').forEach(other => {
-          if (other !== el) {
-            const btn = other.querySelector('.audio-play-btn');
-            if (btn?.dataset.playing === '1') btn.click();
-          }
-        });
-        audio.play();
-        playBtn.dataset.playing = '1';
-        playBtn.querySelector('.material-icons-round').textContent = 'pause';
-      } else {
-        audio.pause();
-        playBtn.dataset.playing = '0';
-        playBtn.querySelector('.material-icons-round').textContent = 'play_arrow';
-      }
-    };
-
-    // Tap on waveform to seek
-    el.querySelector('.audio-waveform')?.addEventListener('click', e => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const pct  = (e.clientX - rect.left) / rect.width;
-      if (audio.duration) audio.currentTime = pct * audio.duration;
-    });
-  };
-
-  /* ── Reactions ───────────────────────────────────────────────── */
-  const _toggleReaction = async (msgTime, emoji) => {
-    if (!msgTime || !emoji || !_chatId) return;
+  /* ── REACTIONS ───────────────────────────────────────────── */
+  const _toggleReaction = async (msgTime, key) => {
+    if (!msgTime || !key || !_chatId) return;
     const me = Server.currentUser;
     _msgs = _msgs.map(m => {
       if (m.time !== msgTime) return m;
-      const r = { ...(m.reactions || {}) };
-      const u = r[emoji] || [];
-      r[emoji] = u.includes(me.id) ? u.filter(id => id !== me.id) : [...u, me.id];
-      if (!r[emoji].length) delete r[emoji];
-      return { ...m, reactions: r };
+      const r = { ...(m.reactions||{}) }; const u = r[key]||[];
+      r[key] = u.includes(me.id) ? u.filter(id=>id!==me.id) : [...u,me.id];
+      if (!r[key].length) delete r[key]; return { ...m, reactions: r };
     });
     _msgHash = JSON.stringify(_msgs); _renderMessages();
-    Server.addReaction(_chatId, msgTime, emoji, me.id).catch(() => {});
+    Server.addReaction(_chatId, msgTime, key, me.id).catch(() => {});
   };
 
   const _reactionsHtml = (msg, myId) => {
-    const r = msg.reactions || {}; const keys = Object.keys(r).filter(e => (r[e] || []).length > 0);
+    const r = msg.reactions || {};
+    const keys = Object.keys(r).filter(k => (r[k]||[]).length > 0);
     if (!keys.length) return '';
-    return `<div class="msg-reactions">${keys.map(e => {
-      const cnt = (r[e] || []).length; const mine = (r[e] || []).includes(myId);
-      return `<button class="reaction-pill ${mine ? 'mine' : ''}" data-t="${_attr(msg.time)}" data-e="${e}">
-        ${e} <span class="r-count">${cnt}</span></button>`;
+    return `<div class="msg-reactions">${keys.map(key => {
+      const cnt  = (r[key]||[]).length; const mine = (r[key]||[]).includes(myId);
+      const rxn  = REACTIONS.find(x => x.key === key) || { icon:'favorite', color:'#ed4956' };
+      return `<button class="reaction-pill ${mine?'mine':''}" data-t="${_attr(msg.time)}" data-key="${key}">
+        <span class="material-icons-round" style="font-size:14px;color:${rxn.color}">${rxn.icon}</span>
+        <span class="r-count">${cnt}</span></button>`;
     }).join('')}</div>`;
   };
 
-  /* ── Context menu ────────────────────────────────────────────── */
+  /* ── CONTEXT MENU ────────────────────────────────────────── */
   const _attachLongPress = (el, msg) => {
     let t = null;
     const start  = () => { t = setTimeout(() => { navigator.vibrate?.(30); _showCtxMenu(msg); }, 580); };
     const cancel = () => clearTimeout(t);
-    el.addEventListener('touchstart', start, { passive: true });
-    el.addEventListener('touchend', cancel);
-    el.addEventListener('touchmove', cancel);
-    el.addEventListener('mousedown', start);
-    el.addEventListener('mouseup', cancel);
-    el.addEventListener('mouseleave', cancel);
+    el.addEventListener('touchstart',  start,  { passive: true });
+    el.addEventListener('touchend',    cancel);
+    el.addEventListener('touchmove',   cancel);
+    el.addEventListener('mousedown',   start);
+    el.addEventListener('mouseup',     cancel);
+    el.addEventListener('mouseleave',  cancel);
     el.addEventListener('contextmenu', e => { e.preventDefault(); cancel(); _showCtxMenu(msg); });
   };
 
   const _showCtxMenu = (msg) => {
-    const me = Server.currentUser; const isOwn = msg.sender_id === me?.id; const r = msg.reactions || {};
-    const emojiRow = EMOJIS.map(e => {
-      const mine = (r[e] || []).includes(me?.id);
-      return `<button class="ctx-emoji-btn ${mine ? 'reacted' : ''}" data-e="${e}">${e}</button>`;
+    const me = Server.currentUser; const isOwn = msg.sender_id === me?.id;
+    const r  = msg.reactions || {};
+    const reactionRow = REACTIONS.map(rxn => {
+      const mine = (r[rxn.key]||[]).includes(me?.id);
+      return `<button class="ctx-emoji-btn ${mine?'reacted':''}" data-key="${rxn.key}">
+        <span class="material-icons-round" style="font-size:24px;color:${rxn.color}">${rxn.icon}</span>
+      </button>`;
     }).join('');
-
     const close = App.showModal(`
       <div class="ctx-menu-wrap">
-        <div class="ctx-emoji-row">${emojiRow}</div>
-        ${msg.msg_type === 'text' ? `<div class="ctx-action" id="ctx-copy"><span class="material-icons-round">content_copy</span> Copy</div>` : ''}
-        ${isOwn && msg.msg_type === 'text' ? `<div class="ctx-action" id="ctx-edit"><span class="material-icons-round">edit</span> Edit Message</div>` : ''}
-        ${msg.msg_type === 'image' ? `<div class="ctx-action" id="ctx-save"><span class="material-icons-round">download</span> Save Image</div>` : ''}
-        ${isOwn ? `<div class="ctx-action danger" id="ctx-del"><span class="material-icons-round">delete</span> Delete</div>` : ''}
+        <div class="ctx-emoji-row">${reactionRow}</div>
+        <div class="ctx-action" id="ctx-reply"><span class="material-icons-round">reply</span> Reply</div>
+        ${msg.msg_type==='text'?`<div class="ctx-action" id="ctx-copy"><span class="material-icons-round">content_copy</span> Copy</div>`:''}
+        ${isOwn&&msg.msg_type==='text'?`<div class="ctx-action" id="ctx-edit"><span class="material-icons-round">edit</span> Edit Message</div>`:''}
+        ${msg.msg_type==='image'?`<div class="ctx-action" id="ctx-save"><span class="material-icons-round">download</span> Save Image</div>`:''}
+        ${isOwn?`<div class="ctx-action danger" id="ctx-del"><span class="material-icons-round">delete</span> Delete</div>`:''}
       </div>`);
 
     document.querySelectorAll('.ctx-emoji-btn').forEach(btn =>
-      btn.addEventListener('click', () => { close(); _toggleReaction(msg.time, btn.dataset.e); })
+      btn.addEventListener('click', () => { close(); _toggleReaction(msg.time, btn.dataset.key); })
     );
+    document.getElementById('ctx-reply').onclick = () => { close(); _setReply(msg); };
     document.getElementById('ctx-copy')?.addEventListener('click', () => {
       close(); navigator.clipboard?.writeText(msg.message).catch(() => {}); App.showToast('Copied');
     });
     document.getElementById('ctx-edit')?.addEventListener('click', () => { close(); _startEdit(msg); });
     document.getElementById('ctx-save')?.addEventListener('click', () => {
-      close(); const a = document.createElement('a'); a.href = msg.message; a.download = 'image.jpg'; a.click();
+      close(); Server.downloadFile(msg.message, 'image.jpg');
     });
     document.getElementById('ctx-del')?.addEventListener('click', () => { close(); _confirmDelete(msg); });
   };
@@ -696,7 +974,9 @@ const ChatWindow = (() => {
     const close = App.showModal(`
       <div style="padding:20px 16px 30px;display:flex;flex-direction:column;gap:14px">
         <h3 style="font-size:16px;font-weight:800;color:var(--text-1)">Edit Message</h3>
-        <textarea id="edit-ta" class="cw-textarea" style="width:100%;min-height:80px;border-radius:12px;padding:10px">${_escAttr(msg.message)}</textarea>
+        <textarea id="edit-ta" class="cw-textarea"
+          style="width:100%;min-height:80px;border-radius:12px;padding:10px"
+          >${_escAttr(msg.message)}</textarea>
         <div style="display:flex;gap:10px">
           <button class="btn-ghost" id="edit-cancel" style="flex:1">Cancel</button>
           <button class="btn-primary" id="edit-save" style="flex:1">Save</button>
@@ -706,8 +986,7 @@ const ChatWindow = (() => {
     document.getElementById('edit-save')?.addEventListener('click', async () => {
       const t = document.getElementById('edit-ta')?.value.trim();
       if (!t || t === msg.message) { close(); return; }
-      close();
-      _msgs = _msgs.map(m => m.time === msg.time ? { ...m, message: t, edited: true } : m);
+      close(); _msgs = _msgs.map(m => m.time===msg.time ? {...m,message:t,edited:true} : m);
       _msgHash = JSON.stringify(_msgs); _renderMessages();
       Server.editMessage(_chatId, msg.time, t).catch(() => {});
     });
@@ -727,323 +1006,351 @@ const ChatWindow = (() => {
     document.getElementById('del-cancel')?.addEventListener('click', close);
     document.getElementById('del-confirm')?.addEventListener('click', async () => {
       close();
-      _msgs = _msgs.map(m => m.time === msg.time ? { ...m, deleted: true, msg_type: 'deleted', message: '' } : m);
+      _msgs = _msgs.map(m => m.time===msg.time ? {...m,deleted:true,msg_type:'deleted',message:''} : m);
       _msgHash = JSON.stringify(_msgs); _renderMessages();
       Server.deleteMessage(_chatId, msg.time).catch(() => {});
     });
   };
 
-  /* ── File + Link HTML ────────────────────────────────────────── */
-  const _fileBubbleHtml = (messageStr, isSent) => {
-    const data = _safeJson(messageStr); if (!data) return _esc(messageStr);
-    const ext = (data.name || '').split('.').pop().toLowerCase();
-    const cls = ext === 'pdf' ? 'pdf' : ['doc','docx'].includes(ext) ? 'doc' : ['xls','xlsx','csv'].includes(ext) ? 'sheet' : 'generic';
-    const icon = cls === 'pdf' ? 'picture_as_pdf' : cls === 'doc' ? 'description' : cls === 'sheet' ? 'table_chart' : 'insert_drive_file';
-    return `<div class="file-bubble ${cls}">
-      <div class="file-icon-wrap"><span class="material-icons-round">${icon}</span></div>
-      <div class="file-meta">
-        <div class="file-name">${_esc(data.name || 'File')}</div>
-        <div class="file-size">${_bytes(data.size || 0)}</div>
-      </div>
-      <a href="${_attr(data.url)}" download="${_attr(data.name)}" class="file-dl" onclick="event.stopPropagation()">
-        <span class="material-icons-round">download</span>
-      </a>
-    </div>`;
+  /* ── CLEAR CHAT ──────────────────────────────────────────── */
+  const _confirmClearChat = () => {
+    const close = App.showModal(`
+      <div style="padding:28px 20px 32px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+        <span class="material-icons-round" style="font-size:48px;color:var(--danger)">cleaning_services</span>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text-1)">Clear Chat?</h3>
+        <p style="font-size:13px;color:var(--text-3)">All messages, images, videos, audio and files will be permanently deleted.</p>
+        <div style="display:flex;gap:10px;width:100%">
+          <button class="btn-ghost" id="cc-cancel" style="flex:1">Cancel</button>
+          <button class="btn-danger" id="cc-confirm" style="flex:1">Clear</button>
+        </div>
+      </div>`);
+    document.getElementById('cc-cancel').onclick = close;
+    document.getElementById('cc-confirm').onclick = async () => {
+      close(); App.showToast('Clearing...');
+      try {
+        await Server.clearChat(_chatId);
+        _msgs = []; _msgHash = JSON.stringify([]);
+        SyncManager.invalidate(SYNC_KEY(_chatId));
+        _renderMessages(); App.showToast('Chat cleared','success');
+      } catch { App.showToast('Failed to clear','error'); }
+    };
   };
 
-  const _extractUrl = (text) => { if (!text || typeof text !== 'string') return null; const m = text.match(URL_RE); return m ? m[0] : null; };
-  const _linkPreviewHtml = (url) => {
-    let domain = ''; try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
-    const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
-    const display = url.length > 48 ? url.slice(0, 48) + '…' : url;
-    return `<a class="link-preview" href="${_attr(url)}" target="_blank" rel="noopener noreferrer">
-      <img class="lp-icon" src="${favicon}" loading="lazy" alt="" onerror="this.style.display='none'">
-      <div class="lp-info"><div class="lp-domain">${_esc(domain)}</div><div class="lp-url">${_esc(display)}</div></div>
-      <span class="material-icons-round lp-arrow">open_in_new</span>
-    </a>`;
+  /* ── DISAPPEARING SETTINGS ───────────────────────────────── */
+  const _showDisappearingSheet = () => {
+    const current = _chatRec?.data?.disappearing_days ?? 90;
+    const close = App.showModal(`
+      <div style="padding:20px 0 30px">
+        <h3 style="font-size:18px;font-weight:800;color:var(--text-1);text-align:center;
+          padding:0 20px 16px;border-bottom:1px solid var(--border);
+          display:flex;align-items:center;justify-content:center;gap:8px">
+          <span class="material-icons-round" style="color:var(--warning)">timer</span>
+          Disappearing Messages
+        </h3>
+        <p style="font-size:13px;color:var(--text-3);padding:12px 20px;line-height:1.5">
+          Messages will automatically disappear after the selected time.
+        </p>
+        ${DISAPPEAR_OPTIONS.map(opt => `
+          <div class="ctx-action disappear-opt" data-days="${opt.days ?? 'null'}"
+               style="justify-content:space-between">
+            <span>${opt.label}</span>
+            ${opt.days === current || (opt.days === null && !current)
+              ? `<span class="material-icons-round" style="color:var(--accent)">check</span>` : ''}
+          </div>`).join('')}
+      </div>`);
+
+    document.querySelectorAll('.disappear-opt').forEach(el => {
+      el.addEventListener('click', async () => {
+        const days = el.dataset.days === 'null' ? null : +el.dataset.days;
+        await Server.setDisappearing(_chatId, days);
+        if (_chatRec?.data) _chatRec.data.disappearing_days = days;
+        close(); App.showToast(`Disappearing messages: ${days ? `${days} days` : 'Off'}`, 'success');
+        _buildUI(); _renderMessages();
+      });
+    });
   };
 
-  /* ── Direct / Group menus (unchanged from v4) ────────────────── */
+  /* ── DIRECT MENU ─────────────────────────────────────────── */
   const _showDirectMenu = () => {
-    const d = _chatRec.data; const me = Server.currentUser;
-    const pm = d.participant_meta || {}; const oid = (d.participants || []).find(id => id !== me?.id) || '';
-    const o = pm[oid] || {};
+    const d   = _chatRec.data; const me = Server.currentUser;
+    const pm  = d.participant_meta || {};
+    const oid = (d.participants||[]).find(id => id !== me?.id) || '';
+    const o   = pm[oid] || {};
     App.showModal(`
       <div style="padding:0 0 20px">
         <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
           ${App.avatar(o.avatar_url, o.display_name, 'av-md')}
-          <div><div style="font-size:16px;font-weight:700;color:var(--text-1)">${_esc(o.display_name || 'User')}</div>
-          <div style="font-size:12px;color:var(--text-3)">@${_esc(o.username || '')}</div></div>
-        </div>
-        <div class="ctx-action" id="dm-conv"><span class="material-icons-round" style="color:var(--accent)">group_add</span>Convert to Group Chat</div>
-        <div class="ctx-action danger" id="dm-clear"><span class="material-icons-round">cleaning_services</span>Clear Chat</div>
-      </div>`);
-    document.getElementById('dm-conv').onclick = () => { App.closeModal(); _showConvertToGroup(); };
-    document.getElementById('dm-clear').onclick = () => { App.closeModal(); App.showToast('Clear chat coming soon!'); };
-  };
-
-  const _showConvertToGroup = () => {
-    const added = []; let srT = null;
-    const close = App.showModal(`
-      <div class="edit-group-sheet">
-        <h3>Create Group Chat</h3>
-        <div><label class="auth-label" style="display:block;margin-bottom:6px">Group Name *</label>
-          <input id="ctg-name" class="input-field" type="text" placeholder="Team Spark…" maxlength="60"></div>
-        <div><label class="auth-label" style="display:block;margin-bottom:8px">Add Members</label>
-          <div style="position:relative">
-            <div class="chat-search-inner" style="border-radius:var(--radius-md)">
-              <span class="material-icons-round">search</span>
-              <input id="ctg-sr" class="chat-search-input" type="text" placeholder="Search username…" autocomplete="off">
-            </div>
-            <div class="inline-search-result" id="ctg-res" style="display:none"></div>
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text-1)">${_esc(o.display_name||'User')}</div>
+            <div style="font-size:12px;color:var(--text-3)">@${_esc(o.username||'')}</div>
           </div>
-          <div class="chips-row" id="ctg-chips" style="margin-top:10px"></div>
         </div>
-        <div id="ctg-err" class="auth-error"></div>
-        <button class="eg-save-btn" id="ctg-ok"><span class="material-icons-round" style="font-size:18px">group_add</span>Create Group</button>
+        <div class="ctx-action" id="dm-disappear">
+          <span class="material-icons-round" style="color:var(--warning)">timer</span> Disappearing Messages
+        </div>
+        <div class="ctx-action" id="dm-conv">
+          <span class="material-icons-round" style="color:var(--accent)">group_add</span> Convert to Group Chat
+        </div>
+        <div class="ctx-action danger" id="dm-clear">
+          <span class="material-icons-round">cleaning_services</span> Clear Chat
+        </div>
       </div>`);
-    const renderChips = () => {
-      const c = document.getElementById('ctg-chips'); if (!c) return;
-      c.innerHTML = added.map((m, i) => `<div class="member-chip">${_esc(m.display_name)}<span class="material-icons-round chip-x" data-i="${i}">close</span></div>`).join('');
-      c.querySelectorAll('.chip-x').forEach(x => x.addEventListener('click', () => { added.splice(+x.dataset.i, 1); renderChips(); }));
-    };
-    document.getElementById('ctg-sr').addEventListener('input', e => {
-      clearTimeout(srT); const q = e.target.value.trim(); const res = document.getElementById('ctg-res');
-      if (!q) { res.style.display = 'none'; return; }
-      res.style.display = 'block'; res.innerHTML = `<div style="padding:10px;font-size:13px;color:var(--text-3)">Searching…</div>`;
-      srT = setTimeout(async () => {
-        const found = await Server.getProfileByUsername(q);
-        const me = Server.currentUser; const ex = _chatRec.data.participants || [];
-        if (!found || found.data.user_id === me?.id || ex.includes(found.data.user_id) || added.some(m => m.user_id === found.data.user_id)) {
-          res.innerHTML = `<div style="padding:10px;font-size:13px;color:var(--text-3)">${!found ? 'No user found.' : 'Already in chat.'}</div>`; return;
-        }
-        const fd = found.data;
-        res.innerHTML = `<div class="inline-result-item" id="ctg-hit">${App.avatar(fd.avatar_url, fd.display_name, 'av-sm')}
-          <div><div style="font-size:14px;font-weight:600;color:var(--text-1)">${_esc(fd.display_name)}</div>
-          <div style="font-size:12px;color:var(--text-3)">@${_esc(fd.username)}</div></div></div>`;
-        document.getElementById('ctg-hit').onclick = () => {
-          added.push({ user_id: fd.user_id, display_name: fd.display_name, username: fd.username, avatar_url: fd.avatar_url || '' });
-          renderChips(); e.target.value = ''; res.style.display = 'none';
-        };
-      }, 350);
-    });
-    document.getElementById('ctg-ok').onclick = async () => {
-      const name = document.getElementById('ctg-name').value.trim(); const errEl = document.getElementById('ctg-err'); errEl.classList.remove('visible');
-      if (!name) { errEl.textContent = 'Name required.'; errEl.classList.add('visible'); return; }
-      const btn = document.getElementById('ctg-ok'); btn.disabled = true; btn.innerHTML = `<div class="spinner" style="width:20px;height:20px;border-width:2px"></div>`;
-      try {
-        const updated = await Server.convertToGroup(_chatId, name, added);
-        _chatRec = updated;
-        await Server.sendChatMessage(_chatId, { sender_id: 'system', username: '', display_name: '', message: `Chat converted to group: "${name}"`, time: _now(), msg_type: 'system' });
-        close(); App.showToast('Group created! 🎉', 'success');
-        await open(_chatId, _container, { onClose: _onClose });
-      } catch (e) {
-        btn.disabled = false; btn.innerHTML = `<span class="material-icons-round" style="font-size:18px">group_add</span>Create Group`;
-        errEl.textContent = e.message || 'Failed.'; errEl.classList.add('visible');
-      }
-    };
+    document.getElementById('dm-disappear').onclick = () => { App.closeModal(); _showDisappearingSheet(); };
+    document.getElementById('dm-conv').onclick  = () => { App.closeModal(); _showConvertToGroup(); };
+    document.getElementById('dm-clear').onclick = () => { App.closeModal(); _confirmClearChat(); };
   };
 
+  /* ── GROUP INFO / EDIT (unchanged core, added admin-only + disappearing) ── */
   const _showGroupInfo = () => {
-    const d = _chatRec.data; const me = Server.currentUser; const pm = d.participant_meta || {};
-    const color = d.color || '#0095f6'; const initial = (d.name || 'G')[0].toUpperCase();
-    const count = d.member_count || (d.participants || []).length;
-    const isCreator = d.created_by === me?.id; const isPublic = d.is_public !== false;
-    const memberRows = (d.participants || []).map(uid => {
-      const m = pm[uid] || { display_name: 'User', username: '?', avatar_url: '' };
-      const isMe = uid === me?.id; const isAdm = uid === d.created_by;
-      return `<div class="gi-member">${App.avatar(m.avatar_url, m.display_name, 'av-sm')}
-        <div class="gi-member-info"><div class="gi-member-name">${_esc(m.display_name || 'User')}</div>
-        <div class="gi-member-user">@${_esc(m.username || '?')}</div></div>
-        ${isAdm ? `<div class="gi-tag admin">Admin</div>` : ''}
-        ${isMe && !isAdm ? `<div class="gi-tag you">You</div>` : ''}
-        ${isCreator && !isMe ? `<div class="gi-remove" data-uid="${uid}"><span class="material-icons-round">person_remove</span></div>` : ''}
-      </div>`;
+    const d = _chatRec.data; const me = Server.currentUser; const pm = d.participant_meta||{};
+    const color = d.color||'#0095f6'; const initial = (d.name||'G')[0].toUpperCase();
+    const count = d.member_count||(d.participants||[]).length;
+    const isCreator = d.created_by===me?.id; const isPublic = d.is_public!==false;
+    const adminOnly = d.admin_only_messages===true;
+
+    const memberRows = (d.participants||[]).map(uid => {
+      const m=pm[uid]||{display_name:'User',username:'?',avatar_url:''}; const isMe=uid===me?.id; const isAdm=uid===d.created_by;
+      return `<div class="gi-member">${App.avatar(m.avatar_url,m.display_name,'av-sm')}
+        <div class="gi-member-info">
+          <div class="gi-member-name">${_esc(m.display_name||'User')}</div>
+          <div class="gi-member-user">@${_esc(m.username||'?')}</div>
+        </div>
+        ${isAdm?`<div class="gi-tag admin">Admin</div>`:''}${isMe&&!isAdm?`<div class="gi-tag you">You</div>`:''}
+        ${isCreator&&!isMe?`<div class="gi-remove" data-uid="${uid}"><span class="material-icons-round">person_remove</span></div>`:''}</div>`;
     }).join('');
+
     App.showModal(`
       <div class="gi-sheet">
         <div class="gi-header-block">
-          <div class="gi-av" style="background:${color}22;color:${color}">
-            ${d.avatar_url ? `<img src="${_attr(d.avatar_url)}">` : initial}</div>
-          <div class="gi-name">${_esc(d.name || 'Group')}</div>
-          ${d.description ? `<div class="gi-desc">${_esc(d.description)}</div>` : ''}
-          <div class="gi-count"><span class="material-icons-round">group</span>${count} members ·
-            <span class="material-icons-round" style="font-size:13px">${isPublic ? 'public' : 'lock'}</span>
-            ${isPublic ? 'Public' : 'Private'}</div>
-          ${isCreator ? `<div class="gi-actions"><button class="btn-ghost" id="gi-edit" style="padding:8px 16px;font-size:13px;display:flex;align-items:center;gap:6px">
-            <span class="material-icons-round" style="font-size:16px">edit</span>Edit Group</button></div>` : ''}
+          <div class="gi-av" style="background:${color}22;color:${color}">${d.avatar_url?`<img src="${_attr(d.avatar_url)}">`:initial}</div>
+          <div class="gi-name">${_esc(d.name||'Group')}</div>
+          ${d.description?`<div class="gi-desc">${_esc(d.description)}</div>`:''}
+          <div class="gi-count">
+            <span class="material-icons-round">group</span>${count} members
+            <span class="material-icons-round" style="font-size:13px;margin-left:6px">${isPublic?'public':'lock'}</span>${isPublic?'Public':'Private'}
+            ${adminOnly?`<span style="margin-left:6px;font-size:11px;padding:2px 7px;border-radius:99px;background:rgba(240,160,48,0.15);color:var(--warning);font-weight:700">
+              <span class="material-icons-round" style="font-size:11px;vertical-align:middle">admin_panel_settings</span>Admin only
+            </span>`:''}
+          </div>
+          ${isCreator?`<div class="gi-actions">
+            <button class="btn-ghost" id="gi-edit" style="padding:8px 16px;font-size:13px;display:flex;align-items:center;gap:6px">
+              <span class="material-icons-round" style="font-size:16px">edit</span>Edit Group
+            </button></div>`:''}
         </div>
+
+        <!-- Admin-only toggle (creator only) -->
+        ${isCreator?`<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 10px;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--text-1);display:flex;align-items:center;gap:6px">
+              <span class="material-icons-round" style="font-size:18px;color:var(--warning)">admin_panel_settings</span>
+              Admin-only messages
+            </div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px">Only admin can send messages</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="admin-only-toggle" ${adminOnly?'checked':''}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>` : ''}
+
+        <!-- Disappearing messages (creator only) -->
+        ${isCreator?`<div class="ctx-action" id="gi-disappear" style="padding:12px 0">
+          <span class="material-icons-round" style="color:var(--warning)">timer</span>
+          Disappearing Messages
+          <span style="margin-left:auto;font-size:12px;color:var(--text-3)">${(d.disappearing_days??90)||'Off'} ${d.disappearing_days?'days':''}</span>
+        </div>` : ''}
+
         <div class="gi-sec-label">Members</div>
         ${memberRows}
         <div class="gi-add-row" id="gi-add"><span class="material-icons-round">person_add</span>Add Member</div>
         <div class="gi-leave" id="gi-leave"><span class="material-icons-round">exit_to_app</span>Leave Group</div>
       </div>`);
+
     document.getElementById('gi-edit')?.addEventListener('click', () => { App.closeModal(); _showEditGroup(); });
     document.getElementById('gi-add').addEventListener('click', () => { App.closeModal(); _showAddMember(); });
+    document.getElementById('gi-disappear')?.addEventListener('click', () => { App.closeModal(); _showDisappearingSheet(); });
+
+    // Admin-only toggle
+    document.getElementById('admin-only-toggle')?.addEventListener('change', async (e) => {
+      const val = e.target.checked;
+      await Server.updateCommunity(_chatId, { admin_only_messages: val });
+      if (_chatRec?.data) _chatRec.data.admin_only_messages = val;
+      App.showToast(val ? 'Admin-only messages on' : 'Admin-only messages off', 'success');
+      await Server.sendChatMessage(_chatId, {
+        sender_id: 'system', username: '', display_name: '',
+        message: val ? 'Admin-only messages enabled.' : 'Everyone can now send messages.',
+        time: _now(), msg_type: 'system'
+      }).catch(() => {});
+      App.closeModal(); _buildUI(); _renderMessages();
+    });
+
     document.querySelectorAll('.gi-remove').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const uid = btn.dataset.uid; const meta = pm[uid] || {};
-        if (!confirm(`Remove ${meta.display_name || 'this member'}?`)) return;
-        try {
-          await Server.removeMember(_chatId, uid);
-          await Server.sendChatMessage(_chatId, { sender_id: 'system', username: '', display_name: '', message: `${meta.display_name || 'A member'} was removed.`, time: _now(), msg_type: 'system' });
+        const uid=btn.dataset.uid; const meta=pm[uid]||{}; if(!confirm(`Remove ${meta.display_name||'this member'}?`)) return;
+        try{
+          await Server.removeMember(_chatId,uid);
+          await Server.sendChatMessage(_chatId,{sender_id:'system',username:'',display_name:'',message:`${meta.display_name||'A member'} was removed.`,time:_now(),msg_type:'system'});
           App.closeModal(); App.showToast('Removed');
-          _chatRec = await Server.getChatById(_chatId);
-          if (_chatRec) { _msgs = _chatRec.data.messages || []; _msgHash = JSON.stringify(_msgs); _renderMessages(); }
-        } catch { App.showToast('Failed', 'error'); }
+          _chatRec=await Server.getChatById(_chatId);
+          if(_chatRec){_msgs=_applyDisappearing(_chatRec.data.messages||[]);_msgHash=JSON.stringify(_msgs);_renderMessages();}
+        }catch{App.showToast('Failed','error');}
       });
     });
+
     document.getElementById('gi-leave').addEventListener('click', async () => {
       App.closeModal();
-      await Server.leaveCommunity(_chatId, me.id).catch(() => {});
-      await Server.sendChatMessage(_chatId, { sender_id: 'system', username: '', display_name: '', message: `${Server.currentProfile?.data.display_name || 'Someone'} left.`, time: _now(), msg_type: 'system' }).catch(() => {});
+      await Server.leaveCommunity(_chatId,me.id).catch(()=>{});
+      await Server.sendChatMessage(_chatId,{sender_id:'system',username:'',display_name:'',message:`${Server.currentProfile?.data.display_name||'Someone'} left.`,time:_now(),msg_type:'system'}).catch(()=>{});
       App.showToast('You left the group'); _close();
     });
   };
 
   const _showEditGroup = () => {
-    const d = _chatRec.data; let selColor = d.color || COLORS[0]; let selPublic = d.is_public !== false; let avFile = null;
-    const dots = COLORS.map(c => `<div class="color-dot ${c === selColor ? 'sel' : ''}" data-c="${c}" style="background:${c}"></div>`).join('');
-    const close = App.showModal(`
-      <div class="edit-group-sheet">
-        <h3>Edit Group</h3>
+    const d=_chatRec.data; let selColor=d.color||COLORS[0]; let selPublic=d.is_public!==false; let avFile=null;
+    const dots=COLORS.map(c=>`<div class="color-dot ${c===selColor?'sel':''}" data-c="${c}" style="background:${c}"></div>`).join('');
+    const close=App.showModal(`
+      <div class="edit-group-sheet"><h3>Edit Group</h3>
         <div class="eg-av-pick"><label class="eg-av-btn" id="eg-av-lbl">
-          ${d.avatar_url ? `<img src="${_attr(d.avatar_url)}" style="border-radius:14px">` : `<span class="material-icons-round">add_a_photo</span><span>Photo</span>`}
+          ${d.avatar_url?`<img src="${_attr(d.avatar_url)}" style="border-radius:14px">`:`<span class="material-icons-round">add_a_photo</span><span>Photo</span>`}
           <input type="file" accept="image/*" id="eg-av-in" style="display:none"></label></div>
-        <div><label class="auth-label" style="display:block;margin-bottom:6px">Name *</label>
-          <input id="eg-name" class="input-field" type="text" value="${_attr(d.name || '')}" maxlength="60"></div>
-        <div><label class="auth-label" style="display:block;margin-bottom:6px">Description</label>
-          <textarea id="eg-desc" class="input-field" rows="2" style="resize:none" placeholder="What's this group about?">${_attr(d.description || '')}</textarea></div>
-        <div><label class="auth-label" style="display:block;margin-bottom:8px">Color</label>
-          <div class="color-row" id="eg-colors">${dots}</div></div>
+        <div><label class="auth-label" style="display:block;margin-bottom:6px">Name *</label><input id="eg-name" class="input-field" type="text" value="${_attr(d.name||'')}" maxlength="60"></div>
+        <div><label class="auth-label" style="display:block;margin-bottom:6px">Description</label><textarea id="eg-desc" class="input-field" rows="2" style="resize:none">${_attr(d.description||'')}</textarea></div>
+        <div><label class="auth-label" style="display:block;margin-bottom:8px">Color</label><div class="color-row" id="eg-colors">${dots}</div></div>
         <div><label class="auth-label" style="display:block;margin-bottom:8px">Privacy</label>
           <div class="privacy-toggle">
-            <button class="privacy-opt ${selPublic ? 'active' : ''}" data-v="true"><span class="material-icons-round">public</span>Public</button>
-            <button class="privacy-opt ${!selPublic ? 'active' : ''}" data-v="false"><span class="material-icons-round">lock</span>Private</button>
+            <button class="privacy-opt ${selPublic?'active':''}" data-v="true"><span class="material-icons-round">public</span>Public</button>
+            <button class="privacy-opt ${!selPublic?'active':''}" data-v="false"><span class="material-icons-round">lock</span>Private</button>
           </div></div>
         <div id="eg-err" class="auth-error"></div>
         <button class="eg-save-btn" id="eg-save"><span class="material-icons-round">check</span>Save Changes</button>
       </div>`);
-    document.getElementById('eg-av-in').addEventListener('change', e => {
-      avFile = e.target.files[0]; if (!avFile) return;
-      const rd = new FileReader(); rd.onload = ev => { const lbl = document.getElementById('eg-av-lbl'); if (lbl) lbl.innerHTML = `<img src="${ev.target.result}" style="border-radius:14px;position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`; }; rd.readAsDataURL(avFile);
-    });
-    document.querySelectorAll('#eg-colors .color-dot').forEach(dot => {
-      dot.onclick = () => { selColor = dot.dataset.c; document.querySelectorAll('#eg-colors .color-dot').forEach(d => d.classList.remove('sel')); dot.classList.add('sel'); };
-    });
-    document.querySelectorAll('.privacy-opt').forEach(opt => {
-      opt.onclick = () => { selPublic = opt.dataset.v === 'true'; document.querySelectorAll('.privacy-opt').forEach(o => o.classList.remove('active')); opt.classList.add('active'); };
-    });
-    document.getElementById('eg-save').onclick = async () => {
-      const name = document.getElementById('eg-name').value.trim(); const desc = document.getElementById('eg-desc').value.trim();
-      const errEl = document.getElementById('eg-err'); errEl.classList.remove('visible');
-      if (!name) { errEl.textContent = 'Name required.'; errEl.classList.add('visible'); return; }
-      const btn = document.getElementById('eg-save'); btn.disabled = true; btn.innerHTML = `<div class="spinner" style="width:20px;height:20px;border-width:2px"></div>`;
-      try {
-        let avUrl = d.avatar_url || '';
-        if (avFile) { const url = await Server.uploadCompressedImage(avFile, 'spark_comm_avatars'); if (url) avUrl = url; }
-        await Server.updateCommunity(_chatId, { name, description: desc, color: selColor, avatar_url: avUrl, is_public: selPublic });
-        await Server.sendChatMessage(_chatId, { sender_id: 'system', username: '', display_name: '', message: `Group updated: "${name}"`, time: _now(), msg_type: 'system' });
-        _chatRec = await Server.getChatById(_chatId);
-        close(); App.showToast('Group updated!', 'success');
-        if (_chatRec) { _msgs = _chatRec.data.messages || []; _msgHash = JSON.stringify(_msgs); _buildUI(); _renderMessages(); }
-      } catch (e) {
-        btn.disabled = false; btn.innerHTML = `<span class="material-icons-round">check</span>Save Changes`;
-        errEl.textContent = e.message || 'Save failed.'; errEl.classList.add('visible');
-      }
+    document.getElementById('eg-av-in').addEventListener('change',e=>{avFile=e.target.files[0];if(!avFile)return;const rd=new FileReader();rd.onload=ev=>{const lbl=document.getElementById('eg-av-lbl');if(lbl)lbl.innerHTML=`<img src="${ev.target.result}" style="border-radius:14px;position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`;};rd.readAsDataURL(avFile);});
+    document.querySelectorAll('#eg-colors .color-dot').forEach(dot=>{dot.onclick=()=>{selColor=dot.dataset.c;document.querySelectorAll('#eg-colors .color-dot').forEach(d=>d.classList.remove('sel'));dot.classList.add('sel');};});
+    document.querySelectorAll('.privacy-opt').forEach(opt=>{opt.onclick=()=>{selPublic=opt.dataset.v==='true';document.querySelectorAll('.privacy-opt').forEach(o=>o.classList.remove('active'));opt.classList.add('active');};});
+    document.getElementById('eg-save').onclick=async()=>{
+      const name=document.getElementById('eg-name').value.trim();const desc=document.getElementById('eg-desc').value.trim();
+      const errEl=document.getElementById('eg-err');errEl.classList.remove('visible');
+      if(!name){errEl.textContent='Name required.';errEl.classList.add('visible');return;}
+      const btn=document.getElementById('eg-save');btn.disabled=true;btn.innerHTML=`<div class="spinner" style="width:20px;height:20px;border-width:2px"></div>`;
+      try{
+        let avUrl=d.avatar_url||'';if(avFile){const url=await Server.uploadCompressedImage(avFile,'spark_comm_avatars');if(url)avUrl=url;}
+        await Server.updateCommunity(_chatId,{name,description:desc,color:selColor,avatar_url:avUrl,is_public:selPublic});
+        await Server.sendChatMessage(_chatId,{sender_id:'system',username:'',display_name:'',message:`Group updated: "${name}"`,time:_now(),msg_type:'system'});
+        _chatRec=await Server.getChatById(_chatId);close();App.showToast('Group updated!','success');
+        if(_chatRec){_msgs=_applyDisappearing(_chatRec.data.messages||[]);_msgHash=JSON.stringify(_msgs);_buildUI();_renderMessages();}
+      }catch(e){btn.disabled=false;btn.innerHTML=`<span class="material-icons-round">check</span>Save Changes`;errEl.textContent=e.message||'Save failed.';errEl.classList.add('visible');}
     };
   };
 
+  const _showConvertToGroup = () => {
+    const added=[]; let srT=null;
+    const close=App.showModal(`
+      <div class="edit-group-sheet"><h3>Create Group Chat</h3>
+        <div><label class="auth-label" style="display:block;margin-bottom:6px">Group Name *</label><input id="ctg-name" class="input-field" type="text" placeholder="Team Spark..." maxlength="60"></div>
+        <div><label class="auth-label" style="display:block;margin-bottom:8px">Add Members</label>
+          <div style="position:relative">
+            <div class="chat-search-inner" style="border-radius:var(--radius-md)"><span class="material-icons-round">search</span><input id="ctg-sr" class="chat-search-input" type="text" placeholder="Search username..." autocomplete="off"></div>
+            <div class="inline-search-result" id="ctg-res" style="display:none"></div>
+          </div><div class="chips-row" id="ctg-chips" style="margin-top:10px"></div></div>
+        <div id="ctg-err" class="auth-error"></div>
+        <button class="eg-save-btn" id="ctg-ok"><span class="material-icons-round" style="font-size:18px">group_add</span>Create Group</button>
+      </div>`);
+    const renderChips=()=>{const c=document.getElementById('ctg-chips');if(!c)return;c.innerHTML=added.map((m,i)=>`<div class="member-chip">${_esc(m.display_name)}<span class="material-icons-round chip-x" data-i="${i}">close</span></div>`).join('');c.querySelectorAll('.chip-x').forEach(x=>x.addEventListener('click',()=>{added.splice(+x.dataset.i,1);renderChips();}));};
+    document.getElementById('ctg-sr').addEventListener('input',e=>{clearTimeout(srT);const q=e.target.value.trim();const res=document.getElementById('ctg-res');if(!q){res.style.display='none';return;}res.style.display='block';res.innerHTML=`<div style="padding:10px;font-size:13px;color:var(--text-3)">Searching...</div>`;srT=setTimeout(async()=>{const found=await Server.getProfileByUsername(q);const me=Server.currentUser;const ex=_chatRec.data.participants||[];if(!found||found.data.user_id===me?.id||ex.includes(found.data.user_id)||added.some(m=>m.user_id===found.data.user_id)){res.innerHTML=`<div style="padding:10px;font-size:13px;color:var(--text-3)">${!found?'No user found.':'Already in chat.'}</div>`;return;}const fd=found.data;res.innerHTML=`<div class="inline-result-item" id="ctg-hit">${App.avatar(fd.avatar_url,fd.display_name,'av-sm')}<div><div style="font-size:14px;font-weight:600;color:var(--text-1)">${_esc(fd.display_name)}</div><div style="font-size:12px;color:var(--text-3)">@${_esc(fd.username)}</div></div></div>`;document.getElementById('ctg-hit').onclick=()=>{added.push({user_id:fd.user_id,display_name:fd.display_name,username:fd.username,avatar_url:fd.avatar_url||''});renderChips();e.target.value='';res.style.display='none';};},350);});
+    document.getElementById('ctg-ok').onclick=async()=>{const name=document.getElementById('ctg-name').value.trim();const errEl=document.getElementById('ctg-err');errEl.classList.remove('visible');if(!name){errEl.textContent='Name required.';errEl.classList.add('visible');return;}const btn=document.getElementById('ctg-ok');btn.disabled=true;btn.innerHTML=`<div class="spinner" style="width:20px;height:20px;border-width:2px"></div>`;try{const updated=await Server.convertToGroup(_chatId,name,added);_chatRec=updated;await Server.sendChatMessage(_chatId,{sender_id:'system',username:'',display_name:'',message:`Chat converted to group: "${name}"`,time:_now(),msg_type:'system'});close();App.showToast('Group created!','success');await open(_chatId,_container,{onClose:_onClose});}catch(e){btn.disabled=false;btn.innerHTML=`<span class="material-icons-round" style="font-size:18px">group_add</span>Create Group`;errEl.textContent=e.message||'Failed.';errEl.classList.add('visible');}};
+  };
+
   const _showAddMember = () => {
-    let t = null;
-    App.showModal(`
-      <div style="padding:20px 20px 32px;display:flex;flex-direction:column;gap:14px">
+    let t=null;
+    App.showModal(`<div style="padding:20px 20px 32px;display:flex;flex-direction:column;gap:14px">
         <h3 style="font-size:18px;font-weight:800;color:var(--text-1);text-align:center">Add Member</h3>
         <div style="position:relative">
-          <div class="chat-search-inner" style="border-radius:var(--radius-md)">
-            <span class="material-icons-round">search</span>
-            <input id="am-sr" class="chat-search-input" type="text" placeholder="Search username…" autocomplete="off">
-          </div>
+          <div class="chat-search-inner" style="border-radius:var(--radius-md)"><span class="material-icons-round">search</span><input id="am-sr" class="chat-search-input" type="text" placeholder="Search username..." autocomplete="off"></div>
           <div class="inline-search-result" id="am-res" style="display:none"></div>
-        </div>
-        <div id="am-st" style="font-size:13px;color:var(--text-3);text-align:center"></div>
+        </div><div id="am-st" style="font-size:13px;color:var(--text-3);text-align:center"></div>
       </div>`);
-    document.getElementById('am-sr').addEventListener('input', e => {
-      clearTimeout(t); const q = e.target.value.trim(); const res = document.getElementById('am-res');
-      if (!q) { res.style.display = 'none'; return; }
-      res.style.display = 'block'; res.innerHTML = `<div style="padding:10px;font-size:13px;color:var(--text-3)">Searching…</div>`;
-      t = setTimeout(async () => {
-        const found = await Server.getProfileByUsername(q); const parts = _chatRec?.data?.participants || [];
-        if (!found || parts.includes(found.data.user_id)) {
-          res.innerHTML = `<div style="padding:10px;font-size:13px;color:var(--text-3)">${!found ? 'Not found.' : 'Already a member.'}</div>`; return;
-        }
-        const fd = found.data;
-        res.innerHTML = `<div class="inline-result-item" id="am-hit">${App.avatar(fd.avatar_url, fd.display_name, 'av-sm')}
-          <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:var(--text-1)">${_esc(fd.display_name)}</div>
-          <div style="font-size:12px;color:var(--text-3)">@${_esc(fd.username)}</div></div>
-          <button class="btn-primary" style="padding:7px 14px;font-size:13px;flex-shrink:0">Add</button>
-        </div>`;
-        document.getElementById('am-hit').querySelector('button').addEventListener('click', async () => {
-          const st = document.getElementById('am-st'); if (st) st.textContent = 'Adding…';
-          try {
-            await Server.addMember(_chatId, fd.user_id, { display_name: fd.display_name, username: fd.username, avatar_url: fd.avatar_url || '' });
-            await Server.sendChatMessage(_chatId, { sender_id: 'system', username: '', display_name: '', message: `${fd.display_name} was added.`, time: _now(), msg_type: 'system' });
-            _chatRec = await Server.getChatById(_chatId);
-            if (_chatRec) { _msgs = _chatRec.data.messages || []; _msgHash = JSON.stringify(_msgs); _renderMessages(); }
-            App.closeModal(); App.showToast(`${fd.display_name} added!`, 'success');
-          } catch { if (st) { st.textContent = 'Failed.'; st.style.color = 'var(--danger)'; } }
-        });
-      }, 350);
-    });
+    document.getElementById('am-sr').addEventListener('input',e=>{clearTimeout(t);const q=e.target.value.trim();const res=document.getElementById('am-res');if(!q){res.style.display='none';return;}res.style.display='block';res.innerHTML=`<div style="padding:10px;font-size:13px;color:var(--text-3)">Searching...</div>`;t=setTimeout(async()=>{const found=await Server.getProfileByUsername(q);const parts=_chatRec?.data?.participants||[];if(!found||parts.includes(found.data.user_id)){res.innerHTML=`<div style="padding:10px;font-size:13px;color:var(--text-3)">${!found?'Not found.':'Already a member.'}</div>`;return;}const fd=found.data;res.innerHTML=`<div class="inline-result-item" id="am-hit">${App.avatar(fd.avatar_url,fd.display_name,'av-sm')}<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:var(--text-1)">${_esc(fd.display_name)}</div><div style="font-size:12px;color:var(--text-3)">@${_esc(fd.username)}</div></div><button class="btn-primary" style="padding:7px 14px;font-size:13px;flex-shrink:0">Add</button></div>`;document.getElementById('am-hit').querySelector('button').addEventListener('click',async()=>{const st=document.getElementById('am-st');if(st)st.textContent='Adding...';try{await Server.addMember(_chatId,fd.user_id,{display_name:fd.display_name,username:fd.username,avatar_url:fd.avatar_url||''});await Server.sendChatMessage(_chatId,{sender_id:'system',username:'',display_name:'',message:`${fd.display_name} was added.`,time:_now(),msg_type:'system'});_chatRec=await Server.getChatById(_chatId);if(_chatRec){_msgs=_applyDisappearing(_chatRec.data.messages||[]);_msgHash=JSON.stringify(_msgs);_renderMessages();}App.closeModal();App.showToast(`${fd.display_name} added!`,'success');}catch{if(st){st.textContent='Failed.';st.style.color='var(--danger)';}}});},350);});
   };
 
-  /* ── Video / Image fullscreen ────────────────────────────────── */
+  /* ── BUBBLE RENDERERS ────────────────────────────────────── */
+  const _audioBubbleHtml = (messageStr, msgTime) => {
+    const data=_safeJson(messageStr); const url=data?.url||messageStr; const dur=data?.duration||0;
+    const m=Math.floor(dur/60),s=String(dur%60).padStart(2,'0');
+    const bars=Array.from({length:24},(_,i)=>`<div class="audio-bar" style="height:${6+Math.abs(Math.sin(i*0.7+1)*8)+(i%3)*2}px"></div>`).join('');
+    return `<div class="audio-bubble audio-bubble-el" data-url="${_attr(url)}" data-dur="${dur}" data-t="${_attr(msgTime)}">
+      <button class="audio-play-btn" data-playing="0"><span class="material-icons-round">play_arrow</span></button>
+      <div class="audio-waveform">${bars}</div>
+      <span class="audio-dur">${m}:${s}</span></div>`;
+  };
+
+  const _bindAudioBubble = (el) => {
+    const url=el.dataset.url; if(!url) return;
+    const playBtn=el.querySelector('.audio-play-btn'); const bars=el.querySelectorAll('.audio-bar'); const durEl=el.querySelector('.audio-dur');
+    if(!playBtn) return;
+    const audio=new Audio(url);
+    audio.ontimeupdate=()=>{if(!audio.duration)return;const p=audio.currentTime/audio.duration;const pl=Math.floor(p*bars.length);bars.forEach((b,i)=>b.classList.toggle('played',i<pl));const rem=Math.ceil(audio.duration-audio.currentTime);if(durEl)durEl.textContent=`${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`;};
+    audio.onended=()=>{playBtn.dataset.playing='0';playBtn.querySelector('.material-icons-round').textContent='play_arrow';bars.forEach(b=>b.classList.remove('played'));};
+    playBtn.onclick=()=>{if(audio.paused){document.querySelectorAll('.audio-bubble-el').forEach(o=>{if(o!==el){const b=o.querySelector('.audio-play-btn');if(b?.dataset.playing==='1')b.click();}});audio.play();playBtn.dataset.playing='1';playBtn.querySelector('.material-icons-round').textContent='pause';}else{audio.pause();playBtn.dataset.playing='0';playBtn.querySelector('.material-icons-round').textContent='play_arrow';}};
+    el.querySelector('.audio-waveform')?.addEventListener('click',e=>{const rect=e.currentTarget.getBoundingClientRect();if(audio.duration)audio.currentTime=((e.clientX-rect.left)/rect.width)*audio.duration;});
+  };
+
+  const _fileBubbleHtml = (messageStr) => {
+    const data=_safeJson(messageStr); if(!data) return _esc(messageStr);
+    const ext=(data.name||'').split('.').pop().toLowerCase();
+    const cls=ext==='pdf'?'pdf':['doc','docx'].includes(ext)?'doc':['xls','xlsx','csv'].includes(ext)?'sheet':'generic';
+    const icon=cls==='pdf'?'picture_as_pdf':cls==='doc'?'description':cls==='sheet'?'table_chart':'insert_drive_file';
+    return `<div class="file-bubble ${cls}">
+      <div class="file-icon-wrap"><span class="material-icons-round">${icon}</span></div>
+      <div class="file-meta"><div class="file-name">${_esc(data.name||'File')}</div><div class="file-size">${_bytes(data.size||0)}</div></div>
+      <a href="${_attr(data.url)}" data-name="${_attr(data.name||'file')}" class="file-dl" onclick="event.stopPropagation()">
+        <span class="material-icons-round">download</span></a></div>`;
+  };
+
+  const _extractUrl = (t) => { if(!t||typeof t!=='string') return null; const m=t.match(URL_RE); return m?m[0]:null; };
+  const _linkPreviewHtml = (url) => {
+    let domain=''; try{domain=new URL(url).hostname.replace(/^www\./,'');}catch{return '';}
+    return `<a class="link-preview" href="${_attr(url)}" target="_blank" rel="noopener noreferrer">
+      <img class="lp-icon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32" loading="lazy" alt="" onerror="this.style.display='none'">
+      <div class="lp-info"><div class="lp-domain">${_esc(domain)}</div><div class="lp-url">${_esc(url.length>48?url.slice(0,48)+'...':url)}</div></div>
+      <span class="material-icons-round lp-arrow">open_in_new</span></a>`;
+  };
+
+  /* ── FULLSCREEN ──────────────────────────────────────────── */
   const _showImgFS = (url) => {
-    if (!url) return;
-    const el = document.createElement('div'); el.className = 'img-fs';
-    el.innerHTML = `<div class="img-fs-close" id="ifs-x"><span class="material-icons-round">close</span></div><img src="${_attr(url)}" alt="Image">`;
+    if(!url) return;
+    const el=document.createElement('div'); el.className='img-fs';
+    el.innerHTML=`<div class="img-fs-close" id="ifs-x"><span class="material-icons-round">close</span></div><img src="${_attr(url)}" alt="">`;
     document.body.appendChild(el);
-    document.getElementById('ifs-x').onclick = () => el.remove();
-    el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+    document.getElementById('ifs-x').onclick=()=>el.remove();
+    el.addEventListener('click',e=>{if(e.target===el)el.remove();});
   };
-
   const _showVideoFS = (url) => {
-    if (!url) return;
-    const el = document.createElement('div'); el.className = 'img-fs';
-    el.style.flexDirection = 'column';
-    el.innerHTML = `<div class="img-fs-close" id="ifs-x"><span class="material-icons-round">close</span></div>
+    if(!url) return;
+    const el=document.createElement('div'); el.className='img-fs'; el.style.flexDirection='column';
+    el.innerHTML=`<div class="img-fs-close" id="ifs-x"><span class="material-icons-round">close</span></div>
       <video src="${_attr(url)}" controls autoplay playsinline style="max-width:100%;max-height:calc(100vh - 80px);border-radius:8px"></video>`;
     document.body.appendChild(el);
-    document.getElementById('ifs-x').onclick = () => el.remove();
-    el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+    document.getElementById('ifs-x').onclick=()=>el.remove();
+    el.addEventListener('click',e=>{if(e.target===el)el.remove();});
   };
 
-  /* ── Utils ──────────────────────────────────────────────────── */
-  const _hashPrefix = () => _chatRec?.data?.type === 'group' ? 'communities' : 'chats';
-  const _findMsg    = (time) => _msgs.find(m => m.time === time) || null;
-  const _now        = ()     => new Date().toISOString();
-
-  const _dateLabel = (iso) => {
-    if (!iso) return '';
-    try {
-      const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-      if (diff === 0) return 'Today'; if (diff === 1) return 'Yesterday';
-      return new Date(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    } catch { return ''; }
+  /* ── UTILS ───────────────────────────────────────────────── */
+  const _hashPrefix = () => _chatRec?.data?.type==='group'?'communities':'chats';
+  const _findMsg    = (time) => _msgs.find(m=>m.time===time)||null;
+  const _now        = () => new Date().toISOString();
+  const _dateLabel  = (iso) => {
+    if(!iso) return '';
+    try{const d=Math.floor((Date.now()-new Date(iso).getTime())/86400000);if(d===0)return 'Today';if(d===1)return 'Yesterday';return new Date(iso).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});}catch{return '';}
   };
-  const _bytes  = (n) => { if (!n) return '0 B'; const k = 1024, s = ['B','KB','MB','GB'], i = Math.floor(Math.log(n)/Math.log(k)); return (n/Math.pow(k,i)).toFixed(1)+' '+s[i]; };
-  const _safeJson = (str) => { try { return JSON.parse(str); } catch { return null; } };
-  const _esc     = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const _escNl   = (s) => _esc(s).replace(/\n/g,'<br>');
-  const _attr    = (s) => String(s||'').replace(/"/g,'&quot;');
-  const _escAttr = (s) => String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-  const _errHTML = () => `
-    <div class="chat-fullscreen" style="padding:40px 24px;gap:16px;align-items:center;justify-content:center">
+  const _bytes    = (n) => {if(!n)return '0 B';const k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(n)/Math.log(k));return(n/Math.pow(k,i)).toFixed(1)+' '+s[i];};
+  const _safeJson = (str) => {try{return JSON.parse(str);}catch{return null;}};
+  const _esc      = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const _attr     = (s) => String(s||'').replace(/"/g,'&quot;');
+  const _escAttr  = (s) => String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const _errHTML  = () => `<div class="chat-fullscreen" style="padding:40px 24px;gap:16px;align-items:center;justify-content:center">
       <span class="material-icons-round" style="font-size:56px;color:var(--text-3)">error_outline</span>
       <h3 style="color:var(--text-2)">Chat not found</h3>
-      <button class="btn-ghost" id="cw-err-back">Go Back</button>
-    </div>`;
+      <button class="btn-ghost" id="cw-err-back">Go Back</button></div>`;
 
   return { open, close, isOpen };
 })();
