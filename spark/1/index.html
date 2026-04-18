@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Spark — Connect Instantly</title>
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#0095f6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Spark">
+  <meta name="description" content="A fast, secure messaging app. Connect instantly.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="https://arlabs07.netlify.app/images/spark/logo.png">
+  <link rel="apple-touch-icon" href="https://arlabs07.netlify.app/images/spark/logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <script src="https://jfyibyrxbsdswerxtfkj.supabase.co/functions/v1/server-proxy/sdk.js?pid=89c8e728-b75f-46c4-a027-2a0ab9876fa2"></script>
+
+  <link rel="stylesheet" href="main.css?v=9">
+  <link rel="stylesheet" href="login.css?v=9">
+  <link rel="stylesheet" href="chats.css?v=9">
+  <link rel="stylesheet" href="chat.css?v=9">
+  <link rel="stylesheet" href="camera.css?v=9">
+  <link rel="stylesheet" href="updates.css?v=9">
+  <link rel="stylesheet" href="communities.css?v=9">
+  <link rel="stylesheet" href="profile.css?v=9">
+</head>
+<body>
+
+  <div id="app-loader">
+    <div class="splash-inner">
+      <span class="material-icons-round splash-bolt">bolt</span>
+      <span class="splash-name">Spark</span>
+    </div>
+  </div>
+
+  <div id="app">
+    <header id="app-header">
+      <div class="hdr-left">
+        <button id="btn-back" class="icon-btn hidden" aria-label="Back">
+          <span class="material-icons-round">arrow_back</span>
+        </button>
+        <div class="app-logo" id="hdr-logo">
+          <span class="material-icons-round logo-bolt">bolt</span>
+          <span class="logo-name">Spark</span>
+        </div>
+        <span id="hdr-title" class="hdr-title hidden"></span>
+      </div>
+      <div class="hdr-right">
+        <button class="icon-btn" id="hdr-refresh" title="Refresh">
+          <span class="material-icons-round">refresh</span>
+        </button>
+      </div>
+    </header>
+    <main id="main-content">
+      <section id="page-login"       class="page"></section>
+      <section id="page-chats"       class="page"></section>
+      <section id="page-updates"     class="page"></section>
+      <section id="page-communities" class="page"></section>
+      <section id="page-profile"     class="page"></section>
+    </main>
+    <nav id="bottom-nav" class="hidden">
+      <button class="nav-tab" data-page="chats" data-icon-off="chat_bubble_outline" data-icon-on="chat_bubble">
+        <span class="material-icons-round nav-icon">chat_bubble_outline</span>
+        <span class="nav-label">Chats</span>
+      </button>
+      <button class="nav-tab" data-page="updates" data-icon-off="radio_button_unchecked" data-icon-on="radio_button_checked">
+        <span class="material-icons-round nav-icon">radio_button_unchecked</span>
+        <span class="nav-label">Updates</span>
+      </button>
+      <button class="nav-tab" data-page="communities" data-icon-off="groups" data-icon-on="groups">
+        <span class="material-icons-round nav-icon">groups</span>
+        <span class="nav-label">Communities</span>
+      </button>
+      <button class="nav-tab" data-page="profile" data-icon-off="person_outline" data-icon-on="person">
+        <span class="material-icons-round nav-icon">person_outline</span>
+        <span class="nav-label">Profile</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="modal-overlay" class="hidden"></div>
+  <div id="modal-sheet"></div>
+  <div id="toast-bar"></div>
+
+  <script src="encryption.js?v=9"></script>
+  <script src="server.js?v=9"></script>
+  <script src="sync.js?v=9"></script>
+  <script src="main.js?v=9"></script>
+  <script src="login.js?v=9"></script>
+  <script src="camera.js?v=9"></script>
+  <script src="chat.js?v=9"></script>
+  <script src="chats.js?v=9"></script>
+  <script src="updates.js?v=9"></script>
+  <script src="communities.js?v=9"></script>
+  <script src="profile.js?v=9"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "Spark — Connect Instantly",
+  "short_name": "Spark",
+  "description": "A fast, secure messaging app. Connect instantly.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#0095f6",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
