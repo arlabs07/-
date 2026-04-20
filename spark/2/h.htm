@@ -1,0 +1,321 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Multi-Modal AI Bot</title>
+    <!-- Tailwind CSS for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js for parsing markdown in text generation responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <style>
+        /* Hide scrollbars but keep horizontal scroll functionality */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+
+        /* Custom styling for markdown text output in Canvas */
+        .prose-custom {
+            color: #d1d5db;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+        .prose-custom h1, .prose-custom h2, .prose-custom h3 {
+            color: #ffffff;
+            font-weight: 700;
+            margin-top: 1.2em;
+            margin-bottom: 0.5em;
+        }
+        .prose-custom h1 { font-size: 1.5rem; }
+        .prose-custom h2 { font-size: 1.25rem; }
+        .prose-custom p { margin-bottom: 1em; }
+        .prose-custom a { color: #3b82f6; text-decoration: underline; }
+        .prose-custom code {
+            background-color: #1f2937;
+            color: #fbbf24;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+        .prose-custom pre {
+            background-color: #111827;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1em;
+            border: 1px solid #374151;
+        }
+        .prose-custom pre code {
+            background-color: transparent;
+            color: #e5e7eb;
+            padding: 0;
+            border-radius: 0;
+        }
+        .prose-custom ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1em; }
+        .prose-custom ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1em; }
+    </style>
+</head>
+<body class="bg-black text-white h-screen flex flex-col font-sans overflow-hidden select-none">
+
+    <!-- TOP: Main Output Canvas -->
+    <main class="flex-grow min-h-0 p-3 pb-1 md:p-6 md:pb-2 flex justify-center items-center">
+        <div id="canvas" class="w-full h-full bg-[#0a0a0a] border border-gray-800 rounded-3xl shadow-2xl flex items-center justify-center overflow-hidden relative">
+            <div class="text-center text-gray-500 px-6">
+                <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                </svg>
+                <p class="text-sm tracking-wide">Select your parameters and enter a prompt to begin generation.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- BOTTOM: Controls Area -->
+    <div class="w-full flex flex-col gap-3 pb-4 pt-2 md:pb-6">
+        
+        <!-- 1. Statistics Container (Single line, overflow-x-scroll) -->
+        <div id="stats" class="flex overflow-x-auto space-x-2 px-3 md:px-6 no-scrollbar whitespace-nowrap items-center min-h-[32px]">
+            <!-- Statistics populate here dynamically -->
+        </div>
+        
+        <!-- 2. Input Box -->
+        <div class="px-3 md:px-6">
+            <form id="promptForm" class="flex items-center bg-gray-900 rounded-full p-1.5 border border-gray-700 focus-within:border-blue-500 transition-colors shadow-inner">
+                <input id="promptInput" type="text" placeholder="Describe what you want to create..." class="flex-grow bg-transparent outline-none px-4 text-sm md:text-base text-gray-200 placeholder-gray-500 select-text" autocomplete="off" required>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white rounded-full p-2 md:px-5 flex items-center justify-center transition-transform active:scale-95">
+                    <span class="hidden md:block text-sm font-semibold mr-2">Generate</span>
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- 3. Categories (Single line, overflow-x-scroll) -->
+        <div id="categories" class="flex overflow-x-auto space-x-2 px-3 md:px-6 no-scrollbar whitespace-nowrap">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- 4. Models (Single line, overflow-x-scroll) -->
+        <div id="models" class="flex overflow-x-auto space-x-2 px-3 md:px-6 no-scrollbar whitespace-nowrap">
+            <!-- Populated by JavaScript -->
+        </div>
+
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Available Models via Pollinations API
+            const modelsData = {
+                text: ['openai', 'openai-large', 'qwen-coder', 'mistral', 'deepseek', 'glm'],
+                image: ['flux', 'turbo', 'gptimage', 'seedream', 'zimage', 'wan-image'],
+                audio: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'], // TTS Voices
+                video: ['veo', 'seedance']
+            };
+
+            let currentCategory = 'text';
+            let currentModel = modelsData.text[0];
+            let currentController = null;
+
+            // DOM Elements
+            const elements = {
+                categories: document.getElementById('categories'),
+                models: document.getElementById('models'),
+                stats: document.getElementById('stats'),
+                canvas: document.getElementById('canvas'),
+                form: document.getElementById('promptForm'),
+                input: document.getElementById('promptInput')
+            };
+
+            // Initialize UI
+            renderCategories();
+            renderModels();
+            updateStats({ Status: 'Ready', Action: 'Awaiting prompt' });
+
+            // ---------------- UI Render Functions ----------------
+
+            function renderCategories() {
+                elements.categories.innerHTML = '';
+                Object.keys(modelsData).forEach(cat => {
+                    const btn = document.createElement('button');
+                    const isSelected = currentCategory === cat;
+                    
+                    // Styling logic for category buttons
+                    btn.className = `px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all border ${
+                        isSelected 
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.3)]' 
+                        : 'bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white'
+                    }`;
+                    btn.textContent = cat;
+                    btn.type = 'button';
+                    
+                    btn.onclick = () => {
+                        currentCategory = cat;
+                        currentModel = modelsData[cat][0]; // Reset model to first in new category
+                        renderCategories();
+                        renderModels();
+                    };
+                    elements.categories.appendChild(btn);
+                });
+            }
+
+            function renderModels() {
+                elements.models.innerHTML = '';
+                modelsData[currentCategory].forEach(mod => {
+                    const btn = document.createElement('button');
+                    const isSelected = currentModel === mod;
+                    
+                    // Styling logic for model buttons
+                    btn.className = `px-3 py-1.5 rounded-full text-xs transition-all border ${
+                        isSelected 
+                        ? 'bg-gray-200 text-black border-transparent font-semibold shadow-sm' 
+                        : 'bg-transparent text-gray-400 border-gray-700 hover:border-gray-500 hover:text-gray-200'
+                    }`;
+                    btn.textContent = mod;
+                    btn.type = 'button';
+                    
+                    btn.onclick = () => {
+                        currentModel = mod;
+                        renderModels();
+                    };
+                    elements.models.appendChild(btn);
+                });
+            }
+
+            function updateStats(data) {
+                elements.stats.innerHTML = '';
+                for(const [key, val] of Object.entries(data)) {
+                    const badge = document.createElement('div');
+                    badge.className = 'px-3 py-1 bg-gray-900 text-gray-200 rounded-full text-[0.7rem] font-mono whitespace-nowrap border border-gray-800 flex items-center shadow-inner';
+                    badge.innerHTML = `<span class="text-gray-500 tracking-wide uppercase mr-1.5">${key}</span> <span>${val}</span>`;
+                    elements.stats.appendChild(badge);
+                }
+            }
+
+            // ---------------- Core Generation Logic ----------------
+
+            elements.form.onsubmit = async (e) => {
+                e.preventDefault();
+                const prompt = elements.input.value.trim();
+                if (!prompt) return;
+
+                // Abort previous fetch if pending
+                if (currentController) {
+                    currentController.abort();
+                }
+                currentController = new AbortController();
+                const { signal } = currentController;
+
+                const startTime = performance.now();
+                const cat = currentCategory;
+                const mod = currentModel;
+
+                // Loading State
+                elements.canvas.innerHTML = `
+                    <div class="flex flex-col items-center justify-center space-y-4">
+                        <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="text-gray-400 text-xs font-semibold tracking-widest uppercase animate-pulse">Generating ${cat} ...</p>
+                    </div>
+                `;
+                updateStats({ Status: 'Generating...', Category: cat.toUpperCase(), Model: mod });
+
+                const encodedPrompt = encodeURIComponent(prompt);
+                let url = '';
+                const seed = Math.floor(Math.random() * 1000000); // For cache busting and variance
+
+                try {
+                    // --- 1. Text Generation ---
+                    if (cat === 'text') {
+                        url = `https://text.pollinations.ai/${encodedPrompt}?model=${mod}&seed=${seed}`;
+                        const res = await fetch(url, { signal });
+                        if(!res.ok) throw new Error('API Error');
+                        const text = await res.text();
+                        const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
+                        
+                        // Parse Markdown if marked.js is loaded, else basic sanitize
+                        const htmlContent = typeof marked !== 'undefined' ? marked.parse(text) : text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        
+                        elements.canvas.innerHTML = `<div class="prose-custom w-full h-full p-4 md:p-8 overflow-y-auto block text-left select-text">${htmlContent}</div>`;
+                        updateStats({ Time: `${timeTaken}s`, Type: 'Text', Model: mod, Words: text.split(' ').length });
+                    } 
+                    
+                    // --- 2. Image Generation ---
+                    else if (cat === 'image') {
+                        url = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=${mod}&nologo=true&seed=${seed}`;
+                        const img = new Image();
+                        img.className = "max-w-full max-h-full rounded-2xl object-contain shadow-2xl bg-black";
+                        
+                        img.onload = () => {
+                            const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
+                            elements.canvas.innerHTML = '';
+                            elements.canvas.appendChild(img);
+                            updateStats({ Time: `${timeTaken}s`, Type: 'Image', Model: mod, Size: `${img.naturalWidth}x${img.naturalHeight}` });
+                        };
+                        img.onerror = () => { throw new Error('Image Load Error') };
+                        img.src = url; // Setting src triggers the load
+                    } 
+                    
+                    // --- 3. Audio Generation ---
+                    else if (cat === 'audio') {
+                        url = `https://gen.pollinations.ai/audio/${encodedPrompt}?voice=${mod}`;
+                        const audio = document.createElement('audio');
+                        audio.className = "w-[80%] max-w-md rounded-full shadow-lg outline-none bg-gray-900 border border-gray-700";
+                        audio.controls = true;
+                        audio.autoplay = true;
+                        
+                        audio.oncanplay = () => {
+                            const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
+                            elements.canvas.innerHTML = '';
+                            elements.canvas.appendChild(audio);
+                            updateStats({ Time: `${timeTaken}s`, Type: 'Audio', Voice: mod });
+                        };
+                        audio.onerror = () => { throw new Error('Audio Load Error') };
+                        audio.src = url; 
+                    } 
+                    
+                    // --- 4. Video Generation ---
+                    else if (cat === 'video') {
+                        url = `https://gen.pollinations.ai/video/${encodedPrompt}?model=${mod}`;
+                        const video = document.createElement('video');
+                        video.className = "max-w-full max-h-full rounded-2xl object-contain shadow-2xl bg-black";
+                        video.controls = true;
+                        video.autoplay = true;
+                        video.loop = true;
+                        video.playsInline = true;
+                        
+                        video.onloadeddata = () => {
+                            const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
+                            elements.canvas.innerHTML = '';
+                            elements.canvas.appendChild(video);
+                            updateStats({ Time: `${timeTaken}s`, Type: 'Video', Model: mod });
+                        };
+                        video.onerror = () => { throw new Error('Video Load Error') };
+                        video.src = url; 
+                    }
+                } catch (error) {
+                    if (error.name === 'AbortError') return; // Ignore canceled requests
+                    elements.canvas.innerHTML = `
+                        <div class="text-center px-4">
+                            <p class="text-red-400 text-sm font-semibold mb-1">Error generating ${cat}.</p>
+                            <p class="text-gray-500 text-xs">The model might be busy or unavailable. Please try again.</p>
+                        </div>
+                    `;
+                    updateStats({ Status: 'Failed', Error: 'Generation timeout/error' });
+                }
+            };
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
+</body>
+</html>
+

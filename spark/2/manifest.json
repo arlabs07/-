@@ -1,0 +1,119 @@
+{
+  "id": "/spark/1/",
+  "name": "Spark — Connect Instantly",
+  "short_name": "Spark",
+  "description": "Spark is a fast, secure messaging app for instant chats, updates, communities, and profile access.",
+  "start_url": "https://arlabs07.netlify.app/spark/1/?source=pwa#chats",
+  "scope": "https://arlabs07.netlify.app/spark/1/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#050505",
+  "theme_color": "#0095f6",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["social", "communication"],
+  "icons": [
+    {
+      "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Chats",
+      "short_name": "Chats",
+      "description": "Open chat conversations.",
+      "url": "https://arlabs07.netlify.app/spark/1/#chats",
+      "icons": [
+        {
+          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Updates",
+      "short_name": "Updates",
+      "description": "Open updates.",
+      "url": "https://arlabs07.netlify.app/spark/1/#updates",
+      "icons": [
+        {
+          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Communities",
+      "short_name": "Communities",
+      "description": "Open communities.",
+      "url": "https://arlabs07.netlify.app/spark/1/#communities",
+      "icons": [
+        {
+          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "short_name": "Profile",
+      "description": "Open your profile.",
+      "url": "https://arlabs07.netlify.app/spark/1/#profile",
+      "icons": [
+        {
+          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://arlabs07.netlify.app/images/spark/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Spark brand splash"
+    }
+  ],
+  "share_target": {
+    "action": "https://arlabs07.netlify.app/spark/1/?source=share",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+spark",
+      "url": "https://arlabs07.netlify.app/spark/1/?launch=%s"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "prefer_related_applications": false
+}
