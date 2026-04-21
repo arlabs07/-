@@ -89,8 +89,8 @@
   ],
   "screenshots": [
     {
-      "src": "https://arlabs07.netlify.app/images/spark/logo.png",
-      "sizes": "1024x1024",
+      "src": "https://arlabs07.netlify.app/images/spark/screenshot.png",
+      "sizes": "1806x576",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Spark brand splash"
