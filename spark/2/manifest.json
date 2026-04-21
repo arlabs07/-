@@ -9,7 +9,7 @@
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
   "background_color": "#050505",
-  "theme_color": "#0095f6",
+  "theme_color": "#050505",
   "lang": "en",
   "dir": "ltr",
   "categories": ["social", "communication"],
