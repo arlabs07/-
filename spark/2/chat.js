@@ -806,7 +806,9 @@ const ChatWindow = (() => {
       btn.disabled = true;
       btn.innerHTML = `<div class="spinner" style="width:20px;height:20px;border-width:2px;border-top-color:#fff"></div> Generating...`;
       try {
-        const imageUrl = await AriaBot.generateImage(prompt);
+        let imageUrl = await AriaBot.generateImage(prompt);
+        // Strip any query params - Pollinations free tier restricts URLs with params
+        imageUrl = imageUrl.split('?')[0];
         close();
         const rt  = _buildReplyTo();
         const msg = { ..._myMeta(), message: imageUrl, file_name: prompt, time: _now(), msg_type: 'image' };
