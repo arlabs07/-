@@ -1,5 +1,7 @@
 /**
- * login.js — Auth UI v5 (unchanged from v4)
+ * login.js — Auth UI v6
+ * Adds: renderGuestInvite() — landing page for non-auth users
+ * arriving via invite link. Primary CTA is "Sign Up", not login.
  */
 
 const LoginPage = (() => {
@@ -39,6 +41,137 @@ const LoginPage = (() => {
 
   const questionsOptions = () => SECURITY_QUESTIONS.map(q => `<option value="${q}">${q}</option>`).join('');
 
+  /* ─── GUEST INVITE LANDING ────────────────────────────────── */
+  const renderGuestInvite = (container, token, inviterName) => {
+    _container = container;
+    const esc = (s) => String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    container.innerHTML = `
+      <div class="auth-wrap" style="gap:0">
+        <!-- Logo -->
+        <div class="auth-hero" style="margin-bottom:28px">
+          <span class="material-icons-round auth-bolt">bolt</span>
+          <span class="auth-logo">Spark</span>
+        </div>
+
+        <!-- Invite card -->
+        <div style="background:var(--glass-light);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+          border:1px solid var(--glass-border);border-radius:var(--radius-lg);
+          padding:28px 24px;text-align:center;margin-bottom:28px">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--glass-mid);
+            display:flex;align-items:center;justify-content:center;margin:0 auto 14px;
+            font-size:26px;font-weight:800;color:var(--text-1)">
+            ${esc(inviterName[0] || '?').toUpperCase()}
+          </div>
+          <div style="font-size:20px;font-weight:800;color:var(--text-1);margin-bottom:6px">
+            You're invited!
+          </div>
+          <div style="font-size:14px;color:var(--text-2);line-height:1.55;margin-bottom:4px">
+            <strong style="color:var(--text-1)">${esc(inviterName)}</strong>
+            wants to chat with you on Spark.
+          </div>
+        </div>
+
+        <!-- Guest name input -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-3);
+            text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">
+            Your display name
+          </div>
+          <input id="gi-name" class="input-field" type="text"
+            placeholder="Enter your name…" maxlength="40" autocomplete="name">
+        </div>
+
+        <div id="gi-error" class="auth-error" style="margin-bottom:12px"></div>
+
+        <!-- Chat as Guest -->
+        <button id="gi-guest-btn" class="auth-submit" data-label="Continue as Guest"
+          style="margin-bottom:12px">
+          Continue as Guest
+        </button>
+
+        <!-- Divider -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <div style="flex:1;height:1px;background:var(--glass-border)"></div>
+          <span style="font-size:12px;color:var(--text-3);font-weight:600">or</span>
+          <div style="flex:1;height:1px;background:var(--glass-border)"></div>
+        </div>
+
+        <!-- Sign Up CTA -->
+        <button id="gi-signup-btn"
+          style="width:100%;padding:14px;background:var(--text-1);color:#050505;
+            font-family:var(--font);font-size:15px;font-weight:700;border:none;
+            border-radius:var(--radius-md);cursor:pointer;display:flex;
+            align-items:center;justify-content:center;gap:8px;
+            margin-bottom:14px;transition:opacity 0.15s">
+          <span class="material-icons-round" style="font-size:18px">person_add</span>
+          Create Account — it's free
+        </button>
+
+        <!-- Already have account -->
+        <div style="text-align:center;font-size:13px;color:var(--text-3)">
+          Already have an account?
+          <span id="gi-login-link" style="color:var(--text-2);font-weight:700;cursor:pointer">
+            Sign In
+          </span>
+        </div>
+
+        <!-- Guest feature notice -->
+        <div style="margin-top:24px;padding:14px;background:var(--glass-thin);
+          border-radius:var(--radius-md);border:1px solid var(--glass-border)">
+          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Guest mode</div>
+          <div style="font-size:12px;color:var(--text-3);line-height:1.55">
+            Text messaging only · Photos & files require an account ·
+            Messages won't be saved when you leave
+          </div>
+        </div>
+      </div>`;
+
+    // Guest chat
+    document.getElementById('gi-guest-btn').onclick = async () => {
+      const name = document.getElementById('gi-name').value.trim();
+      if (!name) {
+        setError('gi-error', 'Please enter your name to continue.');
+        return;
+      }
+      setLoading('gi-guest-btn', true);
+      try {
+        // Set up guest mode
+        App.setGuest(name);
+        // Try to resolve invite and start chat
+        const chatId = await Server.acceptInvite(token).catch(() => null);
+        if (chatId) {
+          App.setAuth(false); // not fully auth
+          App.cache.dirty('chats_threads');
+          window.location.hash = `#chats/${chatId}`;
+        } else {
+          // Couldn't resolve — still open chats as guest
+          window.location.hash = '#chats';
+        }
+      } catch (e) {
+        App.clearGuest();
+        setError('gi-error', e.message || 'Could not join. Please try again.');
+        setLoading('gi-guest-btn', false);
+      }
+    };
+
+    // Sign up
+    document.getElementById('gi-signup-btn').onclick = () => {
+      // Token already in sessionStorage; signup flow will pick it up
+      App.goTo('#signup');
+    };
+
+    // Sign in
+    document.getElementById('gi-login-link').onclick = () => {
+      App.goTo('#login');
+    };
+
+    // Enter key on name field
+    document.getElementById('gi-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('gi-guest-btn').click();
+    });
+  };
+
   /* ─── LOGIN ──────────────────────────────────────────────── */
   const renderLogin = () => {
     _container.innerHTML = `
@@ -66,8 +199,8 @@ const LoginPage = (() => {
           <button id="li-submit" class="auth-submit" data-label="Sign in">Sign in</button>
         </div>
         <div class="auth-footer">
-          <div class="auth-link">Forgot your password? <span id="go-forgot"> Reset it</span></div>
-          <div class="auth-link">Don't have an account? <span id="go-signup"> Sign up</span></div>
+          <div class="auth-link">Forgot your password? <span id="go-forgot">Reset it</span></div>
+          <div class="auth-link">Don't have an account? <span id="go-signup">Sign up</span></div>
         </div>
       </div>`;
 
@@ -90,7 +223,6 @@ const LoginPage = (() => {
         Server.currentProfile = profile;
         App.setAuth(true);
         App.showToast('Welcome back!', 'success');
-        // Check for invite link that was stored before login
         await App.checkPendingInvite();
         if (window.location.hash.startsWith('#chats') || window.location.hash === '') {
           App.goTo('#chats');
@@ -142,7 +274,7 @@ const LoginPage = (() => {
             <input id="su-pass2" class="auth-input" type="password" placeholder="Repeat your password" autocomplete="new-password">
           </div>
           <div class="sq-group">
-            <div class="sq-section-title"><span class="material-icons-round">shield</span>Security Questions (required for account recovery)</div>
+            <div class="sq-section-title"><span class="material-icons-round">shield</span>Security Questions (required for recovery)</div>
             <div><label>Question 1</label><select id="sq1-q"><option value="">Choose a question…</option>${questionsOptions()}</select></div>
             <div><input id="sq1-a" type="text" placeholder="Your answer" autocomplete="off"></div>
             <div style="margin-top:10px"><label>Question 2</label><select id="sq2-q"><option value="">Choose a question…</option>${questionsOptions()}</select></div>
@@ -151,7 +283,7 @@ const LoginPage = (() => {
           <button id="su-submit" class="auth-submit" data-label="Create Account">Create Account</button>
         </div>
         <div class="auth-footer">
-          <div class="auth-link">Already have an account? <span id="go-login"> Sign in</span></div>
+          <div class="auth-link">Already have an account? <span id="go-login">Sign in</span></div>
         </div>
       </div>`;
 
@@ -201,8 +333,9 @@ const LoginPage = (() => {
         if (!res || !res.user) throw new Error('Signup failed.');
         const profile = await Server.getProfile(res.user.id);
         Server.currentProfile = profile;
+        App.clearGuest(); // clear any guest session
         App.setAuth(true);
-        App.showToast('Account created! Welcome to Spark 🎉', 'success', 4000);
+        App.showToast('Welcome to Spark! 🎉', 'success', 4000);
         await App.checkPendingInvite();
         if (window.location.hash.startsWith('#chats') || window.location.hash === '') {
           App.goTo('#chats');
@@ -215,9 +348,7 @@ const LoginPage = (() => {
 
   /* ─── FORGOT PASSWORD ────────────────────────────────────── */
   let _forgotState = {};
-
   const renderForgot = () => { _forgotState = { step: 1, email: '', questionId: '', resetToken: '' }; renderForgotStep1(); };
-
   const stepDots = (active) => [1,2,3].map(i => `<div class="step-dot ${i < active ? 'done' : i === active ? 'active' : ''}"></div>`).join('');
 
   const renderForgotStep1 = () => {
@@ -311,15 +442,16 @@ const LoginPage = (() => {
     };
   };
 
-  const render = (container, view) => {
+  const render = (container, view, param) => {
     _container = container;
     App.showNav(false); App.setTitle(null, false); App.setHeaderActions('');
     switch (view) {
-      case 'signup': renderSignup(); break;
-      case 'forgot': renderForgot(); break;
-      default:       renderLogin();  break;
+      case 'signup':       renderSignup(); break;
+      case 'forgot':       renderForgot(); break;
+      case 'guest-invite': renderGuestInvite(container, param, 'Someone'); break;
+      default:             renderLogin();  break;
     }
   };
 
-  return { render };
+  return { render, renderGuestInvite };
 })();
