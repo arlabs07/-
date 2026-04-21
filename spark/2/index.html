@@ -17,18 +17,18 @@
   <link rel="apple-touch-icon" href="https://arlabs07.netlify.app/images/spark/logo.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Pacifico&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <script src="https://jfyibyrxbsdswerxtfkj.supabase.co/functions/v1/server-proxy/sdk.js?pid=89c8e728-b75f-46c4-a027-2a0ab9876fa2"></script>
 
-  <link rel="stylesheet" href="main.css?v=10">
-  <link rel="stylesheet" href="login.css?v=10">
-  <link rel="stylesheet" href="chats.css?v=10">
-  <link rel="stylesheet" href="chat.css?v=10">
-  <link rel="stylesheet" href="camera.css?v=10">
-  <link rel="stylesheet" href="updates.css?v=10">
-  <link rel="stylesheet" href="communities.css?v=10">
-  <link rel="stylesheet" href="profile.css?v=10">
+  <link rel="stylesheet" href="main.css?v=11">
+  <link rel="stylesheet" href="login.css?v=11">
+  <link rel="stylesheet" href="chats.css?v=11">
+  <link rel="stylesheet" href="chat.css?v=11">
+  <link rel="stylesheet" href="camera.css?v=11">
+  <link rel="stylesheet" href="updates.css?v=11">
+  <link rel="stylesheet" href="communities.css?v=11">
+  <link rel="stylesheet" href="profile.css?v=11">
 </head>
 <body>
 
@@ -40,7 +40,6 @@
   </div>
 
   <div id="app">
-    <!-- Mobile header (hidden on desktop via CSS) -->
     <header id="app-header">
       <div class="hdr-left">
         <button id="btn-back" class="icon-btn hidden" aria-label="Back">
@@ -67,7 +66,6 @@
       <section id="page-profile"     class="page"></section>
     </main>
 
-    <!-- Mobile: bottom nav | Desktop: left sidebar (styled via CSS) -->
     <nav id="bottom-nav" class="hidden">
       <button class="nav-tab" data-page="chats"
         data-icon-off="chat_bubble_outline" data-icon-on="chat_bubble">
@@ -96,20 +94,18 @@
   <div id="modal-sheet"></div>
   <div id="toast-bar"></div>
 
-  <!-- Scripts — order matters: deps before consumers -->
-  <script src="encryption.js?v=10"></script>
-  <script src="server.js?v=10"></script>
-  <script src="sync.js?v=10"></script>
-  <script src="main.js?v=10"></script>
-  <script src="login.js?v=10"></script>
-  <script src="camera.js?v=10"></script>
-  <script src="ai.js?v=10"></script>
-  <script src="chat.js?v=10"></script>
-  <script src="chats.js?v=10"></script>
-  <script src="updates.js?v=10"></script>
-  <script src="communities.js?v=10"></script>
-  <script src="profile.js?v=10"></script>
-
-  <!-- SW registered inside main.js init() for immediate offline protection -->
+  <!-- Load order: deps before consumers. No service worker. -->
+  <script src="encryption.js?v=11"></script>
+  <script src="server.js?v=11"></script>
+  <script src="sync.js?v=11"></script>
+  <script src="main.js?v=11"></script>
+  <script src="login.js?v=11"></script>
+  <script src="camera.js?v=11"></script>
+  <script src="ai.js?v=11"></script>
+  <script src="chat.js?v=11"></script>
+  <script src="chats.js?v=11"></script>
+  <script src="updates.js?v=11"></script>
+  <script src="communities.js?v=11"></script>
+  <script src="profile.js?v=11"></script>
 </body>
 </html>
