@@ -6,7 +6,7 @@
   <title>Spark — Connect Instantly</title>
 
   <!-- PWA -->
-  <meta name="theme-color" content="#0095f6">
+  <meta name="theme-color" content="#050505">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -103,18 +103,13 @@
   <script src="main.js?v=10"></script>
   <script src="login.js?v=10"></script>
   <script src="camera.js?v=10"></script>
+  <script src="ai.js?v=10"></script>
   <script src="chat.js?v=10"></script>
   <script src="chats.js?v=10"></script>
   <script src="updates.js?v=10"></script>
   <script src="communities.js?v=10"></script>
   <script src="profile.js?v=10"></script>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      });
-    }
-  </script>
+  <!-- SW registered inside main.js init() for immediate offline protection -->
 </body>
 </html>
