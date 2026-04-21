@@ -39,52 +39,28 @@
       "short_name": "Chats",
       "description": "Open chat conversations.",
       "url": "https://arlabs07.netlify.app/spark/2/#chats",
-      "icons": [
-        {
-          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "icons": [{ "src": "https://arlabs07.netlify.app/images/spark/logo.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Updates",
       "short_name": "Updates",
       "description": "Open updates.",
       "url": "https://arlabs07.netlify.app/spark/2/#updates",
-      "icons": [
-        {
-          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "icons": [{ "src": "https://arlabs07.netlify.app/images/spark/logo.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Communities",
       "short_name": "Communities",
       "description": "Open communities.",
       "url": "https://arlabs07.netlify.app/spark/2/#communities",
-      "icons": [
-        {
-          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "icons": [{ "src": "https://arlabs07.netlify.app/images/spark/logo.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Profile",
       "short_name": "Profile",
       "description": "Open your profile.",
       "url": "https://arlabs07.netlify.app/spark/2/#profile",
-      "icons": [
-        {
-          "src": "https://arlabs07.netlify.app/images/spark/logo.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "icons": [{ "src": "https://arlabs07.netlify.app/images/spark/logo.png", "sizes": "96x96", "type": "image/png" }]
     }
   ],
   "screenshots": [
@@ -102,8 +78,8 @@
     "enctype": "application/x-www-form-urlencoded",
     "params": {
       "title": "title",
-      "text": "text",
-      "url": "url"
+      "text":  "text",
+      "url":   "url"
     }
   },
   "protocol_handlers": [
