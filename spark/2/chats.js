@@ -31,6 +31,46 @@ const ChatsPage = (() => {
   const render = async (container, chatId) => {
     _container = container;
 
+    // GUEST MODE: show only the chat window, full screen, no list/tabs
+    if (App.isGuest()) {
+      if (chatId) {
+        _renderGuestChat(container, chatId);
+      } else {
+        // Guest with no chatId — try pending invite
+        const pending = sessionStorage.getItem('spark_pending_invite');
+        if (pending) {
+          // Attempt to get the chat
+          const rec = await Server.resolveInviteToken(pending).catch(() => null);
+          if (rec) {
+            try {
+              const me = Server.currentUser;
+              let chatRec = await Server.findDirectChat(me.id, rec.data.user_id).catch(() => null);
+              if (!chatRec) {
+                chatRec = await Server.createDirectChat(
+                  { user_id: me.id, display_name: me.display_name, username: 'guest', avatar_url: '' },
+                  { user_id: rec.data.user_id, display_name: rec.data.display_name, username: rec.data.username || '', avatar_url: rec.data.avatar_url || '' }
+                ).catch(() => null);
+              }
+              if (chatRec?.id) {
+                sessionStorage.removeItem('spark_pending_invite');
+                App.setHash(`#chats/${chatRec.id}`);
+                _renderGuestChat(container, chatRec.id);
+                return;
+              }
+            } catch {}
+          }
+        }
+        // Fallback — show empty guest state
+        container.innerHTML = `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;text-align:center;background:var(--bg-primary)">
+          <span class="material-icons-round" style="font-size:52px;color:var(--text-4)">chat_bubble_outline</span>
+          <h3 style="font-size:18px;font-weight:700;color:var(--text-2)">No chat found</h3>
+          <p style="font-size:14px;color:var(--text-3)">Your invite link may have expired.</p>
+          <button onclick="App.goTo('#signup')" style="background:var(--accent);color:#fff;border:none;border-radius:var(--r-pill);padding:12px 24px;font-size:15px;font-weight:700;font-family:var(--font);cursor:pointer;box-shadow:0 4px 14px rgba(0,122,255,0.35)">Create Account</button>
+        </div>`;
+      }
+      return;
+    }
+
     if (chatId && ChatWindow.isOpen() && chatId === _activeChatId) return;
 
     if (!chatId) {
@@ -49,6 +89,28 @@ const ChatsPage = (() => {
       const list = document.getElementById('ch-content');
       if (list && _activeTab === 'chats') await _loadThreads(false);
     }, { ms: 20000 });
+  };
+
+  /* ── GUEST CHAT (full screen, no chrome) ──────────────────── */
+  const _renderGuestChat = (container, chatId) => {
+    container.style.cssText = 'position:fixed;inset:0;z-index:50;background:var(--bg-primary);display:flex;flex-direction:column;';
+    container.innerHTML = '';
+    ChatWindow.open(chatId, container, {
+      isNew: false,
+      embedded: false,
+      guestMode: true,
+      onClose: () => {
+        // Guest closed chat — show sign up
+        container.style.cssText = '';
+        container.innerHTML = `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;text-align:center;background:var(--bg-primary)">
+          <span class="material-icons-round" style="font-size:52px;color:var(--text-4)">bolt</span>
+          <h3 style="font-size:20px;font-weight:700;color:var(--text-1)">Enjoying Spark?</h3>
+          <p style="font-size:15px;color:var(--text-3)">Create an account to keep your chats and unlock all features.</p>
+          <button onclick="App.goTo('#signup')" style="background:var(--accent);color:#fff;border:none;border-radius:var(--r-pill);padding:13px 28px;font-size:16px;font-weight:700;font-family:var(--font);cursor:pointer;box-shadow:0 4px 14px rgba(0,122,255,0.35)">Create Free Account</button>
+          <div onclick="App.goTo('#login')" style="font-size:14px;color:var(--text-3);cursor:pointer">Already have an account? <span style="color:var(--accent);font-weight:700">Sign In</span></div>
+        </div>`;
+      }
+    });
   };
 
   /* ── SHELL ────────────────────────────────────────────────── */
