@@ -140,14 +140,8 @@ const LoginPage = (() => {
         App.setGuest(name);
         // Try to resolve invite and start chat
         const chatId = await Server.acceptInvite(token).catch(() => null);
-        if (chatId) {
-          App.setAuth(false); // not fully auth
-          App.cache.dirty('chats_threads');
-          window.location.hash = `#chats/${chatId}`;
-        } else {
-          // Couldn't resolve — still open chats as guest
-          window.location.hash = '#chats';
-        }
+        App.cache.dirty('chats_threads');
+        window.location.hash = chatId ? `#chats/${chatId}` : '#chats';
       } catch (e) {
         App.clearGuest();
         setError('gi-error', e.message || 'Could not join. Please try again.');
