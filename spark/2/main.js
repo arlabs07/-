@@ -313,6 +313,10 @@ const App = (() => {
     if (_isAuth && AUTH_PAGES.has(page)) {
       window.location.hash = '#chats'; return;
     }
+    // Guest on auth pages → redirect to chats
+    if (_guestMode && AUTH_PAGES.has(page)) {
+      window.location.hash = '#chats'; return;
+    }
 
     _page = page;
 
@@ -499,7 +503,7 @@ const App = (() => {
     avatar, timeAgo, formatTime,
     cache, skel,
     isAuth:  () => _isAuth,
-    setAuth: v  => { _isAuth = v; _guestMode = false; },
+    setAuth: v  => { _isAuth = v; if (v) _guestMode = false; },
     isGuest, setGuest, clearGuest, showGuestSignupPrompt,
     goTo, setHash, refresh,
     checkPendingInvite,
