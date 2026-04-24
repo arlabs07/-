@@ -327,10 +327,21 @@ const App = (() => {
     }
 
     if (APP_PAGES.has(page)) {
+      // Guest: only allow chats page, redirect everything else
+      if (_guestMode && page !== 'chats') {
+        showGuestSignupPrompt();
+        return;
+      }
       showPage(page);
-      showNav(!_guestMode); // hide nav in guest mode on mobile
-      setActiveNav(page);
-      setTitle(null, false);
+      // Guest has no nav — full screen chat only
+      if (_guestMode) {
+        document.getElementById('bottom-nav').style.display = 'none';
+        document.getElementById('app-header').style.display = 'none';
+      } else {
+        showNav(true);
+        setActiveNav(page);
+        setTitle(null, false);
+      }
     }
 
     _renderPage(page, param);
@@ -338,20 +349,24 @@ const App = (() => {
 
   /* ── Guest landing ──────────────────────────────────────── */
   const _showGuestLanding = async (token) => {
-    // Try to fetch inviter info publicly
     let inviterName = 'Someone';
     try {
       const rec = await Server.resolveInviteToken(token);
       if (rec?.data?.display_name) inviterName = rec.data.display_name;
     } catch {}
 
-    showPage('login');
-    showNav(false);
-
-    // Store token
     try { sessionStorage.setItem('spark_pending_invite', token); } catch {}
 
-    // Render guest landing in the login page
+    // Show the login page with guest invite UI
+    // Guest mode pages are NOT accessible yet, only the invite landing
+    if (_isAuth) {
+      // Already logged in — just accept the invite
+      await _handleInvite(token);
+      return;
+    }
+
+    showPage('login');
+    showNav(false);
     LoginPage.renderGuestInvite(
       document.getElementById('page-login'),
       token,
