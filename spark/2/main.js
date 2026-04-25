@@ -162,7 +162,7 @@ const App = (() => {
 
   /* ── Chrome visibility ──────────────────────────────────── */
   const hideChrome = () => {
-    if (_isDesktop()) return;
+    if (_isDesktop()) return; // desktop has no header/floatingNav to hide
     document.getElementById('app-header').style.display = 'none';
     document.getElementById('bottom-nav').style.display = 'none';
   };
@@ -327,20 +327,22 @@ const App = (() => {
     }
 
     if (APP_PAGES.has(page)) {
-      // Guest: only allow chats page, redirect everything else
+      // Guest: only allow chats page
       if (_guestMode && page !== 'chats') {
-        showGuestSignupPrompt();
-        return;
+        showGuestSignupPrompt(); return;
       }
       showPage(page);
-      // Guest has no nav — full screen chat only
       if (_guestMode) {
         document.getElementById('bottom-nav').style.display = 'none';
         document.getElementById('app-header').style.display = 'none';
       } else {
-        showNav(true);
-        setActiveNav(page);
-        setTitle(null, false);
+        // On mobile: show floating nav + header, update active state
+        if (!_isDesktop()) {
+          showNav(true);
+          setActiveNav(page);
+          setTitle(null, false);
+        }
+        // On desktop: nav is inside left panel (ch-tab-pill), not #bottom-nav
       }
     }
 
