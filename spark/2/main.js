@@ -194,7 +194,7 @@ const App = (() => {
 
   /* ── Nav ────────────────────────────────────────────────── */
   const showNav = (show) => {
-    if (_isDesktop()) return;
+    if (_isDesktop()) return; // desktop nav is inside left panels, not #bottom-nav
     document.getElementById('bottom-nav')?.classList.toggle('hidden', !show);
   };
   const setActiveNav = (page) => {
