@@ -26,8 +26,13 @@ const ChatsPage = (() => {
   };
 
   /* ── RENDER ───────────────────────────────────────────── */
-  const render = async (container, chatId) => {
+  const render = async (container, chatId, initialTab) => {
     _container = container;
+
+    // If a specific initial tab is requested (e.g. 'people' from mobile nav)
+    if (initialTab && initialTab !== _activeTab && !chatId) {
+      _activeTab = initialTab;
+    }
 
     // GUEST MODE
     if (App.isGuest()) {
@@ -145,14 +150,14 @@ const ChatsPage = (() => {
         <!-- Scrollable content area -->
         <div id="ch-content" class="ch-list-content"></div>
 
-        <!-- Floating tab bar INSIDE the left panel (desktop + mobile) -->
+        <!-- Floating tab bar INSIDE the left panel (desktop only) -->
         <div class="ch-tab-pill" id="ch-tab-pill">
           <button class="ch-tab-btn ${_activeTab==='chats'?'active':''}" data-tab="chats">
-            <span class="material-icons-round">chat_bubble${_activeTab==='chats'?'':''}</span>
+            <span class="material-icons-round">${_activeTab==='chats'?'chat_bubble':'chat_bubble_outline'}</span>
             <span>Chats</span>
           </button>
           <button class="ch-tab-btn ${_activeTab==='people'?'active':''}" data-tab="people">
-            <span class="material-icons-round">people</span>
+            <span class="material-icons-round">${_activeTab==='people'?'people':'people_outline'}</span>
             <span>People</span>
           </button>
           <button class="ch-tab-btn" id="ch-tab-updates" data-page="updates">
@@ -176,9 +181,14 @@ const ChatsPage = (() => {
     document.querySelectorAll('.ch-tab-btn[data-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
         _activeTab = btn.dataset.tab;
-        document.querySelectorAll('.ch-tab-btn[data-tab]').forEach(b =>
-          b.classList.toggle('active', b.dataset.tab === _activeTab)
-        );
+        document.querySelectorAll('.ch-tab-btn[data-tab]').forEach(b => {
+          const isActive = b.dataset.tab === _activeTab;
+          b.classList.toggle('active', isActive);
+          const icon = b.querySelector('.material-icons-round');
+          if (!icon) return;
+          if (b.dataset.tab==='chats')  icon.textContent = isActive ? 'chat_bubble' : 'chat_bubble_outline';
+          if (b.dataset.tab==='people') icon.textContent = isActive ? 'people' : 'people_outline';
+        });
         document.getElementById('ch-dropdown').innerHTML = '';
         document.getElementById('ch-sr').value = '';
         document.getElementById('ch-clear').style.display = 'none';
@@ -230,7 +240,7 @@ const ChatsPage = (() => {
   /* ── LOAD TAB ─────────────────────────────────────────── */
   const _loadTab = async (tab, skipIfFresh=false) => {
     if (tab==='chats') await _loadThreads(skipIfFresh);
-    else await _loadPeople(skipIfFresh);
+    else await _loadPeople(skipIfFresh);  // 'people' tab
   };
 
   /* ── THREADS ──────────────────────────────────────────── */
