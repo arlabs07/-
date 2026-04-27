@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compress — Browser Video Compressor</title>
+  <meta name="description" content="Compress videos instantly in your browser. No upload. No server. 100% private." />
+  <meta name="theme-color" content="#050505" />
+
+  <!-- COI Service Worker — must run before any other scripts -->
+  <script src="coi-serviceworker.js"></script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ════ HEADER ════════════════════════════════════════ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <i class="fa-solid fa-bolt-lightning"></i>
+        Compress
+      </div>
+      <div class="header-badge">Browser-native · No upload</div>
+    </div>
+  </header>
+
+  <!-- ════ MAIN ══════════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- ── IDLE: Drop Zone ─────────────────────────────── -->
+    <div class="state" id="state-idle">
+      <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Drop video or click to browse">
+        <div class="drop-zone-inner">
+          <div class="drop-icon">
+            <i class="fa-solid fa-film"></i>
+          </div>
+          <h2>Drop your video here</h2>
+          <p>or <button class="browse-btn" onclick="document.getElementById('file-input').click()">browse files</button></p>
+          <div class="drop-tags">
+            <span><i class="fa-brands fa-youtube"></i> MP4</span>
+            <span><i class="fa-solid fa-play"></i> MOV</span>
+            <span><i class="fa-solid fa-video"></i> MKV</span>
+            <span><i class="fa-solid fa-circle-play"></i> AVI</span>
+            <span><i class="fa-solid fa-ellipsis"></i> more</span>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="file-input" accept="video/*" style="display:none" />
+    </div>
+
+    <!-- ── LOADING: FFmpeg initialising ───────────────── -->
+    <div class="state" id="state-loading" hidden>
+      <div class="loading-card">
+        <div class="spinner">
+          <div class="spinner-ring"></div>
+        </div>
+        <div class="loading-text">
+          <h3>Loading compression engine</h3>
+          <p id="loading-sub">Initialising FFmpeg WASM…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PROCESSING ──────────────────────────────────── -->
+    <div class="state" id="state-processing" hidden>
+      <div class="process-card">
+
+        <!-- File name -->
+        <div class="file-info">
+          <i class="fa-solid fa-file-video"></i>
+          <span class="filename" id="proc-filename">video.mp4</span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="progress-section">
+          <div class="progress-bar-wrap">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+          </div>
+          <div class="progress-meta">
+            <span id="progress-pct">0%</span>
+            <span id="proc-stage">Analyzing…</span>
+          </div>
+        </div>
+
+        <!-- Live size estimate -->
+        <div class="size-stats">
+          <div class="stat">
+            <div class="stat-label">Original</div>
+            <div class="stat-value" id="orig-size">—</div>
+          </div>
+          <div class="stat-divider"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="stat">
+            <div class="stat-label">Estimated</div>
+            <div class="stat-value" id="est-size">—</div>
+          </div>
+        </div>
+
+        <!-- Auto-mode badge -->
+        <div class="auto-badge">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          Auto mode — optimal settings selected for your video
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── DONE ─────────────────────────────────────────── -->
+    <div class="state" id="state-done" hidden>
+      <div class="done-card">
+
+        <div class="success-icon" id="success-icon">
+          <i class="fa-solid fa-check"></i>
+        </div>
+
+        <!-- Savings headline -->
+        <div class="result-savings">
+          <div class="savings-num" id="savings-pct">0%</div>
+          <div class="savings-label">smaller than original</div>
+        </div>
+
+        <!-- Before / After sizes -->
+        <div class="result-sizes">
+          <div class="result-size">
+            <div class="rsize-label">Before</div>
+            <div class="rsize-value" id="result-before">—</div>
+          </div>
+          <div class="result-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="result-size">
+            <div class="rsize-label">After</div>
+            <div class="rsize-value highlight" id="result-after">—</div>
+          </div>
+        </div>
+
+        <!-- Metadata stripped note -->
+        <div class="meta-removed">
+          <i class="fa-solid fa-shield-halved"></i>
+          Metadata stripped — GPS, author, camera info removed
+        </div>
+
+        <!-- Download -->
+        <a id="download-btn" class="download-btn" href="#" download="compressed.mp4">
+          <i class="fa-solid fa-download"></i>
+          Download compressed video
+          <span class="download-size" id="download-size"></span>
+        </a>
+
+        <!-- Compress another -->
+        <button class="again-btn" onclick="resetApp()">
+          <i class="fa-solid fa-rotate-left"></i>
+          Compress another video
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ── ERROR ─────────────────────────────────────────── -->
+    <div class="state" id="state-error" hidden>
+      <div class="error-card">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <h3>Something went wrong</h3>
+        <p id="error-msg">An unexpected error occurred.</p>
+        <button class="again-btn" onclick="resetApp()" style="margin-top:8px">
+          <i class="fa-solid fa-rotate-left"></i>
+          Try again
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ════ FOOTER ════════════════════════════════════════ -->
+  <footer class="footer">
+    All processing happens locally in your browser — nothing is uploaded &nbsp;·&nbsp;
+    <a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank" rel="noopener">Powered by FFmpeg.wasm</a>
+  </footer>
+
+</div><!-- /#app -->
+
+<!-- ════ COI WARNING TOAST ══════════════════════════════ -->
+<div class="toast" id="coi-toast" hidden>
+  <i class="fa-solid fa-circle-info"></i>
+  <div>
+    <strong>Cross-origin isolation required</strong>
+    <p>
+      FFmpeg needs <code>SharedArrayBuffer</code>.
+      Open this page via <code>http://localhost</code> or any HTTPS host.
+      Double-clicking the HTML file (<code>file://</code>) won't work.
+    </p>
+    <p style="margin-top:6px">
+      Quick local server: run <code>npx serve .</code> in this folder,
+      then open <code>http://localhost:3000</code>.
+    </p>
+  </div>
+</div>
+
+<!-- ════ SCRIPTS ════════════════════════════════════════ -->
+
+<!-- FFmpeg.wasm 0.11 — UMD bundle (no ESM needed) -->
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+
+<!-- App logic -->
+<script src="app.js"></script>
+
+</body>
+</html>
