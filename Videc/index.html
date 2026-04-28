@@ -39,8 +39,10 @@
   <!-- ════ MAIN ══════════════════════════════════════════ -->
   <main class="main">
 
-    <!-- ── IDLE: Drop Zone ─────────────────────────────── -->
+    <!-- ── IDLE: Drop Zone + Mode Switcher ──────────────── -->
     <div class="state" id="state-idle">
+
+      <!-- Drop Zone -->
       <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Drop video or click to browse">
         <div class="drop-zone-inner">
           <div class="drop-icon">
@@ -58,7 +60,144 @@
         </div>
       </div>
       <input type="file" id="file-input" accept="video/*" style="display:none" />
-    </div>
+
+      <!-- ── Mode Switcher ───────────────────────────────── -->
+      <div class="mode-switcher">
+        <div class="mode-tabs">
+          <button id="btn-auto" class="mode-tab active">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Auto
+          </button>
+          <button id="btn-manual" class="mode-tab">
+            <i class="fa-solid fa-sliders"></i>
+            Manual
+          </button>
+        </div>
+        <p id="mode-desc" class="mode-desc-text">Analyzes your video and picks the best settings automatically</p>
+      </div>
+
+      <!-- ── Manual Settings Panel (hidden by default) ───── -->
+      <div id="manual-panel" class="manual-panel" hidden>
+
+        <div class="manual-grid">
+
+          <!-- Compression Method -->
+          <div class="ctrl-row full-width">
+            <label class="ctrl-label">Compression Method</label>
+            <select id="ctrl-method" class="ctrl-select">
+              <option value="crf">Quality (CRF) — recommended</option>
+              <option value="bitrate">Target bitrate</option>
+              <option value="filesize">Target file size</option>
+              <option value="percentage">Quality percentage</option>
+            </select>
+          </div>
+
+          <!-- CRF sub-control -->
+          <div id="ctrl-crf" class="ctrl-row full-width">
+            <label class="ctrl-label">Video Quality (CRF) <span class="ctrl-hint">18 = best · 51 = smallest</span></label>
+            <select id="sel-crf" class="ctrl-select">
+              <option value="18">18 — Near lossless</option>
+              <option value="20">20 — Excellent</option>
+              <option value="23" selected>23 — Default (recommended)</option>
+              <option value="26">26 — Good</option>
+              <option value="28">28 — Smaller file</option>
+              <option value="32">32 — Aggressive</option>
+              <option value="36">36 — Very small</option>
+            </select>
+          </div>
+
+          <!-- Bitrate sub-control -->
+          <div id="ctrl-bitrate" class="ctrl-row full-width" hidden>
+            <label class="ctrl-label">Video Bitrate</label>
+            <select id="sel-bitrate-v" class="ctrl-select">
+              <option value="300k">300 Kbps — very low</option>
+              <option value="1000k">1 Mbps — low</option>
+              <option value="2500k" selected>2.5 Mbps — medium</option>
+              <option value="5000k">5 Mbps — high</option>
+              <option value="8000k">8 Mbps — very high</option>
+            </select>
+          </div>
+
+          <!-- File size sub-control -->
+          <div id="ctrl-filesize" class="ctrl-row full-width" hidden>
+            <label class="ctrl-label">Target File Size (MB)</label>
+            <select id="sel-filesize" class="ctrl-select">
+              <option value="5">5 MB</option>
+              <option value="10" selected>10 MB</option>
+              <option value="25">25 MB</option>
+              <option value="50">50 MB</option>
+              <option value="100">100 MB</option>
+            </select>
+          </div>
+
+          <!-- Percentage sub-control -->
+          <div id="ctrl-percentage" class="ctrl-row full-width" hidden>
+            <label class="ctrl-label">Quality Percentage</label>
+            <select id="sel-percentage" class="ctrl-select">
+              <option value="30">30% — very compressed</option>
+              <option value="50">50% — compressed</option>
+              <option value="60" selected>60% — balanced</option>
+              <option value="75">75% — good quality</option>
+              <option value="90">90% — near original</option>
+            </select>
+          </div>
+
+          <!-- Video Codec -->
+          <div class="ctrl-row">
+            <label class="ctrl-label">Video Codec</label>
+            <select id="sel-codec-v" class="ctrl-select">
+              <option value="libx264" selected>H.264 — fastest</option>
+              <option value="libx265">H.265 — smaller (slow)</option>
+            </select>
+          </div>
+
+          <!-- Audio Codec -->
+          <div class="ctrl-row">
+            <label class="ctrl-label">Audio Codec</label>
+            <select id="sel-codec-a" class="ctrl-select">
+              <option value="aac" selected>AAC</option>
+              <option value="mp3">MP3</option>
+            </select>
+          </div>
+
+          <!-- Audio Bitrate -->
+          <div class="ctrl-row">
+            <label class="ctrl-label">Audio Bitrate</label>
+            <select id="sel-bitrate-a" class="ctrl-select">
+              <option value="64k">64 kbps</option>
+              <option value="96k">96 kbps</option>
+              <option value="128k" selected>128 kbps</option>
+              <option value="192k">192 kbps</option>
+              <option value="256k">256 kbps</option>
+            </select>
+          </div>
+
+          <!-- Frame Rate -->
+          <div class="ctrl-row">
+            <label class="ctrl-label">Frame Rate</label>
+            <select id="sel-fps" class="ctrl-select">
+              <option value="original" selected>Keep original</option>
+              <option value="24">24 fps</option>
+              <option value="30">30 fps</option>
+              <option value="60">60 fps</option>
+            </select>
+          </div>
+
+          <!-- Max Resolution -->
+          <div class="ctrl-row full-width">
+            <label class="ctrl-label">Max Resolution</label>
+            <select id="sel-res" class="ctrl-select">
+              <option value="original" selected>Keep original</option>
+              <option value="1920x1080">1080p (1920px)</option>
+              <option value="1280x720">720p (1280px)</option>
+              <option value="854x480">480p (854px)</option>
+            </select>
+          </div>
+
+        </div><!-- /.manual-grid -->
+      </div><!-- /#manual-panel -->
+
+    </div><!-- /#state-idle -->
 
     <!-- ── LOADING: FFmpeg initialising ───────────────── -->
     <div class="state" id="state-loading" hidden>
@@ -109,10 +248,13 @@
           </div>
         </div>
 
-        <!-- Auto-mode badge -->
-        <div class="auto-badge">
-          <i class="fa-solid fa-wand-magic-sparkles"></i>
-          Auto mode — optimal settings selected for your video
+        <!-- Mode badge + live speed -->
+        <div class="proc-info-row">
+          <div class="auto-badge">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span id="proc-mode-badge">Auto mode</span>
+          </div>
+          <div class="proc-speed" id="proc-speed"></div>
         </div>
 
       </div>
@@ -214,9 +356,6 @@
 
 <!-- App logic -->
 <script src="app.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 
 </body>
 </html>
