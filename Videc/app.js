@@ -2,48 +2,97 @@
  * COMPRESS — Browser-native Video Compressor
  * Uses FFmpeg.wasm for in-browser compression
  * No upload, no server — 100% local processing
+ *
+ * MODES:
+ *  • Auto  — analyses your video and picks optimal settings automatically
+ *  • Manual — you choose bitrate, codec, resolution, fps, audio
  */
 
 'use strict';
 
 // ── FFmpeg globals — resolved lazily inside ensureFFmpeg() ─
-// (avoids top-level crash if CDN script hasn't fully parsed)
 let createFFmpeg = null;
-let fetchFile = null;
+let fetchFile    = null;
 
 // ── App State ──────────────────────────────────────────────
 const State = { IDLE: 'idle', LOADING: 'loading', PROCESSING: 'processing', DONE: 'done', ERROR: 'error' };
 let currentState = State.IDLE;
-let ffmpeg = null;
+let ffmpeg       = null;
 let ffmpegLoaded = false;
-let currentFile = null;
-let outputUrl  = null;
-let startTime  = 0;
-let lastRatio  = 0;
+let currentFile  = null;
+let outputUrl    = null;
+let videoDurSec  = 0;   // real duration for progress %
+let lastPct      = 0;   // last reported progress %
+
+// ── Active mode: 'auto' | 'manual' ────────────────────────
+let activeMode = localStorage.getItem('compress-mode') || 'auto';
+
+// ── Manual settings (mirrors the UI controls) ─────────────
+const manualDefaults = {
+  compressionMethod: 'crf',   // crf | bitrate | filesize | percentage
+  crfValue:          '23',
+  videoBitrate:      '2500k',
+  targetFilesize:    '10',    // MB
+  targetPercentage:  '60',    // quality %
+  videoCodec:        'libx264',
+  audioCodec:        'aac',
+  audioBitrate:      '128k',
+  frameRate:         '30',
+  resolution:        'original', // original | 1920x1080 | 1280x720 | 854x480
+};
+let manualSettings = { ...manualDefaults };
 
 // ── DOM References ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const el = {
+  // States
   stateIdle:       $('state-idle'),
   stateLoading:    $('state-loading'),
   stateProcessing: $('state-processing'),
   stateDone:       $('state-done'),
   stateError:      $('state-error'),
+  // Drop zone
   dropZone:        $('drop-zone'),
   fileInput:       $('file-input'),
+  // Mode buttons
+  btnAuto:         $('btn-auto'),
+  btnManual:       $('btn-manual'),
+  manualPanel:     $('manual-panel'),
+  modeDesc:        $('mode-desc'),
+  // Manual controls
+  ctrlMethod:      $('ctrl-method'),
+  ctrlCrf:         $('ctrl-crf'),
+  ctrlBitrate:     $('ctrl-bitrate'),
+  ctrlFilesize:    $('ctrl-filesize'),
+  ctrlPercentage:  $('ctrl-percentage'),
+  selCrf:          $('sel-crf'),
+  selBitrateV:     $('sel-bitrate-v'),
+  selFilesize:     $('sel-filesize'),
+  selPercentage:   $('sel-percentage'),
+  selCodecV:       $('sel-codec-v'),
+  selCodecA:       $('sel-codec-a'),
+  selBitrateA:     $('sel-bitrate-a'),
+  selFps:          $('sel-fps'),
+  selRes:          $('sel-res'),
+  // Loading
   loadingSub:      $('loading-sub'),
+  // Processing
   procFilename:    $('proc-filename'),
+  procModeBadge:   $('proc-mode-badge'),
   progressFill:    $('progress-fill'),
   progressPct:     $('progress-pct'),
   procStage:       $('proc-stage'),
+  procSpeed:       $('proc-speed'),
   origSize:        $('orig-size'),
   estSize:         $('est-size'),
+  // Done
   successIcon:     $('success-icon'),
   savingsPct:      $('savings-pct'),
   resultBefore:    $('result-before'),
   resultAfter:     $('result-after'),
   downloadBtn:     $('download-btn'),
   downloadSize:    $('download-size'),
+  // Error
   errorMsg:        $('error-msg'),
   coiToast:        $('coi-toast'),
 };
@@ -55,16 +104,80 @@ const el = {
 function init() {
   setupDropZone();
   setupFileInput();
+  setupModeButtons();
+  setupManualPanel();
+  applyMode(activeMode);
   checkCOI();
 }
 
 function checkCOI() {
-  // Show helpful error if not cross-origin isolated (SharedArrayBuffer unavailable)
-  if (typeof crossOriginIsolated !== 'undefined' && !crossOriginIsolated) {
-    if (window.__coiFailed) {
-      el.coiToast.hidden = false;
-    }
-  }
+  if (window.__coiFailed) el.coiToast.hidden = false;
+}
+
+// ══════════════════════════════════════════════════════════
+//  MODE TOGGLE
+// ══════════════════════════════════════════════════════════
+
+function setupModeButtons() {
+  el.btnAuto.addEventListener('click', () => switchMode('auto'));
+  el.btnManual.addEventListener('click', () => switchMode('manual'));
+}
+
+function switchMode(m) {
+  activeMode = m;
+  localStorage.setItem('compress-mode', m);
+  applyMode(m);
+}
+
+function applyMode(m) {
+  el.btnAuto.classList.toggle('active', m === 'auto');
+  el.btnManual.classList.toggle('active', m === 'manual');
+  el.manualPanel.hidden = (m !== 'manual');
+  el.modeDesc.textContent = m === 'auto'
+    ? 'Analyzes your video and picks the best settings automatically'
+    : 'You control every setting — full manual override';
+}
+
+// Expose for inline onclick fallback
+window.switchMode = switchMode;
+
+// ══════════════════════════════════════════════════════════
+//  MANUAL PANEL
+// ══════════════════════════════════════════════════════════
+
+function setupManualPanel() {
+  // Compression method toggle — show relevant sub-control
+  el.ctrlMethod.addEventListener('change', () => {
+    manualSettings.compressionMethod = el.ctrlMethod.value;
+    showMethodControl(el.ctrlMethod.value);
+  });
+
+  // Sync all other selects into manualSettings
+  const bindings = [
+    [el.selCrf,       'crfValue'],
+    [el.selBitrateV,  'videoBitrate'],
+    [el.selFilesize,  'targetFilesize'],
+    [el.selPercentage,'targetPercentage'],
+    [el.selCodecV,    'videoCodec'],
+    [el.selCodecA,    'audioCodec'],
+    [el.selBitrateA,  'audioBitrate'],
+    [el.selFps,       'frameRate'],
+    [el.selRes,       'resolution'],
+  ];
+  bindings.forEach(([sel, key]) => {
+    if (!sel) return;
+    sel.value = manualSettings[key]; // restore saved value
+    sel.addEventListener('change', () => { manualSettings[key] = sel.value; });
+  });
+
+  showMethodControl(manualSettings.compressionMethod);
+}
+
+function showMethodControl(method) {
+  el.ctrlCrf.hidden        = method !== 'crf';
+  el.ctrlBitrate.hidden    = method !== 'bitrate';
+  el.ctrlFilesize.hidden   = method !== 'filesize';
+  el.ctrlPercentage.hidden = method !== 'percentage';
 }
 
 // ══════════════════════════════════════════════════════════
@@ -141,7 +254,6 @@ function isVideoByExtension(name) {
 async function ensureFFmpeg() {
   if (ffmpegLoaded) return;
 
-  // Resolve globals lazily from the UMD bundle (<script> loads before app.js)
   if (!createFFmpeg) {
     if (typeof window.FFmpeg === 'undefined') {
       throw new Error('FFmpeg library failed to load. Check your internet connection and refresh.');
@@ -155,46 +267,51 @@ async function ensureFFmpeg() {
     log: false,
   });
 
+  // ── THE KEY FIX ────────────────────────────────────────
+  // setProgress({ratio}) is BROKEN in ffmpeg.wasm 0.11 for most formats
+  // (ratio stays near 0 the entire time — that's why you saw 3% for an hour).
+  // We parse real progress from FFmpeg's stderr time= output instead.
   ffmpeg.setLogger(({ type, message }) => {
-    // Parse frame progress as fallback
-    if (type === 'fferr' && message.includes('frame=')) {
-      parseFrameProgress(message);
-    }
-  });
-
-  ffmpeg.setProgress(({ ratio }) => {
-    const pct = Math.round(Math.max(lastRatio, Math.min(1, ratio)) * 95); // cap at 95% until done
-    if (pct > lastRatio * 100) {
-      lastRatio = pct / 100;
-      updateProgress(pct, getStageLabel(pct));
+    if (type === 'fferr' || type === 'ffout') {
+      parseFFmpegLog(message);
     }
   });
 
   await ffmpeg.load();
   ffmpegLoaded = true;
-  el.loadingSub.textContent = 'Engine ready — analyzing video...';
 }
 
-function parseFrameProgress(log) {
-  // Fallback progress from FFmpeg log lines
-  const m = log.match(/frame=\s*(\d+)/);
-  if (m) {
-    const frame = parseInt(m[1]);
-    // We don't know total frames here, but we can bump progress slowly
-    const bump = Math.min(0.9, lastRatio + 0.01);
-    if (bump > lastRatio) {
-      lastRatio = bump;
-      updateProgress(Math.round(bump * 100), getStageLabel(Math.round(bump * 100)));
+// Parse "time=00:01:23.45" from FFmpeg stderr — the only reliable progress source
+function parseFFmpegLog(line) {
+  // e.g. "frame=  240 fps= 18 q=28.0 size=    512kB time=00:00:08.00 bitrate= 524kbits/s speed=0.6x"
+  const tm = line.match(/time=(\d+):(\d+):(\d+)\.(\d+)/);
+  if (tm && videoDurSec > 0) {
+    const elapsed = parseInt(tm[1]) * 3600 + parseInt(tm[2]) * 60 + parseInt(tm[3]) + parseInt(tm[4]) / 100;
+    const pct = Math.min(95, Math.round((elapsed / videoDurSec) * 95));
+    if (pct > lastPct) {
+      lastPct = pct;
+      updateProgress(pct, pct < 10 ? 'Starting encoder...' : pct < 90 ? 'Compressing...' : 'Almost done...');
     }
+    // Live speed display
+    const sp = line.match(/speed=\s*([\d.]+)x/);
+    if (sp && el.procSpeed) {
+      const spd = parseFloat(sp[1]);
+      const rem = spd > 0 ? (videoDurSec - elapsed) / spd : 0;
+      el.procSpeed.textContent = spd > 0
+        ? `${sp[1]}× speed · ~${formatTime(rem)} left`
+        : `${sp[1]}× speed`;
+    }
+  } else if (tm) {
+    // No duration — bump slowly so bar isn't frozen
+    const bump = Math.min(lastPct + 1, 85);
+    if (bump > lastPct) { lastPct = bump; updateProgress(bump, 'Compressing...'); }
   }
 }
 
-function getStageLabel(pct) {
-  if (pct < 5)  return 'Analyzing...';
-  if (pct < 15) return 'Starting encode...';
-  if (pct < 85) return 'Compressing...';
-  if (pct < 95) return 'Stripping metadata...';
-  return 'Finalizing...';
+function formatTime(sec) {
+  if (!isFinite(sec) || sec <= 0) return '…';
+  if (sec < 60) return `${Math.ceil(sec)}s`;
+  return `${Math.floor(sec / 60)}m ${Math.ceil(sec % 60)}s`;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -239,7 +356,7 @@ async function analyzeVideo(file) {
  *  - Adjust CRF up/down based on input bitrate (already-compressed vs raw)
  *  - Rip all metadata, strip non-primary streams
  */
-function computeSettings(file, { width, height, duration }) {
+function computeAutoSettings(file, { width, height, duration }) {
   const pixels = (width || 1920) * (height || 1080);
   const fileSizeBits = file.size * 8;
   const inputBitrateMbps = fileSizeBits / ((duration || 60) * 1_000_000);
@@ -296,106 +413,155 @@ function computeSettings(file, { width, height, duration }) {
 
 async function compress(file) {
   setState(State.PROCESSING);
-
+  lastPct = 0;
   el.procFilename.textContent = file.name;
-  el.origSize.textContent = formatBytes(file.size);
-  el.estSize.textContent = '—';
-  startTime = Date.now();
+  el.origSize.textContent     = formatBytes(file.size);
+  el.estSize.textContent      = '—';
+  if (el.procSpeed) el.procSpeed.textContent = '';
+  if (el.procModeBadge) el.procModeBadge.textContent = activeMode === 'auto' ? '⚡ Auto mode' : '⚙ Manual mode';
 
-  // Analyze video for smart settings
+  updateProgress(1, 'Reading video info...');
+
+  // Get real duration for accurate progress %
   const meta = await analyzeVideo(file);
-  const settings = computeSettings(file, meta);
+  videoDurSec = meta.duration || 0;
 
-  // Write input to FFmpeg virtual FS
-  const ext = getExtension(file.name);
+  const ext       = getExtension(file.name);
   const inputName = `input.${ext}`;
 
-  updateProgress(2, 'Loading file...');
+  updateProgress(3, 'Loading file into memory...');
   ffmpeg.FS('writeFile', inputName, await fetchFile(file));
 
-  // Build FFmpeg command
-  const args = buildFFmpegArgs(inputName, settings);
-  console.info('[Compress] FFmpeg args:', args.join(' '));
+  // Build FFmpeg args based on mode
+  let args;
+  if (activeMode === 'auto') {
+    const autoSettings = computeAutoSettings(file, meta);
+    args = buildAutoArgs(inputName, autoSettings);
+  } else {
+    args = buildManualArgs(inputName, meta);
+  }
 
-  updateProgress(5, 'Analyzing...');
+  console.info('[Compress] Mode:', activeMode, '| Args:', args.join(' '));
+  updateProgress(5, 'Starting encoder...');
 
-  // Run compression
   await ffmpeg.run(...args);
 
-  updateProgress(96, 'Reading output...');
+  updateProgress(97, 'Reading output...');
 
-  // Read output
   let outputData;
   try {
     outputData = ffmpeg.FS('readFile', 'output.mp4');
   } catch (e) {
-    throw new Error('FFmpeg produced no output. The video format may be unsupported.');
+    throw new Error('FFmpeg produced no output. The video format may be unsupported — try converting to MP4 first.');
   }
 
-  // Cleanup virtual FS
-  try { ffmpeg.FS('unlink', inputName); } catch (_) {}
+  try { ffmpeg.FS('unlink', inputName);   } catch (_) {}
   try { ffmpeg.FS('unlink', 'output.mp4'); } catch (_) {}
 
-  // Create object URL for download
   if (outputUrl) URL.revokeObjectURL(outputUrl);
-  const blob = new Blob([outputData.buffer], { type: 'video/mp4' });
-  outputUrl = URL.createObjectURL(blob);
+  outputUrl = URL.createObjectURL(new Blob([outputData.buffer], { type: 'video/mp4' }));
 
   updateProgress(100, 'Done!');
-
-  // Show results after a short delay
-  await sleep(400);
+  await sleep(350);
   showResults(file.size, outputData.length);
 }
 
-/**
- * Build the FFmpeg argument array.
- * Key decisions:
- *  - CRF mode: constant quality, size adapts to content complexity
- *  - veryfast preset: good speed/quality tradeoff in WASM
- *  - -map_metadata -1: strip ALL metadata (GPS, camera, author, etc.)
- *  - -map 0:v:0 -map 0:a:0?: keep ONLY primary video + audio streams
- *  - -movflags +faststart: move moov atom to front (better for web)
- */
-function buildFFmpegArgs(inputName, { crf, scaleFilter, audioBitrate }) {
+// ── SHARED common tail args (metadata strip + mapping) ────
+function commonTailArgs() {
+  return [
+    '-map_metadata', '-1',   // strip ALL metadata (GPS, author, camera etc.)
+    '-map_chapters', '-1',   // strip chapter markers
+    '-map', '0:v:0',         // primary video stream only
+    '-map', '0:a?',          // all audio if present (? = don't error if none)
+    '-movflags', '+faststart',
+    '-avoid_negative_ts', 'make_zero',
+    'output.mp4',
+  ];
+}
+
+// ── AUTO mode: fast ultrafast preset, CRF from analysis ───
+function buildAutoArgs(inputName, { crf, scaleFilter, audioBitrate }) {
   const args = [
     '-i', inputName,
-
-    // ── Video codec & quality ──────────────────────────
     '-c:v', 'libx264',
     '-crf', crf,
-    '-preset', 'veryfast',        // Fast encode, good quality
-    '-profile:v', 'high',         // H.264 High profile
-    '-level', '4.1',              // Wide compatibility
-    '-pix_fmt', 'yuv420p',        // Universal playback compatibility
+    '-preset', 'ultrafast',   // fastest WASM encode — key fix for speed
+    '-pix_fmt', 'yuv420p',
   ];
-
-  // ── Scale filter (4K/2K → 1080p) ────────────────────
-  if (scaleFilter) {
-    args.push('-vf', scaleFilter);
-  }
-
-  // ── Audio ────────────────────────────────────────────
+  if (scaleFilter) args.push('-vf', scaleFilter);
   args.push(
     '-c:a', 'aac',
     '-b:a', audioBitrate,
-    '-ar', '44100',               // Normalize sample rate
-    '-ac', '2',                   // Stereo (downmix surround if needed)
+    '-ar', '44100',
+    '-ac', '2',
+    ...commonTailArgs()
   );
-
-  // ── Metadata & stream mapping ────────────────────────
-  args.push(
-    '-map_metadata', '-1',        // ← Remove ALL metadata (EXIF, GPS, author, etc.)
-    '-map_chapters', '-1',        // Remove chapter markers
-    '-map', '0:v:0',              // Keep only first video stream
-    '-map', '0:a:0?',             // Keep only first audio stream (optional)
-    '-movflags', '+faststart',    // Web-optimised (moov atom first)
-    '-avoid_negative_ts', 'make_zero',
-  );
-
-  args.push('output.mp4');
-
   return args;
+}
+
+// ── MANUAL mode: user's exact settings ────────────────────
+function buildManualArgs(inputName, meta) {
+  const s = manualSettings;
+
+  // Video codec
+  const vcodec = s.videoCodec; // libx264 | libx265
+
+  // Quality argument
+  let qualArgs = [];
+  switch (s.compressionMethod) {
+    case 'crf':
+      qualArgs = ['-crf', s.crfValue, '-preset', 'fast'];
+      break;
+    case 'bitrate':
+      qualArgs = ['-b:v', s.videoBitrate, '-preset', 'fast'];
+      break;
+    case 'filesize': {
+      // target-size bitrate = (filesize_bits) / duration  — minus audio
+      const durS   = meta.duration || 60;
+      const tBits  = parseFloat(s.targetFilesize) * 1024 * 1024 * 8;
+      const aBps   = parseInt(s.audioBitrate) * 1000;
+      const vBps   = Math.max(100000, Math.round((tBits / durS) - aBps));
+      qualArgs = ['-b:v', `${Math.round(vBps/1000)}k`, '-preset', 'fast'];
+      break;
+    }
+    case 'percentage': {
+      // Map quality% → CRF (100%=18, 1%=51)
+      const crf = Math.round(51 - (parseInt(s.targetPercentage) / 100) * 33);
+      qualArgs = ['-crf', String(crf), '-preset', 'fast'];
+      break;
+    }
+    default:
+      qualArgs = ['-crf', '23', '-preset', 'fast'];
+  }
+
+  // Resolution filter
+  let vfArgs = [];
+  if (s.resolution && s.resolution !== 'original') {
+    const [rw] = s.resolution.split('x');
+    vfArgs = ['-vf', `scale=${rw}:-2:flags=lanczos`];
+  }
+
+  // Frame rate
+  const fpsArgs = s.frameRate !== 'original' ? ['-r', s.frameRate] : [];
+
+  // Audio
+  const aArgs = [
+    '-c:a', s.audioCodec === 'mp3' ? 'libmp3lame' : 'aac',
+    '-b:a', s.audioBitrate,
+    '-ar', '44100',
+    '-ac', '2',
+  ];
+
+  return [
+    '-i', inputName,
+    '-c:v', vcodec,
+    ...qualArgs,
+    '-pix_fmt', 'yuv420p',
+    ...vfArgs,
+    ...fpsArgs,
+    ...aArgs,
+    ...commonTailArgs()
+  ];
 }
 
 // ══════════════════════════════════════════════════════════
@@ -411,21 +577,20 @@ function setState(next) {
     [State.DONE]:       el.stateDone,
     [State.ERROR]:      el.stateError,
   };
-  Object.values(stateMap).forEach(s => s.hidden = true);
+  Object.values(stateMap).forEach(s => { if(s) s.hidden = true; });
   const target = stateMap[next];
-  if (target) { target.hidden = false; }
+  if (target) target.hidden = false;
 }
 
 function updateProgress(pct, stage) {
   pct = Math.max(0, Math.min(100, pct));
-  el.progressFill.style.width = `${pct}%`;
-  el.progressPct.textContent = `${pct}%`;
+  el.progressFill.style.width = pct + '%';
+  el.progressPct.textContent  = pct + '%';
   if (stage) el.procStage.textContent = stage;
-
-  // Estimate output size during compression (rough: assume 40% final size)
-  if (currentFile && pct > 10 && pct < 95) {
-    const ratio = pct / 100;
-    const estimated = currentFile.size * (0.35 + (1 - ratio) * 0.25);
+  // Rough size estimate: auto saves ~50%, manual varies
+  if (currentFile && pct > 8 && pct < 96) {
+    const targetRatio = activeMode === 'auto' ? 0.45 : 0.60;
+    const estimated = currentFile.size * targetRatio;
     el.estSize.textContent = '~' + formatBytes(estimated);
   }
 }
@@ -455,14 +620,15 @@ function showError(msg) {
 function resetApp() {
   if (outputUrl) { URL.revokeObjectURL(outputUrl); outputUrl = null; }
   currentFile = null;
-  lastRatio = 0;
+  lastPct     = 0;
+  videoDurSec = 0;
   setState(State.IDLE);
-  // Reset progress UI
   el.progressFill.style.width = '0%';
-  el.progressPct.textContent = '0%';
-  el.procStage.textContent = 'Analyzing...';
-  el.origSize.textContent = '—';
-  el.estSize.textContent = '—';
+  el.progressPct.textContent  = '0%';
+  el.procStage.textContent    = 'Analyzing...';
+  el.origSize.textContent     = '—';
+  el.estSize.textContent      = '—';
+  if (el.procSpeed) el.procSpeed.textContent = '';
 }
 
 // ══════════════════════════════════════════════════════════
