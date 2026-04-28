@@ -225,7 +225,7 @@ async function handleFile(file) {
   }
 
   currentFile = file;
-  lastRatio = 0;
+  lastPct = 0;
 
   setState(State.LOADING);
   el.loadingSub.textContent = 'Downloading FFmpeg engine (~30 MB, once only)';
