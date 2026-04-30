@@ -1,381 +1,409 @@
 /* ============================================================
-   ARSHIELD.JS v2.1 — Cloudflare-Style Security Gate
-   Fullscreen verification -> lazy-load page content
-   Server sync via Parqra SDK v3 (ParqraDB)
-   Usage:
-     1. <script src="https://...sdk.js?pid=ee91e5af-..."></script>
-     2. <script src="arshield.js"></script>
+   ARSHIELD.JS v3.0
+   Cloudflare-style security gate with Parqra SDK sync.
+
+   HTML usage (order matters):
+     <script src="...sdk.js?pid=ee91e5af-..."></script>
+     <script src="arshield.js"></script>
+
+   Flow: Math CAPTCHA → Data collection screen → Slider check → Page reveal
    ============================================================ */
 
 (function (w, d, n) {
   'use strict';
 
   /* ============================================================
-     SECTION 1 — CONFIG & CONSTANTS
-     SDK is loaded by the <script> tag in HTML — ParqraDB is
-     already available on window by the time ArShield runs.
+     SECTION 1 — CONFIG
      ============================================================ */
 
   var TABLE  = 'arshield_visitors';
-  var LS_KEY = '__ars_session';
+  var LS_KEY = '__ars_v3';          /* bumped key — clears old v2 data */
 
   var C = {
-    bg:         '#060608',
-    surface:    '#0e0e16',
-    surfaceB:   '#13131f',
-    border:     '#1c1c2e',
-    accent:     '#7c3aed',
-    accentLt:   '#9d6ef7',
-    accentGlow: 'rgba(124,58,237,0.4)',
-    success:    '#10b981',
-    danger:     '#ef4444',
-    warn:       '#f59e0b',
-    text:       '#e2e8f0',
-    muted:      '#64748b',
-    mutedLt:    '#94a3b8'
+    bg:      '#07070d',
+    card:    '#0f0f1a',
+    cardB:   '#141422',
+    border:  '#1e1e30',
+    accent:  '#7c3aed',
+    aLt:     '#a78bfa',
+    glow:    'rgba(124,58,237,0.35)',
+    ok:      '#10b981',
+    err:     '#ef4444',
+    warn:    '#f59e0b',
+    tx:      '#e2e8f0',
+    muted:   '#64748b',
+    mutedLt: '#94a3b8'
   };
 
   /* ============================================================
-     SECTION 2 — PERSISTENT SESSION MANAGER
+     SECTION 2 — SESSION STORE
+     Uses a new LS key (LS_KEY) so old v2 data is ignored.
+     On each boot the old key is wiped and replaced fresh.
      ============================================================ */
 
   var SESSION = {
     load: function () {
-      try { var r = localStorage.getItem(LS_KEY); if (r) return JSON.parse(r); } catch (e) {}
-      return null;
+      try {
+        /* Wipe any legacy keys from older versions */
+        ['__ars_session', '__ars_v2'].forEach(function (k) { localStorage.removeItem(k); });
+        var r = localStorage.getItem(LS_KEY);
+        return r ? JSON.parse(r) : null;
+      } catch (e) { return null; }
     },
     save: function (data) {
       try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
     },
     newId: function () {
-      var arr = new Uint8Array(18);
-      try { w.crypto.getRandomValues(arr); } catch (e) { for (var i = 0; i < 18; i++) arr[i] = (Math.random() * 256) | 0; }
-      return 'ars_' + Array.from(arr).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+      var a = new Uint8Array(16);
+      try { w.crypto.getRandomValues(a); } catch (e) { for (var i = 0; i < 16; i++) a[i] = (Math.random() * 256) | 0; }
+      return 'ars_' + Array.from(a).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
     }
   };
 
   /* ============================================================
-     SECTION 3 — RUNTIME STATE (blended with persisted data)
+     SECTION 3 — STATE
+     Flat runtime object; server payload collapses into 8 JSON columns.
      ============================================================ */
 
-  var NOW  = Date.now();
   var PREV = SESSION.load() || {};
+  var NOW  = Date.now();
+
+  /* Helper — accumulate from previous visit */
+  var acc = function (k, def) { return (PREV.acc && PREV.acc[k]) || def || 0; };
 
   var S = {
-    /* Identity — stable across visits */
-    session_id:               PREV.session_id || SESSION.newId(),
-    visit_count:              (PREV.visit_count || 0) + 1,
-    first_seen:               PREV.first_seen  || new Date().toISOString(),
-    last_seen:                new Date().toISOString(),
+    /* ── Identity (stable) ─────────────────── */
+    id:           PREV.id  || SESSION.newId(),
+    visits:       (PREV.visits || 0) + 1,
+    first_seen:   PREV.first_seen || new Date().toISOString(),
+    row_id:       PREV.row_id || null,   /* Parqra DB row id for PATCH */
 
-    /* Cumulative counters (added each visit) */
-    total_time_ms:            PREV.total_time_ms            || 0,
-    total_mouse_events:       PREV.total_mouse_events        || 0,
-    total_touch_events:       PREV.total_touch_events        || 0,
-    total_key_events:         PREV.total_key_events          || 0,
-    total_scroll_events:      PREV.total_scroll_events       || 0,
-    total_clicks:             PREV.total_clicks              || 0,
-    total_captcha_attempts:   PREV.total_captcha_attempts    || 0,
-    total_captcha_passes:     PREV.total_captcha_passes      || 0,
-    total_bot_flags:          PREV.total_bot_flags           || 0,
-    total_human_signals:      PREV.total_human_signals       || 0,
-    total_devtools_opens:     PREV.total_devtools_opens      || 0,
-    total_context_menus:      PREV.total_context_menus       || 0,
-    total_page_hides:         PREV.total_page_hides          || 0,
+    /* ── Accumulated counters ──────────────── */
+    acc: {
+      time_ms:      acc('time_ms'),
+      mouse:        acc('mouse'),
+      touch:        acc('touch'),
+      keys:         acc('keys'),
+      scroll:       acc('scroll'),
+      clicks:       acc('clicks'),
+      cap_tries:    acc('cap_tries'),
+      cap_passes:   acc('cap_passes'),
+      bot_flags:    acc('bot_flags'),
+      human_sigs:   acc('human_sigs'),
+      devtools:     acc('devtools'),
+      ctx_menus:    acc('ctx_menus'),
+      tab_hides:    acc('tab_hides')
+    },
 
-    /* This-visit live counters (not persisted raw) */
-    visit_start:              NOW,
-    visit_mouse_events:       0,
-    visit_touch_events:       0,
-    visit_key_events:         0,
-    visit_scroll_events:      0,
-    visit_clicks:             0,
+    /* ── This-visit live ───────────────────── */
+    _start:       NOW,
 
-    /* Bot / human assessment */
-    bot_score:                100,
-    is_bot:                   false,
-    is_headless:              false,
-    automation_detected:      false,
-    honeypot_triggered:       false,
-    captcha_solved:           false,
-    captcha_time_ms:          0,
-    devtools_open_count:      0,
-    timing_anomalies:         0,
-    straight_mouse_ratio:     0,
-    webdriver_prop:           n.webdriver ? 1 : 0,
+    /* ── Security assessment ───────────────── */
+    score:        100,
+    is_bot:       false,
+    is_headless:  false,
+    automated:    false,
+    honeypot:     false,
+    cap_solved:   false,
+    cap_ms:       0,
+    devtools_now: 0,
+    timing_bad:   0,
+    mouse_straight: 0,
+    webdriver:    n.webdriver ? 1 : 0,
 
-    /* Fingerprints */
-    canvas_fp:                null,
-    audio_fp:                 null,
-    webgl_fp:                 null,
-    font_count:               0,
-    combined_fp:              null,
+    /* ── Fingerprints ──────────────────────── */
+    fp: { canvas: null, audio: null, webgl: null, combined: null, fonts: 0 },
 
-    /* Device & environment */
-    user_agent:               (n.userAgent || '').slice(0, 250),
-    platform:                 n.platform  || '',
-    language:                 n.language  || '',
-    languages:                (n.languages || []).join(','),
-    timezone:                 '',
-    screen_w:                 screen.width  || 0,
-    screen_h:                 screen.height || 0,
-    screen_depth:             screen.colorDepth || 0,
-    viewport_w:               w.innerWidth  || 0,
-    viewport_h:               w.innerHeight || 0,
-    device_pixel_ratio:       w.devicePixelRatio || 1,
-    hardware_concurrency:     n.hardwareConcurrency || 0,
-    device_memory_gb:         n.deviceMemory || 0,
-    max_touch_points:         n.maxTouchPoints || 0,
-    connection_type:          '',
-    connection_downlink:      0,
-    plugins_count:            n.plugins ? n.plugins.length : 0,
-    cookie_enabled:           n.cookieEnabled ? 1 : 0,
-    do_not_track:             n.doNotTrack || '',
+    /* ── Device info (populated by FP + ENV) ─ */
+    device: {},
 
-    /* Page speed (filled post-load) */
-    perf_dns_ms:              0,
-    perf_tcp_ms:              0,
-    perf_ttfb_ms:             0,
-    perf_dom_interactive_ms:  0,
-    perf_dom_load_ms:         0,
-    perf_full_load_ms:        0,
-
-    /* Server record ID — used for PATCH on return visits */
-    server_record_id:         PREV.server_record_id || null
+    /* ── Performance timings ───────────────── */
+    perf: { dns:0, tcp:0, ttfb:0, dom_i:0, dom:0, load:0 }
   };
-
-  /* Collect extra env info */
-  try {
-    var conn = n.connection || n.mozConnection || n.webkitConnection;
-    if (conn) { S.connection_type = conn.effectiveType || ''; S.connection_downlink = conn.downlink || 0; }
-    S.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch (e) {}
 
   /* ============================================================
      SECTION 4 — UTILITIES
      ============================================================ */
 
   var U = {
-    el: function (tag, props, styles) {
+    el: function (tag, attr, style) {
       var e = d.createElement(tag);
-      if (props) Object.keys(props).forEach(function (k) {
-        if (k === 'html') e.innerHTML = props[k];
-        else if (k === 'text') e.textContent = props[k];
-        else e.setAttribute(k, props[k]);
+      if (attr) Object.keys(attr).forEach(function (k) {
+        if (k === 'html') e.innerHTML = attr[k];
+        else if (k === 'text') e.textContent = attr[k];
+        else e.setAttribute(k, attr[k]);
       });
-      if (styles) U.css(e, styles);
+      if (style) U.css(e, style);
       return e;
     },
     css: function (el, s) { Object.keys(s).forEach(function (k) { el.style[k] = s[k]; }); },
     rand: function (a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; },
     sha: function (str) {
-      var h = 5381;
-      for (var i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
+      var h = 5381, i;
+      for (i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
       return (h >>> 0).toString(16).padStart(8, '0');
     },
     throttle: function (fn, ms) {
-      var last = 0;
-      return function () { var t = Date.now(); if (t - last >= ms) { last = t; fn.apply(this, arguments); } };
+      var t = 0;
+      return function () { var n = Date.now(); if (n - t >= ms) { t = n; fn.apply(this, arguments); } };
     },
-    flag: function (penalty) {
-      S.bot_score = Math.max(0, S.bot_score - (penalty || 10));
-      S.total_bot_flags++;
-      if (S.bot_score < 30) S.is_bot = true;
+    flag: function (p) {
+      S.score = Math.max(0, S.score - (p || 10));
+      S.acc.bot_flags++;
+      if (S.score < 30) S.is_bot = true;
     },
-    signal: function (boost) {
-      S.bot_score = Math.min(100, S.bot_score + (boost || 5));
-      S.total_human_signals++;
+    ok: function (b) {
+      S.score = Math.min(100, S.score + (b || 5));
+      S.acc.human_sigs++;
     },
-    qs: function (sel, ctx) { return (ctx || d).querySelector(sel); }
+    $ : function (id) { return d.getElementById(id); },
+    /* Detect device type from UA + touch */
+    deviceType: function () {
+      var ua = S.device.ua || '';
+      if (/iPad|tablet/i.test(ua) || (n.maxTouchPoints > 1 && w.innerWidth >= 600 && w.innerWidth <= 1400)) return 'tablet';
+      if (/Mobile|Android|iPhone|iPod|Windows Phone/i.test(ua)) return 'mobile';
+      return 'desktop';
+    },
+    /* Parse OS from UA */
+    osName: function () {
+      var ua = n.userAgent;
+      if (/Windows NT 10/.test(ua)) return 'Windows 10/11';
+      if (/Windows NT 6\.3/.test(ua)) return 'Windows 8.1';
+      if (/Windows NT 6\.1/.test(ua)) return 'Windows 7';
+      if (/Mac OS X/.test(ua)) return 'macOS ' + (ua.match(/Mac OS X ([\d_]+)/) || ['',''])[1].replace(/_/g, '.');
+      if (/Android ([\d.]+)/.test(ua)) return 'Android ' + ua.match(/Android ([\d.]+)/)[1];
+      if (/iPhone OS ([\d_]+)/.test(ua)) return 'iOS ' + ua.match(/iPhone OS ([\d_]+)/)[1].replace(/_/g, '.');
+      if (/Linux/.test(ua)) return 'Linux';
+      return 'Unknown';
+    },
+    /* Parse browser from UA */
+    browserName: function () {
+      var ua = n.userAgent;
+      if (/Edg\//.test(ua)) return 'Edge';
+      if (/OPR\/|Opera/.test(ua)) return 'Opera';
+      if (/Firefox\//.test(ua)) return 'Firefox';
+      if (/Chrome\//.test(ua)) return 'Chrome';
+      if (/Safari\//.test(ua)) return 'Safari';
+      return 'Other';
+    }
   };
 
   /* ============================================================
-     SECTION 5 — PERFORMANCE OPTIMISER
+     SECTION 5 — PERF OPTIMISER (runs immediately in <head>)
      ============================================================ */
 
   var PERF = {
     init: function () {
       var head = d.head || d.documentElement;
-      /* Resource hints */
       ['dns-prefetch', 'preconnect'].forEach(function (rel) {
-        var l = U.el('link', { rel: rel, href: w.location.origin });
-        head.insertBefore(l, head.firstChild);
+        head.insertBefore(U.el('link', { rel: rel, href: w.location.origin }), head.firstChild);
       });
-      /* Global paint optimisation */
       var s = U.el('style');
-      s.textContent = 'img{content-visibility:auto}*{box-sizing:border-box}';
+      s.textContent = '*{box-sizing:border-box}img{content-visibility:auto}';
       head.appendChild(s);
-      /* Measure perf after full load */
       w.addEventListener('load', function () {
         try {
           var t = performance.timing;
-          S.perf_dns_ms             = t.domainLookupEnd - t.domainLookupStart;
-          S.perf_tcp_ms             = t.connectEnd - t.connectStart;
-          S.perf_ttfb_ms            = t.responseStart - t.navigationStart;
-          S.perf_dom_interactive_ms = t.domInteractive - t.navigationStart;
-          S.perf_dom_load_ms        = t.domContentLoadedEventEnd - t.navigationStart;
-          S.perf_full_load_ms       = t.loadEventEnd - t.navigationStart;
+          S.perf = {
+            dns:   t.domainLookupEnd - t.domainLookupStart,
+            tcp:   t.connectEnd - t.connectStart,
+            ttfb:  t.responseStart - t.navigationStart,
+            dom_i: t.domInteractive - t.navigationStart,
+            dom:   t.domContentLoadedEventEnd - t.navigationStart,
+            load:  t.loadEventEnd - t.navigationStart
+          };
         } catch (e) {}
       });
     }
   };
 
   /* ============================================================
-     SECTION 6 — FINGERPRINTING ENGINE
+     SECTION 6 — FINGERPRINTING
      ============================================================ */
 
   var FP = {
     run: function () {
-      FP.canvas(); FP.audio(); FP.webgl(); FP.fonts();
-      S.combined_fp = U.sha((S.canvas_fp || '') + (S.audio_fp || '') + (S.webgl_fp || '') + S.user_agent + S.screen_w + S.screen_h + S.timezone);
+      FP.canvas(); FP.audio(); FP.webgl(); FP.fonts(); FP.env();
+      S.fp.combined = U.sha((S.fp.canvas || '') + (S.fp.audio || '') + (S.fp.webgl || '') + n.userAgent + screen.width + screen.height);
     },
     canvas: function () {
       try {
-        var cv = d.createElement('canvas'); cv.width = 240; cv.height = 60;
+        var cv = d.createElement('canvas'); cv.width = 200; cv.height = 50;
         var ctx = cv.getContext('2d');
-        ctx.fillStyle = '#1a0533'; ctx.fillRect(0, 0, 240, 60);
-        ctx.font = 'bold 14px Arial'; ctx.fillStyle = '#a78bfa';
-        ctx.fillText('ArShield\u2122 \u03C0 \u221A\u2202', 4, 22);
-        ctx.fillStyle = 'rgba(16,185,129,0.6)'; ctx.fillRect(110, 2, 60, 20);
+        ctx.fillStyle = '#12003a'; ctx.fillRect(0, 0, 200, 50);
+        ctx.font = 'bold 13px Arial'; ctx.fillStyle = '#a78bfa';
+        ctx.fillText('ArShield\u2122 \u03C0\u221A', 4, 20);
         ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(200, 30, 18, 0, Math.PI * 2); ctx.stroke();
-        S.canvas_fp = U.sha(cv.toDataURL().slice(-100));
-      } catch (e) { S.canvas_fp = 'err'; }
+        ctx.beginPath(); ctx.arc(170, 25, 16, 0, Math.PI * 2); ctx.stroke();
+        S.fp.canvas = U.sha(cv.toDataURL().slice(-80));
+      } catch (e) { S.fp.canvas = 'err'; }
     },
     audio: function () {
       try {
         var AC = w.AudioContext || w.webkitAudioContext;
-        if (!AC) { S.audio_fp = 'na'; return; }
+        if (!AC) { S.fp.audio = 'na'; return; }
         var ac = new AC(), osc = ac.createOscillator(), an = ac.createAnalyser(), g = ac.createGain();
         g.gain.value = 0; osc.connect(an); an.connect(g); g.connect(ac.destination); osc.start(0);
         var buf = new Float32Array(an.frequencyBinCount);
         an.getFloatFrequencyData(buf);
-        S.audio_fp = U.sha(buf.slice(0, 12).join(','));
+        S.fp.audio = U.sha(buf.slice(0, 10).join(','));
         osc.stop(); ac.close();
-      } catch (e) { S.audio_fp = 'err'; }
+      } catch (e) { S.fp.audio = 'err'; }
     },
     webgl: function () {
       try {
         var cv = d.createElement('canvas');
         var gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
-        if (!gl) { S.webgl_fp = 'na'; return; }
+        if (!gl) { S.fp.webgl = 'na'; return; }
         var dbg = gl.getExtension('WEBGL_debug_renderer_info');
-        var r = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
-        var v = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)   : gl.getParameter(gl.VENDOR);
-        S.webgl_fp = U.sha(r + v);
-      } catch (e) { S.webgl_fp = 'err'; }
+        var renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        var vendor   = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)   : gl.getParameter(gl.VENDOR);
+        S.fp.webgl = U.sha(renderer + vendor);
+        /* Store readable GPU string for device column */
+        S.device.gpu = renderer || 'unknown';
+      } catch (e) { S.fp.webgl = 'err'; }
     },
     fonts: function () {
       try {
-        var list = ['Arial','Verdana','Georgia','Times New Roman','Courier New','Tahoma','Impact','Comic Sans MS','Trebuchet MS','Palatino Linotype','Century Gothic','Lucida Console'];
+        var fonts = ['Arial','Verdana','Georgia','Times New Roman','Courier New','Impact','Comic Sans MS','Trebuchet MS','Century Gothic'];
         var cv = d.createElement('canvas'), ctx = cv.getContext('2d');
         ctx.font = '16px monospace';
-        var base = ctx.measureText('mmmmmmmm').width, count = 0;
-        list.forEach(function (f) { ctx.font = '16px "' + f + '",monospace'; if (ctx.measureText('mmmmmmmm').width !== base) count++; });
-        S.font_count = count;
+        var base = ctx.measureText('mmmmm').width, count = 0;
+        fonts.forEach(function (f) { ctx.font = '16px "' + f + '",monospace'; if (ctx.measureText('mmmmm').width !== base) count++; });
+        S.fp.fonts = count;
       } catch (e) {}
+    },
+    env: function () {
+      /* Collect all device/env data into S.device */
+      var conn = n.connection || n.mozConnection || n.webkitConnection || {};
+      var tz = '';
+      try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+
+      S.device = {
+        ua:           (n.userAgent || '').slice(0, 220),
+        browser:      U.browserName(),
+        os:           U.osName(),
+        type:         U.deviceType(),
+        gpu:          S.device.gpu || 'unknown',
+        platform:     n.platform || '',
+        lang:         n.language || '',
+        langs:        (n.languages || []).join(','),
+        tz:           tz,
+        screen:       screen.width + 'x' + screen.height,
+        viewport:     w.innerWidth + 'x' + w.innerHeight,
+        dpr:          w.devicePixelRatio || 1,
+        cpu_cores:    n.hardwareConcurrency || 0,
+        ram_gb:       n.deviceMemory || 0,
+        touch_pts:    n.maxTouchPoints || 0,
+        net_type:     conn.effectiveType || '',
+        net_mbps:     conn.downlink || 0,
+        color_depth:  screen.colorDepth || 0,
+        plugins:      n.plugins ? n.plugins.length : 0,
+        cookies:      n.cookieEnabled ? 1 : 0,
+        dnt:          n.doNotTrack || ''
+      };
     }
   };
 
   /* ============================================================
-     SECTION 7 — BOT DETECTION ALGORITHMS
+     SECTION 7 — BOT DETECTION
      ============================================================ */
 
   var BOT = {
     run: function () {
-      BOT.ua(); BOT.headless(); BOT.automation();
-      BOT.timing(); BOT.pluginConsistency();
-      BOT.devToolsLoop(); BOT.honeypot(); BOT.listenBehavior();
+      BOT.ua(); BOT.headless(); BOT.automation(); BOT.timing();
+      BOT.consistency(); BOT.devToolsLoop(); BOT.honeypot(); BOT.behavior();
     },
     ua: function () {
-      var ua = S.user_agent.toLowerCase();
+      var ua = (n.userAgent || '').toLowerCase();
       ['headless','phantomjs','selenium','webdriver','htmlunit','python','curl','wget','scrapy','java/','go-http','okhttp'].forEach(function (s) {
-        if (ua.indexOf(s) !== -1) U.flag(20);
+        if (ua.indexOf(s) > -1) U.flag(20);
       });
       if (!n.languages || !n.languages.length) U.flag(15);
     },
     headless: function () {
       if (n.webdriver) { U.flag(40); S.is_headless = true; }
       if (w.outerWidth === 0 || w.outerHeight === 0) { U.flag(15); S.is_headless = true; }
-      if (S.user_agent.toLowerCase().indexOf('chrome') !== -1 && !w.chrome) { U.flag(20); S.is_headless = true; }
+      if (/chrome/i.test(n.userAgent) && !w.chrome) { U.flag(20); S.is_headless = true; }
     },
     automation: function () {
-      ['__webdriver_evaluate','__selenium_evaluate','__webdriver_script_fn','__fxdriver_evaluate',
-       '__driver_unwrapped','_phantom','__phantom','callPhantom','_selenium','__nightmare',
-       'domAutomation','domAutomationController'].forEach(function (p) {
-        try { if (w[p] !== undefined) { U.flag(25); S.automation_detected = true; } } catch (e) {}
+      ['__webdriver_evaluate','__selenium_evaluate','__webdriver_script_fn','_phantom','__phantom',
+       'callPhantom','_selenium','__nightmare','domAutomation','domAutomationController'].forEach(function (p) {
+        try { if (w[p] !== undefined) { U.flag(25); S.automated = true; } } catch (e) {}
       });
     },
     timing: function () {
-      var t1 = performance.now(), sum = 0;
-      for (var i = 0; i < 5e5; i++) sum += i;
-      if (performance.now() - t1 < 1) { U.flag(10); S.timing_anomalies++; }
-      try { if (Math.abs((performance.timeOrigin || Date.now()) - Date.now()) > 60000) { U.flag(10); S.timing_anomalies++; } } catch (e) {}
+      var t = performance.now(), sum = 0;
+      for (var i = 0; i < 4e5; i++) sum += i;
+      if (performance.now() - t < 1) { U.flag(10); S.timing_bad++; }
+      try { if (Math.abs((performance.timeOrigin || Date.now()) - Date.now()) > 60000) { U.flag(10); S.timing_bad++; } } catch (e) {}
     },
-    pluginConsistency: function () {
-      if (S.user_agent.toLowerCase().indexOf('chrome') !== -1 && n.plugins.length === 0) U.flag(15);
-      if (S.font_count < 3) U.flag(10);
+    consistency: function () {
+      if (/chrome/i.test(n.userAgent) && n.plugins.length === 0) U.flag(15);
+      if (S.fp.fonts < 3) U.flag(10);
     },
     devToolsLoop: function () {
       setInterval(function () {
         if (w.outerWidth - w.innerWidth > 160 || w.outerHeight - w.innerHeight > 160) {
-          S.devtools_open_count++; S.total_devtools_opens++; U.flag(3);
+          S.devtools_now++; S.acc.devtools++; U.flag(3);
           console.clear();
-          console.log('%c\u26A0 Protected by ArShield', 'color:#7c3aed;font-size:18px;font-weight:900;');
-          console.log('%cThis session is tracked and logged.', 'color:#ef4444;font-size:12px;');
+          console.log('%c\u26A0 ArShield Active', 'color:#7c3aed;font-size:16px;font-weight:900');
+          console.log('%cThis session is monitored.', 'color:#ef4444;font-size:12px');
         }
       }, 1500);
     },
     honeypot: function () {
-      var hp = U.el('input', { type: 'text', name: 'website_url', autocomplete: 'off', tabindex: '-1', 'aria-hidden': 'true' }, {
-        position: 'absolute', left: '-9999px', top: '-9999px', width: '1px', height: '1px', opacity: '0', pointerEvents: 'none'
-      });
-      hp.addEventListener('input', function () { if (hp.value.length > 0) { S.honeypot_triggered = true; U.flag(50); } });
+      var hp = U.el('input', {
+        type: 'text', name: 'website_url', autocomplete: 'off',
+        tabindex: '-1', 'aria-hidden': 'true'
+      }, { position: 'absolute', left: '-9999px', top: '-9999px', width: '1px', height: '1px', opacity: '0', pointerEvents: 'none' });
+      hp.addEventListener('input', function () { if (hp.value) { S.honeypot = true; U.flag(50); } });
       if (d.body) d.body.appendChild(hp);
     },
-    listenBehavior: function () {
-      /* Mouse path linearity */
+    behavior: function () {
       var path = [], straight = 0, total = 0;
+
       d.addEventListener('mousemove', U.throttle(function (e) {
-        S.total_mouse_events++; S.visit_mouse_events++;
+        S.acc.mouse++;
         path.push({ x: e.clientX, y: e.clientY });
         if (path.length > 3) {
           total++;
-          var l = path.length, p1 = path[l-3], p2 = path[l-2], p3 = path[l-1];
-          if (Math.abs(Math.atan2(p2.y-p1.y, p2.x-p1.x) - Math.atan2(p3.y-p2.y, p3.x-p2.x)) < 0.015) straight++;
-          S.straight_mouse_ratio = total > 0 ? Math.round((straight / total) * 100) : 0;
-          if (total === 30) { if (S.straight_mouse_ratio > 85) U.flag(20); else U.signal(6); }
+          var l = path.length, a = path[l-3], b = path[l-2], c = path[l-1];
+          if (Math.abs(Math.atan2(b.y-a.y, b.x-a.x) - Math.atan2(c.y-b.y, c.x-b.x)) < 0.015) straight++;
+          S.mouse_straight = total ? Math.round(straight / total * 100) : 0;
+          if (total === 30) { S.mouse_straight > 85 ? U.flag(20) : U.ok(6); }
         }
       }, 40), { passive: true });
 
       d.addEventListener('touchstart', function () {
-        S.total_touch_events++; S.visit_touch_events++;
-        if (S.visit_touch_events === 1) U.signal(8);
+        S.acc.touch++;
+        if (S.acc.touch === 1) U.ok(8);
       }, { passive: true });
 
       var lastKey = 0;
       d.addEventListener('keydown', function () {
-        S.total_key_events++; S.visit_key_events++;
-        var now = Date.now(), delta = now - lastKey;
-        if (lastKey && delta < 10) S.timing_anomalies++;
-        else if (lastKey && delta > 10 && delta < 600) U.signal(2);
+        S.acc.keys++;
+        var now = Date.now(), dt = now - lastKey;
+        if (lastKey && dt < 10) S.timing_bad++;
+        else if (lastKey && dt > 10 && dt < 600) U.ok(2);
         lastKey = now;
       }, { passive: true });
 
       d.addEventListener('scroll', U.throttle(function () {
-        S.total_scroll_events++; S.visit_scroll_events++;
-        if (S.visit_scroll_events === 3) U.signal(4);
+        S.acc.scroll++;
+        if (S.acc.scroll === 3) U.ok(4);
       }, 150), { passive: true });
 
-      d.addEventListener('click', function () { S.total_clicks++; S.visit_clicks++; }, { passive: true });
-      d.addEventListener('visibilitychange', function () { if (d.hidden) S.total_page_hides++; });
+      d.addEventListener('click', function () { S.acc.clicks++; }, { passive: true });
+
+      d.addEventListener('visibilitychange', function () { if (d.hidden) S.acc.tab_hides++; });
 
       /* Content protection */
-      d.addEventListener('contextmenu', function (e) { e.preventDefault(); S.total_context_menus++; });
+      d.addEventListener('contextmenu', function (e) { e.preventDefault(); S.acc.ctx_menus++; });
       d.addEventListener('dragstart',   function (e) { e.preventDefault(); });
       d.addEventListener('keydown', function (e) {
         var k = (e.key || '').toLowerCase(), cm = e.ctrlKey || e.metaKey;
-        if (cm && (k === 's' || k === 'u')) e.preventDefault();
+        if (cm && (k === 's' || k === 'u')) { e.preventDefault(); }
         if (cm && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) { e.preventDefault(); U.flag(5); }
         if (e.key === 'F12') { e.preventDefault(); U.flag(5); }
       });
@@ -383,275 +411,355 @@
   };
 
   /* ============================================================
-     SECTION 8 — CONTENT HIDER & LAZY LOADER
+     SECTION 8 — CONTENT HIDER & LAZY REVEAL
      ============================================================ */
 
   var CONTENT = {
     init: function () {
-      /* Inject gate base CSS before anything renders */
       var s = U.el('style');
-      s.textContent = [
-        'html,body{margin:0;padding:0;background:' + C.bg + ';}',
-        '#__ars_gate{position:fixed;inset:0;z-index:2147483647;background:' + C.bg + ';}',
-        '#__ars_content_wrap{display:none;}'
-      ].join('');
+      s.textContent = 'html,body{margin:0;padding:0;background:' + C.bg + ';}#__ars_gate{position:fixed;inset:0;z-index:2147483647;background:' + C.bg + ';}#__ars_wrap{display:none;}';
       (d.head || d.documentElement).appendChild(s);
     },
     stash: function () {
-      /* Move all original body children into a hidden wrapper */
-      var wrap = U.el('div', { id: '__ars_content_wrap' });
-      Array.from(d.body.children).forEach(function (c) {
-        if (c.id !== '__ars_gate') wrap.appendChild(c);
-      });
+      var wrap = U.el('div', { id: '__ars_wrap' });
+      Array.from(d.body.children).forEach(function (c) { if (c.id !== '__ars_gate') wrap.appendChild(c); });
       d.body.appendChild(wrap);
     },
     reveal: function () {
-      var wrap = d.getElementById('__ars_content_wrap');
+      var wrap = U.$('__ars_wrap');
       if (!wrap) return;
-      U.css(wrap, { display: 'block', opacity: '0', transition: 'opacity .55s ease' });
-      /* Lazy-load all images now that the user is verified */
-      Array.from(d.querySelectorAll('img:not([loading])')).forEach(function (img) { img.setAttribute('loading', 'lazy'); });
+      U.css(wrap, { display: 'block', opacity: '0', transition: 'opacity .5s ease' });
+      d.querySelectorAll('img:not([loading])').forEach(function (img) { img.setAttribute('loading', 'lazy'); });
       requestAnimationFrame(function () { requestAnimationFrame(function () { wrap.style.opacity = '1'; }); });
     }
   };
 
   /* ============================================================
-     SECTION 9 — SVG MATH CAPTCHA
+     SECTION 9 — MATH CAPTCHA
      ============================================================ */
 
-  var MATH_CAP = {
-    answer:    null,
-    attempts:  0,
-    startTime: 0,
-    maxAttempts: 5,
+  var MATH = {
+    ans: null, tries: 0, max: 5, t0: 0,
 
-    newChallenge: function () {
+    challenge: function () {
       var ops = [
-        function () { var a = U.rand(10,99), b = U.rand(10,99); return { q: a + ' + ' + b, a: a+b }; },
-        function () { var a = U.rand(20,99), b = U.rand(1,a-1); return { q: a + ' \u2212 ' + b, a: a-b }; },
-        function () { var a = U.rand(2,12),  b = U.rand(2,12);  return { q: a + ' \u00D7 ' + b, a: a*b }; }
+        function () { var a = U.rand(10,99), b = U.rand(10,99); return { q: a+' + '+b, a: a+b }; },
+        function () { var a = U.rand(20,99), b = U.rand(1,a-1); return { q: a+' \u2212 '+b, a: a-b }; },
+        function () { var a = U.rand(2,12),  b = U.rand(2,12);  return { q: a+' \u00D7 '+b, a: a*b }; }
       ];
       return ops[U.rand(0, 2)]();
     },
 
-    buildSVG: function (text) {
-      var W = 320, H = 88, svg = '';
-      svg += '<rect width="' + W + '" height="' + H + '" fill="' + C.surface + '" rx="10"/>';
-      for (var gx = 0; gx < W; gx += 24)
-        svg += '<line x1="' + gx + '" y1="0" x2="' + gx + '" y2="' + H + '" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>';
-      for (var gy = 0; gy < H; gy += 24)
-        svg += '<line x1="0" y1="' + gy + '" x2="' + W + '" y2="' + gy + '" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>';
-      for (var di = 0; di < 28; di++)
-        svg += '<circle cx="' + U.rand(0,W) + '" cy="' + U.rand(0,H) + '" r="' + (Math.random()*2+0.5).toFixed(1) + '" fill="rgba(' + [U.rand(80,200),U.rand(80,200),U.rand(80,200)].join(',') + ',0.4)"/>';
-      for (var nl = 0; nl < 5; nl++) {
-        var p = 'M' + U.rand(0,40) + ',' + U.rand(10,H-10);
-        for (var nx = 40; nx <= W; nx += 20) p += ' Q' + nx + ',' + U.rand(5,H-5) + ' ' + (nx+20) + ',' + U.rand(10,H-10);
-        svg += '<path d="' + p + '" stroke="rgba(' + [U.rand(80,180),U.rand(80,180),U.rand(180,255)].join(',') + ',0.18)" fill="none" stroke-width="1.2"/>';
+    svg: function (text) {
+      var W = 300, H = 80, out = '';
+      out += '<rect width="'+W+'" height="'+H+'" fill="'+C.card+'" rx="8"/>';
+      /* Grid */
+      for (var gx = 0; gx < W; gx += 20) out += '<line x1="'+gx+'" y1="0" x2="'+gx+'" y2="'+H+'" stroke="rgba(255,255,255,0.025)" stroke-width="1"/>';
+      for (var gy = 0; gy < H; gy += 20) out += '<line x1="0" y1="'+gy+'" x2="'+W+'" y2="'+gy+'" stroke="rgba(255,255,255,0.025)" stroke-width="1"/>';
+      /* Noise dots */
+      for (var di = 0; di < 22; di++) out += '<circle cx="'+U.rand(0,W)+'" cy="'+U.rand(0,H)+'" r="'+(Math.random()*2+0.4).toFixed(1)+'" fill="rgba('+[U.rand(80,200),U.rand(80,200),U.rand(80,200)].join(',')+',.35)"/>';
+      /* Noise waves */
+      for (var wi = 0; wi < 4; wi++) {
+        var p = 'M'+U.rand(0,30)+','+U.rand(8,H-8);
+        for (var nx = 30; nx <= W; nx += 18) p += ' Q'+nx+','+U.rand(4,H-4)+' '+(nx+18)+','+U.rand(8,H-8);
+        out += '<path d="'+p+'" stroke="rgba('+[U.rand(60,160),U.rand(60,160),U.rand(160,240)].join(',')+',.15)" fill="none" stroke-width="1.1"/>';
       }
-      var chars = text.split(''), cx = 28;
-      chars.forEach(function (ch) {
-        var rot = U.rand(-18, 18), cy = U.rand(42, 58), sz = U.rand(22, 32);
-        var r = U.rand(140,255), g = U.rand(140,255), b = U.rand(140,255);
-        svg += '<text x="' + (cx+2) + '" y="' + (cy+2) + '" transform="rotate(' + rot + ',' + (cx+2) + ',' + (cy+2) + ')" font-size="' + sz + '" font-family="monospace" font-weight="900" fill="rgba(0,0,0,0.5)">' + ch + '</text>';
-        svg += '<text x="' + cx + '" y="' + cy + '" transform="rotate(' + rot + ',' + cx + ',' + cy + ')" font-size="' + sz + '" font-family="monospace" font-weight="900" fill="rgb(' + r + ',' + g + ',' + b + ')">' + ch + '</text>';
-        cx += U.rand(26, 36);
+      /* Distorted chars */
+      var cx = 22;
+      text.split('').forEach(function (ch) {
+        var rot = U.rand(-16,16), cy = U.rand(40,54), sz = U.rand(20,30);
+        var r = U.rand(150,255), g = U.rand(150,255), b = U.rand(150,255);
+        out += '<text x="'+(cx+1)+'" y="'+(cy+1)+'" transform="rotate('+rot+','+(cx+1)+','+(cy+1)+')" font-size="'+sz+'" font-family="monospace" font-weight="900" fill="rgba(0,0,0,.45)">'+ch+'</text>';
+        out += '<text x="'+cx+'" y="'+cy+'" transform="rotate('+rot+','+cx+','+cy+')" font-size="'+sz+'" font-family="monospace" font-weight="900" fill="rgb('+r+','+g+','+b+')">'+ch+'</text>';
+        cx += U.rand(24,34);
       });
-      return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '">' + svg + '</svg>';
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" role="img" aria-label="Captcha equation">'+out+'</svg>';
     },
 
     build: function () {
-      var ch = MATH_CAP.newChallenge();
-      MATH_CAP.answer = ch.a;
-      MATH_CAP.startTime = Date.now();
+      var ch = MATH.challenge();
+      MATH.ans = ch.a; MATH.t0 = Date.now();
       var wrap = U.el('div', {}, { textAlign: 'center' });
       wrap.innerHTML = [
-        '<div style="font-size:12px;color:' + C.muted + ';margin-bottom:10px;letter-spacing:.06em;text-transform:uppercase;">Solve to verify</div>',
-        '<div id="__ars_mc_svg" style="border-radius:10px;overflow:hidden;border:1px solid ' + C.border + ';margin-bottom:14px;display:inline-block;">' + MATH_CAP.buildSVG(ch.q + '  =  ?') + '</div>',
-        '<input id="__ars_mc_in" type="number" placeholder="Enter answer" autocomplete="off" style="width:100%;padding:13px 16px;border-radius:10px;border:1px solid ' + C.border + ';background:' + C.surfaceB + ';color:' + C.text + ';font-size:17px;outline:none;box-sizing:border-box;text-align:center;letter-spacing:.1em;">',
-        '<div id="__ars_mc_err" style="color:' + C.danger + ';font-size:13px;min-height:18px;margin-top:8px;"></div>'
+        '<p style="font-size:11px;color:'+C.muted+';letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px">Solve the equation</p>',
+        '<div id="__ars_msvg" style="display:inline-block;border-radius:8px;overflow:hidden;border:1px solid '+C.border+';margin-bottom:12px;">'+MATH.svg(ch.q+'  =  ?')+'</div>',
+        '<input id="__ars_min" type="number" inputmode="numeric" placeholder="Your answer" autocomplete="off" aria-label="Captcha answer"',
+        '  style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid '+C.border+';background:'+C.cardB+';color:'+C.tx+';font-size:16px;outline:none;box-sizing:border-box;text-align:center;-moz-appearance:textfield;">',
+        '<div id="__ars_merr" role="alert" aria-live="polite" style="color:'+C.err+';font-size:12px;min-height:16px;margin-top:7px;"></div>'
       ].join('');
       return wrap;
     },
 
-    refresh: function (wrap) {
-      var ch = MATH_CAP.newChallenge();
-      MATH_CAP.answer = ch.a;
-      MATH_CAP.startTime = Date.now();
-      var svgBox = d.getElementById('__ars_mc_svg');
-      if (svgBox) svgBox.innerHTML = MATH_CAP.buildSVG(ch.q + '  =  ?');
-      var inp = d.getElementById('__ars_mc_in');
-      if (inp) inp.value = '';
+    refresh: function () {
+      var ch = MATH.challenge();
+      MATH.ans = ch.a; MATH.t0 = Date.now();
+      var box = U.$('__ars_msvg'), inp = U.$('__ars_min');
+      if (box) box.innerHTML = MATH.svg(ch.q + '  =  ?');
+      if (inp) { inp.value = ''; inp.focus(); }
     },
 
     check: function (val) {
-      S.total_captcha_attempts++;
-      var t = Date.now() - MATH_CAP.startTime;
-      if (parseInt(val, 10) === MATH_CAP.answer) {
-        S.captcha_time_ms = t;
-        if (t < 600) U.flag(25); else { S.captcha_solved = true; S.total_captcha_passes++; U.signal(15); }
+      S.acc.cap_tries++;
+      var ms = Date.now() - MATH.t0;
+      if (parseInt(val, 10) === MATH.ans) {
+        S.cap_ms = ms;
+        if (ms < 600) U.flag(25); else { S.cap_solved = true; S.acc.cap_passes++; U.ok(15); }
         return true;
       }
-      MATH_CAP.attempts++;
+      MATH.tries++;
       return false;
     }
   };
 
   /* ============================================================
-     SECTION 10 — GESTURE / SLIDER CAPTCHA
+     SECTION 10 — SLIDER CAPTCHA
      ============================================================ */
 
-  var GESTURE_CAP = {
+  var SLIDER = {
     build: function (onPass) {
+      var target = U.rand(62, 78);
       var wrap = U.el('div', {}, { textAlign: 'center' });
-      var target = U.rand(65, 80); /* target zone % */
-
       wrap.innerHTML = [
-        '<div style="font-size:12px;color:' + C.muted + ';margin-bottom:14px;letter-spacing:.06em;text-transform:uppercase;">Drag the slider into the zone</div>',
-        '<div style="position:relative;height:54px;background:' + C.surfaceB + ';border-radius:27px;border:1px solid ' + C.border + ';overflow:hidden;touch-action:none;user-select:none;" id="__ars_sl_track">',
-          '<div id="__ars_sl_fill" style="position:absolute;inset:0;right:auto;width:0%;background:linear-gradient(90deg,' + C.accent + '88,' + C.accent + ');pointer-events:none;"></div>',
-          /* Target zone highlight */
-          '<div id="__ars_sl_zone" style="position:absolute;top:0;bottom:0;left:' + (target-8) + '%;width:16%;background:rgba(124,58,237,0.13);border-left:1.5px dashed ' + C.accent + '55;border-right:1.5px dashed ' + C.accent + '55;pointer-events:none;"></div>',
-          '<div id="__ars_sl_thumb" style="position:absolute;top:5px;bottom:5px;left:4px;width:44px;background:' + C.accent + ';border-radius:22px;box-shadow:0 0 20px ' + C.accentGlow + ';cursor:grab;display:flex;align-items:center;justify-content:center;touch-action:none;">',
-            '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M6 4l5 5-5 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 4l-5 5 5 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/></svg>',
+        '<p style="font-size:11px;color:'+C.muted+';letter-spacing:.08em;text-transform:uppercase;margin:0 0 12px">Drag into the zone</p>',
+        '<div id="__ars_trk" role="slider" aria-label="Drag slider to verify" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"',
+        '  style="position:relative;height:52px;background:'+C.cardB+';border-radius:26px;border:1px solid '+C.border+';overflow:hidden;touch-action:none;user-select:none;cursor:ew-resize;">',
+          '<div id="__ars_fill" style="position:absolute;inset:0;right:auto;width:0%;background:linear-gradient(90deg,'+C.accent+'88,'+C.accent+');pointer-events:none;"></div>',
+          '<div id="__ars_zone" style="position:absolute;top:0;bottom:0;left:'+(target-8)+'%;width:16%;background:rgba(124,58,237,.12);border-left:1.5px dashed '+C.accent+'55;border-right:1.5px dashed '+C.accent+'55;pointer-events:none;" aria-hidden="true"></div>',
+          '<div id="__ars_thumb" style="position:absolute;top:5px;bottom:5px;left:4px;width:42px;background:'+C.accent+';border-radius:21px;box-shadow:0 0 18px '+C.glow+';cursor:grab;display:flex;align-items:center;justify-content:center;transition:background .2s;" aria-hidden="true">',
+            '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">',
+              '<path d="M5 3l4 5-4 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+              '<path d="M11 3l-4 5 4 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>',
+            '</svg>',
           '</div>',
-          '<div id="__ars_sl_lbl" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:' + C.muted + ';pointer-events:none;font-weight:600;padding-left:56px;">\u2192 Slide into the purple zone</div>',
+          '<div id="__ars_slbl" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:'+C.muted+';pointer-events:none;font-weight:500;padding-left:54px;">\u2192 Slide to the dashed zone</div>',
         '</div>',
-        '<div id="__ars_sl_msg" style="font-size:13px;min-height:20px;margin-top:10px;color:' + C.muted + ';"></div>'
+        '<div id="__ars_smsg" role="alert" aria-live="polite" style="font-size:12px;min-height:18px;margin-top:8px;color:'+C.muted+';"></div>'
       ].join('');
 
       var done = false;
+
       var setup = function () {
-        var track = d.getElementById('__ars_sl_track');
-        var thumb = d.getElementById('__ars_sl_thumb');
-        var fill  = d.getElementById('__ars_sl_fill');
-        var lbl   = d.getElementById('__ars_sl_lbl');
-        var msg   = d.getElementById('__ars_sl_msg');
-        if (!track || !thumb) return;
+        var trk   = U.$('__ars_trk'),   thumb = U.$('__ars_thumb');
+        var fill  = U.$('__ars_fill'),   lbl   = U.$('__ars_slbl');
+        var msg   = U.$('__ars_smsg');
+        if (!trk || !thumb) return;
 
-        var dragging = false, startX = 0, startLeft = 0;
-
-        var getClientX = function (e) { return e.touches ? e.touches[0].clientX : e.clientX; };
-        var getPct = function () {
-          var maxL = track.offsetWidth - thumb.offsetWidth - 4;
-          return maxL > 0 ? ((thumb.offsetLeft - 4) / maxL) * 100 : 0;
+        var dragging = false, sx = 0, sl = 0;
+        var cx = function (e) { return e.touches ? e.touches[0].clientX : e.clientX; };
+        var pct = function () {
+          var max = trk.offsetWidth - thumb.offsetWidth - 4;
+          return max > 0 ? (thumb.offsetLeft - 4) / max * 100 : 0;
+        };
+        var reset = function () {
+          setTimeout(function () {
+            thumb.style.transition = 'left .3s';
+            fill.style.transition  = 'width .3s';
+            thumb.style.left = '4px'; fill.style.width = '0%';
+            lbl.style.opacity = '1';
+            trk.setAttribute('aria-valuenow', '0');
+            setTimeout(function () { thumb.style.transition = ''; fill.style.transition = ''; }, 320);
+          }, 500);
         };
 
         var onStart = function (e) {
           if (done) return;
-          dragging = true; startX = getClientX(e); startLeft = thumb.offsetLeft;
-          thumb.style.cursor = 'grabbing'; U.signal(3);
+          dragging = true; sx = cx(e); sl = thumb.offsetLeft;
+          thumb.style.cursor = 'grabbing'; U.ok(3);
           e.preventDefault();
         };
         var onMove = function (e) {
           if (!dragging || done) return;
-          var dx = getClientX(e) - startX;
-          var maxL = track.offsetWidth - thumb.offsetWidth - 4;
-          var newL = Math.max(4, Math.min(startLeft + dx, maxL));
-          thumb.style.left = newL + 'px';
-          fill.style.width  = ((newL - 4) / Math.max(1, maxL - 4) * 100) + '%';
-          if (getPct() > 20) lbl.style.opacity = '0';
+          var max = trk.offsetWidth - thumb.offsetWidth - 4;
+          var nl  = Math.max(4, Math.min(sl + cx(e) - sx, max));
+          thumb.style.left = nl + 'px';
+          fill.style.width = ((nl - 4) / Math.max(1, max - 4) * 100) + '%';
+          trk.setAttribute('aria-valuenow', Math.round(pct()));
+          if (pct() > 18) lbl.style.opacity = '0';
           msg.textContent = '';
           e.preventDefault();
         };
         var onEnd = function () {
           if (!dragging || done) return;
-          dragging = false;
-          thumb.style.cursor = 'grab';
-          var pct = getPct();
-          if (pct >= target - 8 && pct <= target + 8) {
+          dragging = false; thumb.style.cursor = 'grab';
+          var p = pct();
+          trk.setAttribute('aria-valuenow', Math.round(p));
+          if (p >= target - 8 && p <= target + 8) {
             done = true;
-            fill.style.background   = C.success;
-            thumb.style.background  = C.success;
-            thumb.style.boxShadow   = '0 0 20px rgba(16,185,129,0.5)';
-            thumb.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-            lbl.textContent = '\u2713 Verified!'; lbl.style.color = C.success; lbl.style.opacity = '1'; lbl.style.paddingLeft = '0';
-            U.signal(15);
-            setTimeout(function () { onPass(); }, 650);
+            thumb.style.background = C.ok; thumb.style.boxShadow = '0 0 18px rgba(16,185,129,.5)';
+            thumb.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4 9l4 4.5L14 5.5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            fill.style.background = C.ok;
+            lbl.textContent = '\u2713 Verified'; lbl.style.color = C.ok; lbl.style.opacity = '1'; lbl.style.paddingLeft = '0';
+            U.ok(15);
+            setTimeout(onPass, 600);
           } else {
-            msg.textContent = 'Not quite — aim for the dashed zone';
-            msg.style.color = C.warn;
-            setTimeout(function () {
-              thumb.style.transition = 'left .3s ease';
-              fill.style.transition  = 'width .3s ease';
-              thumb.style.left = '4px'; fill.style.width = '0%';
-              lbl.style.opacity = '1';
-              setTimeout(function () { thumb.style.transition = ''; fill.style.transition = ''; }, 320);
-            }, 500);
+            msg.textContent = 'Aim for the dashed zone \u2014 try again'; msg.style.color = C.warn;
+            reset();
           }
         };
 
         thumb.addEventListener('mousedown',  onStart, { passive: false });
         thumb.addEventListener('touchstart', onStart, { passive: false });
-        d.addEventListener('mousemove',  onMove, { passive: false });
-        d.addEventListener('touchmove',  onMove, { passive: false });
+        d.addEventListener('mousemove',  onMove,  { passive: false });
+        d.addEventListener('touchmove',  onMove,  { passive: false });
         d.addEventListener('mouseup',  onEnd);
         d.addEventListener('touchend', onEnd);
+
+        /* Keyboard fallback for accessibility */
+        trk.addEventListener('keydown', function (e) {
+          if (done) return;
+          var max = trk.offsetWidth - thumb.offsetWidth - 4;
+          var cur = thumb.offsetLeft;
+          var step = max / 20;
+          if (e.key === 'ArrowRight') { thumb.style.left = Math.min(cur + step, max) + 'px'; }
+          if (e.key === 'ArrowLeft')  { thumb.style.left = Math.max(cur - step, 4) + 'px'; }
+          fill.style.width = ((thumb.offsetLeft - 4) / Math.max(1, max - 4) * 100) + '%';
+          if (e.key === 'Enter' || e.key === ' ') onEnd();
+        });
       };
 
-      setTimeout(setup, 80);
+      setTimeout(setup, 60);
       return wrap;
     }
   };
 
   /* ============================================================
-     SECTION 11 — FULLSCREEN GATE UI (Cloudflare-style)
+     SECTION 11 — DATA COLLECTION SCREEN (between captchas)
+     Shows device info being collected; auto-advances after 2s.
+     ============================================================ */
+
+  var DATA_SCREEN = {
+    build: function (onDone) {
+      var wrap = U.el('div', { role: 'status', 'aria-live': 'polite' }, { textAlign: 'center' });
+
+      var items = [
+        { icon: '&#128241;', label: 'Device: ' + S.device.type + ' &mdash; ' + S.device.os },
+        { icon: '&#127760;', label: 'Browser: ' + S.device.browser },
+        { icon: '&#128205;', label: 'Timezone: ' + (S.device.tz || 'unknown') },
+        { icon: '&#128268;', label: 'Network: ' + (S.device.net_type || 'unknown') + (S.device.net_mbps ? ' &mdash; ' + S.device.net_mbps + ' Mbps' : '') },
+        { icon: '&#128202;', label: 'Fingerprint: ' + (S.fp.combined || '').slice(0, 8) + '\u2026' }
+      ];
+
+      wrap.innerHTML = [
+        '<div style="font-size:11px;color:'+C.muted+';letter-spacing:.08em;text-transform:uppercase;margin-bottom:18px;">Collecting session data</div>',
+        '<div id="__ars_dlist" style="display:flex;flex-direction:column;gap:10px;text-align:left;max-width:300px;margin:0 auto 20px;"></div>',
+        '<div style="background:'+C.border+';border-radius:4px;height:3px;overflow:hidden;max-width:300px;margin:0 auto;">',
+          '<div id="__ars_dprog" style="height:3px;width:0%;background:linear-gradient(90deg,'+C.accent+','+C.aLt+');border-radius:4px;transition:width 1.8s linear;"></div>',
+        '</div>'
+      ].join('');
+
+      /* Animate items in */
+      var list = U.$('__ars_dlist'), idx = 0;
+      var tick = function () {
+        if (!list || idx >= items.length) return;
+        var it = items[idx];
+        var row = U.el('div', {}, {
+          display: 'flex', alignItems: 'center', gap: '10px',
+          fontSize: '13px', color: C.mutedLt,
+          opacity: '0', transform: 'translateY(6px)',
+          transition: 'opacity .3s ease, transform .3s ease'
+        });
+        row.innerHTML = '<span aria-hidden="true" style="font-size:15px;width:22px;text-align:center;">'+it.icon+'</span><span>'+it.label+'</span>';
+        list.appendChild(row);
+        requestAnimationFrame(function () { requestAnimationFrame(function () { row.style.opacity = '1'; row.style.transform = 'none'; }); });
+        idx++;
+        if (idx < items.length) setTimeout(tick, 320);
+      };
+      setTimeout(tick, 150);
+
+      /* Progress bar to 100% then call onDone */
+      setTimeout(function () {
+        var bar = U.$('__ars_dprog');
+        if (bar) bar.style.width = '100%';
+      }, 80);
+      setTimeout(onDone, 2200);
+
+      return wrap;
+    }
+  };
+
+  /* ============================================================
+     SECTION 12 — FULLSCREEN GATE UI
      ============================================================ */
 
   var GATE = {
-    el:   null,
-    step: 0,
+    el: null, step: 0,
 
-    shieldSVG: function (sz) {
-      return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 2L4 7V16C4 22.627 9.373 28 16 30C22.627 28 28 22.627 28 16V7L16 2Z" fill="' + C.accent + '" opacity="0.2" stroke="' + C.accent + '" stroke-width="1.5"/><path d="M11 16l3.5 3.5L21 12" stroke="' + C.accentLt + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    /* ── Shared SVG components ── */
+    shield: function (sz) {
+      sz = sz || 28;
+      return '<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 2L4 7V16C4 22.627 9.373 28 16 30C22.627 28 28 22.627 28 16V7L16 2Z" fill="'+C.accent+'" opacity=".18" stroke="'+C.accent+'" stroke-width="1.5"/><path d="M11 16l3.5 3.5L21 12" stroke="'+C.aLt+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     },
 
+    bar: function (pct) {
+      return '<div style="margin-top:20px;background:'+C.border+';border-radius:4px;height:3px;overflow:hidden;" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100" aria-label="Step progress"><div style="height:3px;width:'+pct+'%;background:linear-gradient(90deg,'+C.accent+','+C.aLt+');border-radius:4px;"></div></div>';
+    },
+
+    head: function (step, label) {
+      return [
+        '<div style="display:flex;align-items:center;gap:11px;margin-bottom:3px;">',
+          GATE.shield(26),
+          '<div>',
+            '<div style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:'+C.tx+';">Verify you\'re human</div>',
+            '<div style="font-size:12px;color:'+C.muted+';margin-top:2px;">Step '+step+' of 3 \u2014 '+label+'</div>',
+          '</div>',
+        '</div>',
+        '<div style="height:1px;background:'+C.border+';margin:16px 0 18px;" role="separator"></div>'
+      ].join('');
+    },
+
+    /* ── Build gate shell ── */
     build: function () {
-      /* Keyframe animations */
-      if (!d.getElementById('__ars_kf')) {
-        var kf = U.el('style', { id: '__ars_kf', html: [
-          '@keyframes __ars_spin{to{transform:rotate(360deg)}}',
-          '@keyframes __ars_pulse{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}',
-          '@keyframes __ars_fadein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}',
-          '@keyframes __ars_shimmer{0%{background-position:-200% center}100%{background-position:200% center}}'
-        ].join('') });
+      /* Inject animations */
+      if (!U.$('__ars_kf')) {
+        var kf = U.el('style', { id: '__ars_kf', html:
+          '@keyframes _spin{to{transform:rotate(360deg)}}' +
+          '@keyframes _pulse{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}' +
+          '@keyframes _in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}'
+        });
         d.head.appendChild(kf);
       }
 
-      var gate = U.el('div', { id: '__ars_gate' });
+      var gate = U.el('div', {
+        id: '__ars_gate',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': 'Security verification'
+      });
       U.css(gate, {
         position: 'fixed', inset: '0', zIndex: '2147483647',
         background: C.bg, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        fontFamily: "system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-        color: C.text, padding: '20px', boxSizing: 'border-box'
+        fontFamily: "system-ui,-apple-system,'Segoe UI',sans-serif",
+        color: C.tx, padding: '16px', boxSizing: 'border-box'
       });
 
       gate.innerHTML = [
-        /* Top accent stripe */
-        '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,' + C.accent + ' 0%,' + C.accentLt + ' 50%,transparent 100%);"></div>',
+        /* Top stripe */
+        '<div aria-hidden="true" style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,'+C.accent+','+C.aLt+',transparent);"></div>',
 
-        /* Top-left branding */
-        '<div style="position:absolute;top:20px;left:24px;display:flex;align-items:center;gap:10px;">',
-          GATE.shieldSVG(28),
-          '<span style="font-size:15px;font-weight:800;letter-spacing:-.01em;">ArShield</span>',
-          '<span style="font-size:11px;color:' + C.muted + ';padding:2px 8px;border:1px solid ' + C.border + ';border-radius:20px;">Security Check</span>',
+        /* Brand — top left */
+        '<div style="position:absolute;top:18px;left:20px;display:flex;align-items:center;gap:8px;" aria-label="ArShield Security">',
+          GATE.shield(24),
+          '<span style="font-size:14px;font-weight:800;letter-spacing:-.01em;">ArShield</span>',
         '</div>',
 
-        /* Top-right domain pill */
-        '<div style="position:absolute;top:22px;right:24px;font-size:12px;color:' + C.muted + ';background:' + C.surface + ';border:1px solid ' + C.border + ';padding:4px 14px;border-radius:20px;">' + w.location.hostname + '</div>',
+        /* Domain — top right */
+        '<div style="position:absolute;top:20px;right:20px;font-size:11px;color:'+C.muted+';background:'+C.card+';border:1px solid '+C.border+';padding:3px 12px;border-radius:20px;" aria-label="Protected domain">'+w.location.hostname+'</div>',
 
-        /* Main card */
-        '<div id="__ars_card" style="width:100%;max-width:480px;background:' + C.surface + ';border:1px solid ' + C.border + ';border-radius:24px;padding:36px 36px 32px;box-shadow:0 0 100px rgba(124,58,237,0.12),0 2px 40px rgba(0,0,0,0.6);">',
-          '<div id="__ars_card_inner"></div>',
-        '</div>',
+        /* Card */
+        '<main id="__ars_card" style="width:100%;max-width:460px;background:'+C.card+';border:1px solid '+C.border+';border-radius:20px;padding:32px;box-shadow:0 0 80px rgba(124,58,237,.1),0 2px 30px rgba(0,0,0,.5);overflow-y:auto;max-height:calc(100vh - 120px);">',
+          '<div id="__ars_inner"></div>',
+        '</main>',
 
-        /* Visit counter (if returning user) */
-        (PREV.visit_count > 0 ? '<div style="margin-top:18px;font-size:12px;color:' + C.muted + ';">Visit #' + S.visit_count + ' &nbsp;&middot;&nbsp; ' + Math.round((PREV.total_time_ms || 0)/60000) + ' min total on site</div>' : ''),
+        /* Return visit note */
+        (PREV.visits > 0
+          ? '<p style="margin-top:14px;font-size:11px;color:'+C.muted+';text-align:center;" aria-label="Return visit">Visit #'+S.visits+' \u00B7 '+Math.round((PREV.acc && PREV.acc.time_ms || 0)/60000)+' min on site</p>'
+          : ''),
 
         /* Footer */
-        '<div style="position:absolute;bottom:18px;font-size:11px;color:' + C.muted + ';text-align:center;">',
-          'Protected by <strong style="color:' + C.accentLt + ';">ArShield</strong> &nbsp;&middot;&nbsp; Standalone &middot; No external services &middot; v2.0',
-        '</div>'
+        '<footer style="position:absolute;bottom:14px;font-size:10px;color:'+C.muted+';text-align:center;" aria-label="Footer">',
+          'Protected by <strong style="color:'+C.aLt+';">ArShield v3</strong> \u00B7 No external services',
+        '</footer>'
       ].join('');
 
       d.body.appendChild(gate);
@@ -659,173 +767,149 @@
       GATE.showChecking();
     },
 
-    inner: function () { return d.getElementById('__ars_card_inner'); },
+    inner: function () { return U.$('__ars_inner'); },
+    set:   function (html) { var el = GATE.inner(); if (el) el.innerHTML = html; },
 
-    setInner: function (html) {
-      var el = GATE.inner();
-      if (el) el.innerHTML = html;
-    },
-
-    /* ---- Step 0: Animated checking ---- */
+    /* ── Step 0: Checking ── */
     showChecking: function () {
       GATE.step = 0;
-      var isReturn = PREV.visit_count > 0;
-      GATE.setInner([
-        '<div style="text-align:center;padding:8px 0 20px;">',
-          '<div style="position:relative;width:88px;height:88px;margin:0 auto 24px;">',
-            '<div style="position:absolute;inset:0;border-radius:50%;border:2.5px solid ' + C.border + ';border-top-color:' + C.accent + ';animation:__ars_spin 1s linear infinite;"></div>',
-            '<div style="position:absolute;inset:0;border-radius:50%;border:2.5px solid transparent;border-bottom-color:' + C.accentLt + '55;animation:__ars_spin 1.6s linear reverse infinite;"></div>',
-            '<div style="position:absolute;inset:16px;display:flex;align-items:center;justify-content:center;">' + GATE.shieldSVG(44) + '</div>',
+      var returning = PREV.visits > 0;
+      GATE.set([
+        '<div style="text-align:center;padding:8px 0 16px;">',
+          /* Dual-ring spinner */
+          '<div style="position:relative;width:80px;height:80px;margin:0 auto 22px;" aria-busy="true" role="status" aria-label="Checking browser">',
+            '<div aria-hidden="true" style="position:absolute;inset:0;border-radius:50%;border:2.5px solid '+C.border+';border-top-color:'+C.accent+';animation:_spin 1s linear infinite;"></div>',
+            '<div aria-hidden="true" style="position:absolute;inset:0;border-radius:50%;border:2.5px solid transparent;border-bottom-color:'+C.aLt+'44;animation:_spin 1.7s linear reverse infinite;"></div>',
+            '<div style="position:absolute;inset:14px;display:flex;align-items:center;justify-content:center;">'+GATE.shield(40)+'</div>',
           '</div>',
-          '<div style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;">Checking your browser</div>',
-          '<div style="font-size:14px;color:' + C.muted + ';line-height:1.7;max-width:340px;margin:0 auto;">',
-            isReturn
-              ? 'Welcome back! Reverifying your session &mdash; this takes just a moment.'
-              : 'This page is protected by ArShield. Running security checks&hellip;',
+          '<h1 style="font-size:22px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px;">Checking your browser</h1>',
+          '<p style="font-size:14px;color:'+C.muted+';line-height:1.65;margin:0;">',
+            returning ? 'Welcome back \u2014 reverifying your session\u2026' : 'This page is protected. Running security checks\u2026',
+          '</p>',
+          /* Dots */
+          '<div aria-hidden="true" style="display:flex;justify-content:center;gap:6px;margin-top:20px;">',
+            [0,1,2].map(function(i){return '<div style="width:7px;height:7px;border-radius:50%;background:'+C.accent+';animation:_pulse 1.4s ease '+(i*.18)+'s infinite;"></div>';}).join(''),
           '</div>',
-          '<div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:22px;">',
-            [0,1,2].map(function(i){ return '<div style="width:8px;height:8px;border-radius:50%;background:' + C.accent + ';animation:__ars_pulse 1.4s ease ' + (i*0.18) + 's infinite;"></div>'; }).join(''),
-          '</div>',
-          '<div id="__ars_checklist" style="margin-top:28px;text-align:left;display:flex;flex-direction:column;gap:9px;max-width:290px;margin-left:auto;margin-right:auto;"></div>',
+          '<ul id="__ars_cl" aria-label="Security checks" style="list-style:none;margin:22px auto 0;padding:0;max-width:270px;display:flex;flex-direction:column;gap:8px;"></ul>',
         '</div>'
       ].join(''));
 
-      var items = [
-        'Analysing browser fingerprint',
-        'Running bot detection suite',
-        'Verifying network integrity',
-        'Checking WebGL & Canvas APIs',
-        'Evaluating behavioural entropy'
-      ];
-      var list = d.getElementById('__ars_checklist'), i = 0;
-
+      var checks = ['Analysing browser fingerprint','Running bot detection suite','Verifying WebGL & Canvas APIs','Evaluating timing entropy','Checking network integrity'];
+      var list = U.$('__ars_cl'), i = 0;
       var tick = function () {
-        if (!list || i >= items.length) return;
-        var row = U.el('div', {}, {
-          display: 'flex', alignItems: 'center', gap: '10px',
-          fontSize: '13px', color: C.mutedLt,
-          animation: '__ars_fadein .35s ease both'
+        if (!list || i >= checks.length) return;
+        var li = U.el('li', {}, {
+          display: 'flex', alignItems: 'center', gap: '9px',
+          fontSize: '13px', color: C.mutedLt, animation: '_in .3s ease both'
         });
-        row.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="' + C.accent + '" stroke-width="1.2"/><path d="M5 8l2.5 2.5L11 6" stroke="' + C.accent + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>' + items[i] + '</span>';
-        list.appendChild(row);
+        li.innerHTML = '<svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="7.5" r="6.5" stroke="'+C.accent+'" stroke-width="1.1"/><path d="M4.5 7.5l2.5 2.5L10.5 5.5" stroke="'+C.accent+'" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>'+checks[i]+'</span>';
+        list.appendChild(li);
         i++;
-        if (i < items.length) setTimeout(tick, U.rand(260, 440));
-        else setTimeout(GATE.showMathCaptcha, 550);
+        if (i < checks.length) setTimeout(tick, U.rand(250, 420));
+        else setTimeout(GATE.showMath, 500);
       };
-      setTimeout(tick, 350);
+      setTimeout(tick, 320);
     },
 
-    progressBar: function (pct) {
-      return '<div style="margin-top:22px;background:' + C.border + ';border-radius:4px;height:4px;overflow:hidden;"><div style="height:4px;width:' + pct + '%;border-radius:4px;background:linear-gradient(90deg,' + C.accent + ',' + C.accentLt + ');"></div></div>';
-    },
-
-    captchaHeader: function (step, label) {
-      return [
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">',
-          GATE.shieldSVG(28),
-          '<div>',
-            '<div style="font-size:21px;font-weight:800;letter-spacing:-.02em;">Verify you\'re human</div>',
-            '<div style="font-size:13px;color:' + C.muted + ';margin-top:3px;">Step ' + step + ' of 2 &mdash; ' + label + '</div>',
-          '</div>',
-        '</div>',
-        '<div style="height:1px;background:' + C.border + ';margin:18px 0 20px;"></div>'
-      ].join('');
-    },
-
-    /* ---- Step 1: Math CAPTCHA ---- */
-    showMathCaptcha: function () {
+    /* ── Step 1: Math CAPTCHA ── */
+    showMath: function () {
       GATE.step = 1;
       var el = GATE.inner(); if (!el) return;
       el.innerHTML = '';
-      el.insertAdjacentHTML('beforeend', GATE.captchaHeader(1, 'Solve the equation'));
+      el.insertAdjacentHTML('beforeend', GATE.head(1, 'Solve the equation'));
 
-      var widget = MATH_CAP.build();
+      var widget = MATH.build();
       el.appendChild(widget);
 
-      var btn = U.el('button', { html: 'Verify &rarr;' }, {
-        width: '100%', padding: '14px', marginTop: '16px',
-        borderRadius: '12px', border: 'none',
-        background: 'linear-gradient(135deg,' + C.accent + ',' + C.accentLt + ')',
+      /* Verify button */
+      var btn = U.el('button', { html: 'Verify &rarr;', 'aria-label': 'Submit captcha answer' }, {
+        width: '100%', padding: '13px', marginTop: '14px',
+        borderRadius: '10px', border: 'none',
+        background: 'linear-gradient(135deg,'+C.accent+','+C.aLt+')',
         color: '#fff', fontSize: '15px', fontWeight: '700',
         cursor: 'pointer', letterSpacing: '.02em',
-        boxShadow: '0 4px 24px ' + C.accentGlow, transition: 'opacity .2s'
+        boxShadow: '0 4px 20px '+C.glow
       });
 
       btn.addEventListener('click', function () {
-        var inp = d.getElementById('__ars_mc_in');
-        var err = d.getElementById('__ars_mc_err');
-        if (!inp) return;
-        var val = inp.value.trim();
-        if (!val) { if (err) err.textContent = 'Please enter a number.'; return; }
-
-        if (MATH_CAP.check(val)) {
-          btn.innerHTML = '\u2713 Correct!'; btn.style.background = C.success; btn.disabled = true;
-          setTimeout(GATE.showGestureCaptcha, 700);
+        var inp = U.$('__ars_min'), err = U.$('__ars_merr');
+        var val = inp ? inp.value.trim() : '';
+        if (!val) { if (err) err.textContent = 'Please enter your answer.'; return; }
+        if (MATH.check(val)) {
+          btn.textContent = '\u2713 Correct!'; btn.style.background = C.ok; btn.disabled = true;
+          setTimeout(GATE.showData, 650);
         } else {
-          if (err) err.textContent = 'Wrong answer. Try again.' + (MATH_CAP.attempts > 1 ? ' (' + MATH_CAP.attempts + ' attempts)' : '');
-          MATH_CAP.refresh(widget);
-          if (MATH_CAP.attempts >= MATH_CAP.maxAttempts) { U.flag(40); GATE.showBlocked(); }
+          if (err) err.textContent = 'Wrong answer \u2014 try again' + (MATH.tries > 1 ? ' (' + MATH.tries + ' tries)' : '') + '.';
+          MATH.refresh();
+          if (MATH.tries >= MATH.max) { U.flag(40); GATE.showBlocked(); }
         }
       });
 
-      /* Enter key support */
+      /* Enter key */
       var kh = function (e) { if (e.key === 'Enter' && GATE.step === 1) { btn.click(); d.removeEventListener('keydown', kh); } };
       d.addEventListener('keydown', kh);
 
       el.appendChild(btn);
-      el.insertAdjacentHTML('beforeend', GATE.progressBar(50));
+      el.insertAdjacentHTML('beforeend', GATE.bar(33));
 
-      var inp = d.getElementById('__ars_mc_in');
-      if (inp) setTimeout(function () { inp.focus(); }, 80);
+      var inp = U.$('__ars_min');
+      if (inp) setTimeout(function () { inp.focus(); }, 60);
     },
 
-    /* ---- Step 2: Gesture CAPTCHA ---- */
-    showGestureCaptcha: function () {
+    /* ── Step 2: Data collection screen ── */
+    showData: function () {
       GATE.step = 2;
       var el = GATE.inner(); if (!el) return;
       el.innerHTML = '';
-      el.insertAdjacentHTML('beforeend', GATE.captchaHeader(2, 'Interactive gesture check'));
-      el.appendChild(GESTURE_CAP.build(function () { GATE.showSuccess(); }));
-      el.insertAdjacentHTML('beforeend', GATE.progressBar(100));
+      el.insertAdjacentHTML('beforeend', GATE.head(2, 'Collecting session data'));
+      el.appendChild(DATA_SCREEN.build(GATE.showSlider));
+      el.insertAdjacentHTML('beforeend', GATE.bar(66));
     },
 
-    /* ---- Step 3: Success ---- */
-    showSuccess: function () {
+    /* ── Step 3: Slider CAPTCHA ── */
+    showSlider: function () {
       GATE.step = 3;
-      S.captcha_solved = true;
+      var el = GATE.inner(); if (!el) return;
+      el.innerHTML = '';
+      el.insertAdjacentHTML('beforeend', GATE.head(3, 'Interactive gesture check'));
+      el.appendChild(SLIDER.build(GATE.showSuccess));
+      el.insertAdjacentHTML('beforeend', GATE.bar(100));
+    },
+
+    /* ── Success ── */
+    showSuccess: function () {
+      GATE.step = 4; S.cap_solved = true;
       var el = GATE.inner(); if (!el) return;
       el.innerHTML = [
-        '<div style="text-align:center;padding:12px 0 6px;">',
-          '<div style="width:76px;height:76px;margin:0 auto 22px;background:rgba(16,185,129,0.1);border:2px solid ' + C.success + ';border-radius:50%;display:flex;align-items:center;justify-content:center;">',
-            '<svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M6 18l8 8L30 8" stroke="' + C.success + '" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        '<div style="text-align:center;padding:10px 0;">',
+          '<div style="width:72px;height:72px;margin:0 auto 20px;background:rgba(16,185,129,.1);border:2px solid '+C.ok+';border-radius:50%;display:flex;align-items:center;justify-content:center;" role="img" aria-label="Success">',
+            '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6 16l7 8L26 8" stroke="'+C.ok+'" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
           '</div>',
-          '<div style="font-size:24px;font-weight:800;color:' + C.success + ';letter-spacing:-.02em;margin-bottom:8px;">Verified!</div>',
-          '<div style="font-size:14px;color:' + C.muted + ';line-height:1.7;">Your browser passed all security checks.<br>Loading your page now&hellip;</div>',
-          '<div style="margin-top:22px;background:' + C.border + ';border-radius:4px;height:4px;overflow:hidden;">',
-            '<div id="__ars_prog" style="height:4px;width:0%;border-radius:4px;background:linear-gradient(90deg,' + C.accent + ',' + C.success + ');transition:width 1.3s cubic-bezier(.4,0,.2,1);"></div>',
+          '<h2 style="font-size:22px;font-weight:800;color:'+C.ok+';letter-spacing:-.02em;margin:0 0 7px;">Verified!</h2>',
+          '<p style="font-size:13px;color:'+C.muted+';line-height:1.65;margin:0;">All checks passed. Loading your page\u2026</p>',
+          '<div style="margin-top:20px;background:'+C.border+';border-radius:4px;height:3px;overflow:hidden;" role="progressbar" aria-label="Loading page" aria-valuenow="0" aria-valuemax="100">',
+            '<div id="__ars_prog" style="height:3px;width:0%;background:linear-gradient(90deg,'+C.accent+','+C.ok+');border-radius:4px;transition:width 1.4s cubic-bezier(.4,0,.2,1);"></div>',
           '</div>',
         '</div>'
       ].join('');
 
-      setTimeout(function () { var b = d.getElementById('__ars_prog'); if (b) b.style.width = '100%'; }, 60);
-
-      /* Send to server then reveal */
+      setTimeout(function () { var b = U.$('__ars_prog'); if (b) b.style.width = '100%'; }, 60);
       setTimeout(function () {
         SERVER.send(function () { CONTENT.reveal(); GATE.dismiss(); });
-      }, 1450);
+      }, 1500);
     },
 
-    /* ---- Blocked ---- */
+    /* ── Blocked ── */
     showBlocked: function () {
       S.is_bot = true;
-      GATE.setInner([
-        '<div style="text-align:center;padding:12px 0 6px;">',
-          '<div style="width:76px;height:76px;margin:0 auto 22px;background:rgba(239,68,68,0.1);border:2px solid ' + C.danger + ';border-radius:50%;display:flex;align-items:center;justify-content:center;">',
-            '<svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M18 8v12M18 24v4" stroke="' + C.danger + '" stroke-width="3.5" stroke-linecap="round"/></svg>',
+      GATE.set([
+        '<div style="text-align:center;padding:10px 0;">',
+          '<div style="width:72px;height:72px;margin:0 auto 20px;background:rgba(239,68,68,.1);border:2px solid '+C.err+';border-radius:50%;display:flex;align-items:center;justify-content:center;" role="img" aria-label="Access denied">',
+            '<svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 8v12M16 24v2" stroke="'+C.err+'" stroke-width="3.5" stroke-linecap="round"/></svg>',
           '</div>',
-          '<div style="font-size:24px;font-weight:800;color:' + C.danger + ';letter-spacing:-.02em;margin-bottom:8px;">Access Denied</div>',
-          '<div style="font-size:14px;color:' + C.muted + ';line-height:1.7;max-width:300px;margin:0 auto;">Automated activity was detected in this session.<br>Please try again later.</div>',
-          '<div style="margin-top:18px;padding:10px 16px;background:' + C.surfaceB + ';border:1px solid ' + C.border + ';border-radius:10px;font-size:11px;color:' + C.muted + ';font-family:monospace;">Session: ' + S.session_id.slice(0, 24) + '&hellip;</div>',
+          '<h2 style="font-size:22px;font-weight:800;color:'+C.err+';letter-spacing:-.02em;margin:0 0 7px;">Access Denied</h2>',
+          '<p style="font-size:13px;color:'+C.muted+';line-height:1.65;max-width:280px;margin:0 auto;">Automated activity detected. Please try again later.</p>',
+          '<p style="font-size:10px;color:'+C.muted+';font-family:monospace;margin-top:14px;">'+S.id.slice(0,22)+'\u2026</p>',
         '</div>'
       ].join(''));
       SERVER.send(function () {});
@@ -833,172 +917,160 @@
 
     dismiss: function () {
       if (!GATE.el) return;
-      U.css(GATE.el, { transition: 'opacity .45s ease', opacity: '0', pointerEvents: 'none' });
-      setTimeout(function () { if (GATE.el) { GATE.el.remove(); GATE.el = null; } }, 480);
+      U.css(GATE.el, { transition: 'opacity .4s ease', opacity: '0', pointerEvents: 'none' });
+      setTimeout(function () { if (GATE.el) { GATE.el.remove(); GATE.el = null; } }, 430);
     }
   };
 
   /* ============================================================
-     SECTION 12 — SERVER SYNC via Parqra SDK (ParqraDB)
-     ParqraDB is injected globally by the SDK <script> tag.
-     Uses .create() on first visit, .patch() on return visits.
-     All 55+ columns are sent; cumulative counters accumulate.
+     SECTION 13 — SERVER SYNC (Parqra SDK — ParqraDB)
+     8 JSON columns instead of 55+ flat columns.
      ============================================================ */
 
   var SERVER = {
-
-    /* Lazy singleton — waits for SDK to be ready */
     db: function () {
       if (!w.ParqraDB) {
-        console.warn('[ArShield] ParqraDB not found. Did you load the SDK script tag before arshield.js?');
+        console.error('[ArShield] ParqraDB not found \u2014 load SDK before arshield.js');
         return null;
       }
       return new w.ParqraDB(TABLE);
     },
 
-    /* Build the full column payload from current state */
+    /* Build the 8-column JSON payload */
     payload: function () {
-      /* Finalise visit duration for this session */
-      var visitMs = Date.now() - S.visit_start;
-      S.total_time_ms += visitMs;
+      S.acc.time_ms += Date.now() - S._start;
+      S._start = Date.now(); /* reset so beforeunload doesn't double-count */
 
       return {
-        /* ── Identity ─────────────────────────────── */
-        session_id:               S.session_id,
-        visit_count:              S.visit_count,
-        first_seen:               S.first_seen,
-        last_seen:                new Date().toISOString(),
+        /* ── 1. Visitor identity ─────────────────── */
+        visitor: {
+          id:          S.id,
+          visits:      S.visits,
+          first_seen:  S.first_seen,
+          last_seen:   new Date().toISOString()
+        },
 
-        /* ── Cumulative cross-visit counters ──────── */
-        total_time_ms:            S.total_time_ms,
-        total_mouse_events:       S.total_mouse_events,
-        total_touch_events:       S.total_touch_events,
-        total_key_events:         S.total_key_events,
-        total_scroll_events:      S.total_scroll_events,
-        total_clicks:             S.total_clicks,
-        total_captcha_attempts:   S.total_captcha_attempts,
-        total_captcha_passes:     S.total_captcha_passes,
-        total_bot_flags:          S.total_bot_flags,
-        total_human_signals:      S.total_human_signals,
-        total_devtools_opens:     S.total_devtools_opens,
-        total_context_menus:      S.total_context_menus,
-        total_page_hides:         S.total_page_hides,
+        /* ── 2. Device & browser ─────────────────── */
+        device: {
+          type:         S.device.type,
+          os:           S.device.os,
+          browser:      S.device.browser,
+          ua:           S.device.ua,
+          platform:     S.device.platform,
+          gpu:          S.device.gpu,
+          screen:       S.device.screen,
+          viewport:     S.device.viewport,
+          dpr:          S.device.dpr,
+          color_depth:  S.device.color_depth,
+          touch_pts:    S.device.touch_pts
+        },
 
-        /* ── Bot/human assessment (counts only) ───── */
-        bot_score:                S.bot_score,
-        is_bot:                   S.is_bot ? 1 : 0,
-        is_headless:              S.is_headless ? 1 : 0,
-        automation_detected:      S.automation_detected ? 1 : 0,
-        honeypot_triggered:       S.honeypot_triggered ? 1 : 0,
-        captcha_solved:           S.captcha_solved ? 1 : 0,
-        captcha_time_ms:          S.captcha_time_ms,
-        devtools_open_count:      S.devtools_open_count,
-        timing_anomalies:         S.timing_anomalies,
-        straight_mouse_ratio:     S.straight_mouse_ratio,
-        webdriver_prop:           S.webdriver_prop,
+        /* ── 3. Hardware specs ───────────────────── */
+        hardware: {
+          cpu_cores:   S.device.cpu_cores,
+          ram_gb:      S.device.ram_gb,
+          plugins:     S.device.plugins,
+          fonts:       S.fp.fonts
+        },
 
-        /* ── Fingerprints ─────────────────────────── */
-        canvas_fp:                S.canvas_fp   || '',
-        audio_fp:                 S.audio_fp    || '',
-        webgl_fp:                 S.webgl_fp    || '',
-        combined_fp:              S.combined_fp || '',
-        font_count:               S.font_count,
+        /* ── 4. Network & locale ─────────────────── */
+        network: {
+          type:         S.device.net_type,
+          mbps:         S.device.net_mbps,
+          lang:         S.device.lang,
+          langs:        S.device.langs,
+          tz:           S.device.tz,
+          cookies:      S.device.cookies,
+          dnt:          S.device.dnt
+        },
 
-        /* ── Device & environment ─────────────────── */
-        user_agent:               S.user_agent,
-        platform:                 S.platform,
-        language:                 S.language,
-        languages:                S.languages,
-        timezone:                 S.timezone,
-        screen_w:                 S.screen_w,
-        screen_h:                 S.screen_h,
-        screen_depth:             S.screen_depth,
-        viewport_w:               S.viewport_w,
-        viewport_h:               S.viewport_h,
-        device_pixel_ratio:       S.device_pixel_ratio,
-        hardware_concurrency:     S.hardware_concurrency,
-        device_memory_gb:         S.device_memory_gb,
-        max_touch_points:         S.max_touch_points,
-        connection_type:          S.connection_type,
-        connection_downlink:      S.connection_downlink,
-        plugins_count:            S.plugins_count,
-        cookie_enabled:           S.cookie_enabled,
-        do_not_track:             S.do_not_track,
+        /* ── 5. Fingerprints ─────────────────────── */
+        fingerprint: {
+          canvas:    S.fp.canvas,
+          audio:     S.fp.audio,
+          webgl:     S.fp.webgl,
+          combined:  S.fp.combined
+        },
 
-        /* ── Page speed ───────────────────────────── */
-        perf_dns_ms:              S.perf_dns_ms,
-        perf_tcp_ms:              S.perf_tcp_ms,
-        perf_ttfb_ms:             S.perf_ttfb_ms,
-        perf_dom_interactive_ms:  S.perf_dom_interactive_ms,
-        perf_dom_load_ms:         S.perf_dom_load_ms,
-        perf_full_load_ms:        S.perf_full_load_ms,
+        /* ── 6. Security assessment ──────────────── */
+        security: {
+          score:          S.score,
+          is_bot:         S.is_bot ? 1 : 0,
+          is_headless:    S.is_headless ? 1 : 0,
+          automated:      S.automated ? 1 : 0,
+          honeypot:       S.honeypot ? 1 : 0,
+          webdriver:      S.webdriver,
+          cap_solved:     S.cap_solved ? 1 : 0,
+          cap_ms:         S.cap_ms,
+          timing_bad:     S.timing_bad,
+          mouse_straight: S.mouse_straight,
+          devtools_opens: S.devtools_now
+        },
 
-        /* ── Page context ─────────────────────────── */
-        page_url:                 w.location.href.slice(0, 500),
-        page_hostname:            w.location.hostname,
-        referrer:                 d.referrer.slice(0, 300)
+        /* ── 7. Cumulative behaviour counts ──────── */
+        behaviour: {
+          time_ms:    S.acc.time_ms,
+          mouse:      S.acc.mouse,
+          touch:      S.acc.touch,
+          keys:       S.acc.keys,
+          scroll:     S.acc.scroll,
+          clicks:     S.acc.clicks,
+          cap_tries:  S.acc.cap_tries,
+          cap_passes: S.acc.cap_passes,
+          bot_flags:  S.acc.bot_flags,
+          human_sigs: S.acc.human_sigs,
+          devtools:   S.acc.devtools,
+          ctx_menus:  S.acc.ctx_menus,
+          tab_hides:  S.acc.tab_hides
+        },
+
+        /* ── 8. Page speed ───────────────────────── */
+        speed: {
+          dns:   S.perf.dns,
+          tcp:   S.perf.tcp,
+          ttfb:  S.perf.ttfb,
+          dom_i: S.perf.dom_i,
+          dom:   S.perf.dom,
+          load:  S.perf.load,
+          url:   w.location.href.slice(0, 400),
+          ref:   d.referrer.slice(0, 200)
+        }
       };
     },
 
-    /* Save critical fields to localStorage so next visit can accumulate */
+    /* Persist only the fields needed for next-visit accumulation */
     persist: function () {
       SESSION.save({
-        session_id:             S.session_id,
-        visit_count:            S.visit_count,
-        first_seen:             S.first_seen,
-        last_seen:              S.last_seen,
-        total_time_ms:          S.total_time_ms,
-        total_mouse_events:     S.total_mouse_events,
-        total_touch_events:     S.total_touch_events,
-        total_key_events:       S.total_key_events,
-        total_scroll_events:    S.total_scroll_events,
-        total_clicks:           S.total_clicks,
-        total_captcha_attempts: S.total_captcha_attempts,
-        total_captcha_passes:   S.total_captcha_passes,
-        total_bot_flags:        S.total_bot_flags,
-        total_human_signals:    S.total_human_signals,
-        total_devtools_opens:   S.total_devtools_opens,
-        total_context_menus:    S.total_context_menus,
-        total_page_hides:       S.total_page_hides,
-        server_record_id:       S.server_record_id  /* Parqra row ID for PATCH */
+        id:         S.id,
+        visits:     S.visits,
+        first_seen: S.first_seen,
+        row_id:     S.row_id,
+        acc:        S.acc
       });
     },
 
-    /* Send to Parqra — create on first visit, patch on return */
     send: function (done) {
       var data = SERVER.payload();
-      SERVER.persist(); /* Always save locally first */
+      SERVER.persist();
 
       var db = SERVER.db();
-      if (!db) {
-        /* SDK not loaded — fail silently, never block the user */
+      if (!db) { if (done) done(); return; }
+
+      var fin = function (res) {
+        if (res && res.error) console.warn('[ArShield] DB error:', res.error);
         if (done) done();
-        return;
-      }
+      };
 
-      var isReturn = !!S.server_record_id;
-
-      if (isReturn) {
-        /* PATCH — update existing row, accumulating all counters */
-        db.patch(S.server_record_id, data)
-          .then(function (res) {
-            if (res && res.error) console.warn('[ArShield] patch error:', res.error);
-            if (done) done();
-          })
-          .catch(function () { if (done) done(); });
-
+      if (S.row_id) {
+        db.patch(S.row_id, data).then(fin).catch(function () { if (done) done(); });
       } else {
-        /* CREATE — insert a brand-new row, get back the row ID */
         db.create(data)
           .then(function (res) {
-            /* ParqraDB.create returns { data: { id: '...', ...fields } } */
             if (res && res.data && res.data.id) {
-              S.server_record_id = res.data.id;
-              SERVER.persist(); /* Re-save with the new row ID */
-            } else if (res && res.error) {
-              console.warn('[ArShield] create error:', res.error);
+              S.row_id = res.data.id;
+              SERVER.persist();
             }
-            if (done) done();
+            fin(res);
           })
           .catch(function () { if (done) done(); });
       }
@@ -1006,45 +1078,30 @@
   };
 
   /* ============================================================
-     SECTION 13 — BEFOREUNLOAD — save live counters on exit
+     SECTION 14 — BEFOREUNLOAD — persist before tab close
      ============================================================ */
 
   w.addEventListener('beforeunload', function () {
-    /* Accumulate this visit's time before tab closes */
-    S.total_time_ms += Date.now() - S.visit_start;
-    S.visit_start = Date.now();
+    S.acc.time_ms += Date.now() - S._start;
     SERVER.persist();
   });
 
   /* ============================================================
-     SECTION 14 — BOOT SEQUENCE
-     Required HTML order (both in <head>):
-       1. <script src="...sdk.js?pid=ee91e5af-..."></script>
-       2. <script src="arshield.js"></script>
-     ArShield runs immediately; SDK is already parsed above it.
+     SECTION 15 — BOOT
+     Script must be placed after SDK tag in <head>.
      ============================================================ */
 
-  var BOOT = function () {
-    /* Guard: warn loudly if SDK was not loaded before us */
-    if (!w.ParqraDB) {
-      console.error('[ArShield] WARNING: ParqraDB SDK not found. Load the Parqra SDK script tag BEFORE arshield.js in <head>. Visitor data will NOT be saved to the server.');
-    }
+  (function boot() {
+    if (!w.ParqraDB) console.error('[ArShield] SDK not found \u2014 load SDK script before arshield.js');
 
-    PERF.init();      /* 1. Inject resource hints immediately              */
-    CONTENT.init();   /* 2. Inject CSS to hide body & style the gate       */
-    FP.run();         /* 3. Run all fingerprinting (sync, fast)            */
-    BOT.run();        /* 4. Start all bot detection + behaviour listeners  */
+    PERF.init();    /* inject resource hints + perf listener */
+    CONTENT.init(); /* hide page, apply base styles          */
+    FP.run();       /* fingerprint + collect env data        */
+    BOT.run();      /* bot checks + behaviour listeners      */
 
-    /* 5. Stash body content and show the gate */
-    var launch = function () {
-      CONTENT.stash();
-      GATE.build();
-    };
-
-    if (d.body) launch();
-    else d.addEventListener('DOMContentLoaded', launch);
-  };
-
-  BOOT();
+    var go = function () { CONTENT.stash(); GATE.build(); };
+    if (d.body) go();
+    else d.addEventListener('DOMContentLoaded', go);
+  })();
 
 })(window, document, navigator);
