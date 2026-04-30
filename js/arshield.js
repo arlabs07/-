@@ -1,20 +1,23 @@
 /* ============================================================
-   ARSHIELD.JS v2.0 — Cloudflare-Style Security Gate
+   ARSHIELD.JS v2.1 — Cloudflare-Style Security Gate
    Fullscreen verification -> lazy-load page content
-   Server sync via Parqra BaaS — No external deps
+   Server sync via Parqra SDK v3 (ParqraDB)
+   Usage:
+     1. <script src="https://...sdk.js?pid=ee91e5af-..."></script>
+     2. <script src="arshield.js"></script>
    ============================================================ */
 
 (function (w, d, n) {
   'use strict';
 
   /* ============================================================
-     SECTION 1 — SERVER CONFIG & CONSTANTS
+     SECTION 1 — CONFIG & CONSTANTS
+     SDK is loaded by the <script> tag in HTML — ParqraDB is
+     already available on window by the time ArShield runs.
      ============================================================ */
 
-  var API_BASE = 'https://jfyibyrxbsdswerxtfkj.supabase.co/functions/v1/server-proxy';
-  var API_KEY  = '49c34f41a0aec44161e6c9741222835dec2d135b078dfc8b4157093934f66a4a';
-  var TABLE    = 'arshield_visitors';
-  var LS_KEY   = '__ars_session';
+  var TABLE  = 'arshield_visitors';
+  var LS_KEY = '__ars_session';
 
   var C = {
     bg:         '#060608',
@@ -836,23 +839,37 @@
   };
 
   /* ============================================================
-     SECTION 12 — SERVER SYNC (Parqra BaaS)
+     SECTION 12 — SERVER SYNC via Parqra SDK (ParqraDB)
+     ParqraDB is injected globally by the SDK <script> tag.
+     Uses .create() on first visit, .patch() on return visits.
+     All 55+ columns are sent; cumulative counters accumulate.
      ============================================================ */
 
   var SERVER = {
+
+    /* Lazy singleton — waits for SDK to be ready */
+    db: function () {
+      if (!w.ParqraDB) {
+        console.warn('[ArShield] ParqraDB not found. Did you load the SDK script tag before arshield.js?');
+        return null;
+      }
+      return new w.ParqraDB(TABLE);
+    },
+
+    /* Build the full column payload from current state */
     payload: function () {
-      /* Finalise this-visit duration */
+      /* Finalise visit duration for this session */
       var visitMs = Date.now() - S.visit_start;
       S.total_time_ms += visitMs;
 
       return {
-        /* Identity */
+        /* ── Identity ─────────────────────────────── */
         session_id:               S.session_id,
         visit_count:              S.visit_count,
         first_seen:               S.first_seen,
         last_seen:                new Date().toISOString(),
 
-        /* Cumulative across all visits */
+        /* ── Cumulative cross-visit counters ──────── */
         total_time_ms:            S.total_time_ms,
         total_mouse_events:       S.total_mouse_events,
         total_touch_events:       S.total_touch_events,
@@ -867,7 +884,7 @@
         total_context_menus:      S.total_context_menus,
         total_page_hides:         S.total_page_hides,
 
-        /* Assessment (counts, not raw arrays) */
+        /* ── Bot/human assessment (counts only) ───── */
         bot_score:                S.bot_score,
         is_bot:                   S.is_bot ? 1 : 0,
         is_headless:              S.is_headless ? 1 : 0,
@@ -880,14 +897,14 @@
         straight_mouse_ratio:     S.straight_mouse_ratio,
         webdriver_prop:           S.webdriver_prop,
 
-        /* Fingerprints */
-        canvas_fp:                S.canvas_fp  || '',
-        audio_fp:                 S.audio_fp   || '',
-        webgl_fp:                 S.webgl_fp   || '',
+        /* ── Fingerprints ─────────────────────────── */
+        canvas_fp:                S.canvas_fp   || '',
+        audio_fp:                 S.audio_fp    || '',
+        webgl_fp:                 S.webgl_fp    || '',
         combined_fp:              S.combined_fp || '',
         font_count:               S.font_count,
 
-        /* Device & env */
+        /* ── Device & environment ─────────────────── */
         user_agent:               S.user_agent,
         platform:                 S.platform,
         language:                 S.language,
@@ -908,7 +925,7 @@
         cookie_enabled:           S.cookie_enabled,
         do_not_track:             S.do_not_track,
 
-        /* Page speed */
+        /* ── Page speed ───────────────────────────── */
         perf_dns_ms:              S.perf_dns_ms,
         perf_tcp_ms:              S.perf_tcp_ms,
         perf_ttfb_ms:             S.perf_ttfb_ms,
@@ -916,13 +933,14 @@
         perf_dom_load_ms:         S.perf_dom_load_ms,
         perf_full_load_ms:        S.perf_full_load_ms,
 
-        /* Page context */
+        /* ── Page context ─────────────────────────── */
         page_url:                 w.location.href.slice(0, 500),
         page_hostname:            w.location.hostname,
         referrer:                 d.referrer.slice(0, 300)
       };
     },
 
+    /* Save critical fields to localStorage so next visit can accumulate */
     persist: function () {
       SESSION.save({
         session_id:             S.session_id,
@@ -942,35 +960,48 @@
         total_devtools_opens:   S.total_devtools_opens,
         total_context_menus:    S.total_context_menus,
         total_page_hides:       S.total_page_hides,
-        server_record_id:       S.server_record_id
+        server_record_id:       S.server_record_id  /* Parqra row ID for PATCH */
       });
     },
 
+    /* Send to Parqra — create on first visit, patch on return */
     send: function (done) {
-      var data  = SERVER.payload();
-      SERVER.persist();
+      var data = SERVER.payload();
+      SERVER.persist(); /* Always save locally first */
+
+      var db = SERVER.db();
+      if (!db) {
+        /* SDK not loaded — fail silently, never block the user */
+        if (done) done();
+        return;
+      }
 
       var isReturn = !!S.server_record_id;
-      var url    = isReturn
-        ? API_BASE + '/db/' + TABLE + '/' + S.server_record_id
-        : API_BASE + '/db/' + TABLE;
-      var method = isReturn ? 'PATCH' : 'POST';
 
-      fetch(url, {
-        method:  method,
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body:    JSON.stringify({ data: data })
-      })
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        /* Save the server-assigned record ID on first insert */
-        if (!isReturn && j && j.data && j.data.id) {
-          S.server_record_id = j.data.id;
-          SERVER.persist();
-        }
-        if (done) done();
-      })
-      .catch(function () { if (done) done(); }); /* Never block user on server errors */
+      if (isReturn) {
+        /* PATCH — update existing row, accumulating all counters */
+        db.patch(S.server_record_id, data)
+          .then(function (res) {
+            if (res && res.error) console.warn('[ArShield] patch error:', res.error);
+            if (done) done();
+          })
+          .catch(function () { if (done) done(); });
+
+      } else {
+        /* CREATE — insert a brand-new row, get back the row ID */
+        db.create(data)
+          .then(function (res) {
+            /* ParqraDB.create returns { data: { id: '...', ...fields } } */
+            if (res && res.data && res.data.id) {
+              S.server_record_id = res.data.id;
+              SERVER.persist(); /* Re-save with the new row ID */
+            } else if (res && res.error) {
+              console.warn('[ArShield] create error:', res.error);
+            }
+            if (done) done();
+          })
+          .catch(function () { if (done) done(); });
+      }
     }
   };
 
@@ -987,11 +1018,18 @@
 
   /* ============================================================
      SECTION 14 — BOOT SEQUENCE
-     Place <script src="arshield.js"> as first child of <head>
-     so it runs before any content renders.
+     Required HTML order (both in <head>):
+       1. <script src="...sdk.js?pid=ee91e5af-..."></script>
+       2. <script src="arshield.js"></script>
+     ArShield runs immediately; SDK is already parsed above it.
      ============================================================ */
 
   var BOOT = function () {
+    /* Guard: warn loudly if SDK was not loaded before us */
+    if (!w.ParqraDB) {
+      console.error('[ArShield] WARNING: ParqraDB SDK not found. Load the Parqra SDK script tag BEFORE arshield.js in <head>. Visitor data will NOT be saved to the server.');
+    }
+
     PERF.init();      /* 1. Inject resource hints immediately              */
     CONTENT.init();   /* 2. Inject CSS to hide body & style the gate       */
     FP.run();         /* 3. Run all fingerprinting (sync, fast)            */
