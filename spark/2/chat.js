@@ -1,12 +1,8 @@
 /**
  * chat.js — ChatWindow v8 (desktop-embedded fix)
- *
- * Key changes:
- *  - open() accepts opts.embedded (auto-detected from screen width if not set)
- *  - In embedded mode: skips App.hideChrome(), adds .chat-panel-host to container
- *    so CSS switches .chat-fullscreen from position:fixed to position:relative
- *  - Back button hidden on desktop via CSS, still works on mobile
- *  - Everything else (delta sync, read receipts, polls, etc.) unchanged
+ * BUG 4 FIX: _scrollToMessage now scrolls within the message container
+ * instead of using scrollIntoView() which was scrolling the whole page
+ * and pushing the chat header off-screen.
  */
 
 const ChatWindow = (() => {
@@ -34,8 +30,8 @@ const ChatWindow = (() => {
   let _msgHash    = '';   let _container = null;  let _onClose  = null;
   let _isNew      = false; let _attachOpen = false; let _raf     = null;
   let _replyTo    = null; let _presenceTimer = null;
-  let _embedded   = false;   // true when rendered inside a panel, not full-screen
-  let _urlPrefix  = null;    // 'chats' | 'communities' — used for hash
+  let _embedded   = false;
+  let _urlPrefix  = null;
 
   let _audioRec   = null; let _audioChunks = []; let _audioTimer = null;
   let _audioSecs  = 0;    let _isRecording = false;
@@ -51,20 +47,14 @@ const ChatWindow = (() => {
     _container = overlayEl;
     _onClose   = opts.onClose || null;
     _isNew     = opts.isNew || false;
-    // embedded = rendering inside a panel div (desktop), NOT a full-screen overlay
     _embedded  = opts.embedded !== undefined ? opts.embedded : _isDesktop();
-    // urlPrefix: override the hash prefix (e.g. 'communities' for group chats)
     _urlPrefix = opts.urlPrefix || null;
 
-    // Set hash BEFORE getChatById so it's correct immediately
-    // Use passed urlPrefix if available, otherwise derive from chatId prefix pattern
     const _initialPrefix = _urlPrefix || (_embedded ? 'chats' : 'chats');
     App.setHash(`#${_initialPrefix}/${chatId}`);
 
-    // Only hide chrome on mobile (full-screen overlay mode)
     if (!_embedded) App.hideChrome();
 
-    // Mark container so CSS can switch from fixed to relative layout
     if (_embedded) {
       overlayEl.classList.add('chat-panel-host');
     }
@@ -100,7 +90,6 @@ const ChatWindow = (() => {
     _stopAudioRec();
     _raf = null;
 
-    // Remove embedded class from container
     if (_container && _embedded) {
       _container.classList.remove('chat-panel-host');
     }
@@ -340,7 +329,6 @@ const ChatWindow = (() => {
   };
 
   const _close = () => {
-    // Only restore chrome if we hid it (mobile non-embedded mode)
     if (!_embedded) App.showChrome();
     close();
     if (typeof _onClose === 'function') _onClose();
@@ -570,12 +558,33 @@ const ChatWindow = (() => {
     }
   };
 
+  /**
+   * Bug 4 Fix: Scroll to a specific message within the messages container.
+   * Previously used scrollIntoView() which scrolled the entire page/window,
+   * causing the chat header to scroll off-screen.
+   * Now scrolls only within the #cw-msgs container.
+   */
   const _scrollToMessage = (msgTime) => {
-    const area   = document.getElementById('cw-msgs'); if (!area) return;
+    const area = document.getElementById('cw-msgs'); if (!area) return;
     const escaped = msgTime ? msgTime.replace(/["\\]/g, c => `\\${c}`) : '';
     const target = area.querySelector(`[data-t="${escaped}"]`);
     if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Calculate the offset needed to center the target within the scroll container
+    // without using scrollIntoView (which would scroll the whole page)
+    const areaRect   = area.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const currentScrollTop = area.scrollTop;
+
+    // Position: bring target to center of the visible area
+    const targetCenter   = targetRect.top + targetRect.height / 2;
+    const areaCenter     = areaRect.top + areaRect.height / 2;
+    const scrollDelta    = targetCenter - areaCenter;
+    const newScrollTop   = currentScrollTop + scrollDelta;
+
+    area.scrollTo({ top: newScrollTop, behavior: 'smooth' });
+
+    // Highlight the target bubble
     const bbl = target.querySelector('.bubble') || target;
     bbl.style.transition = 'background 0s';
     bbl.style.background = 'var(--accent-dim)';
@@ -807,7 +816,6 @@ const ChatWindow = (() => {
       btn.innerHTML = `<div class="spinner" style="width:20px;height:20px;border-width:2px;border-top-color:#fff"></div> Generating...`;
       try {
         let imageUrl = await AriaBot.generateImage(prompt);
-        // Strip any query params - Pollinations free tier restricts URLs with params
         imageUrl = imageUrl.split('?')[0];
         close();
         const rt  = _buildReplyTo();
@@ -1469,7 +1477,6 @@ const ChatWindow = (() => {
       <span class="material-icons-round lp-open">open_in_new</span></a>`;
   };
 
-  const _hashPrefix = () => _urlPrefix || (_chatRec?.data?.type==='group' ? 'communities' : 'chats');
   const _findMsg    = (time) => _msgs.find(m => m.time === time) || null;
   const _now        = () => new Date().toISOString();
   const _dateLabel  = (iso) => {
