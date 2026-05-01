@@ -1,10 +1,10 @@
 /**
  * main.js — Spark App Shell v9
- * - No service worker
- * - Clears old SW caches on boot
- * - Guest mode: invite-only, chats page only
- * - Desktop: NO sidebar — nav pill lives inside left panels
- * - Mobile: 5-tab floating pill (#bottom-nav) with chats/updates/groups/people/profile
+ * FIXES:
+ *  - Bug 1: People tab now correctly highlights its own icon (people_outline → people)
+ *    instead of incorrectly lighting up the chats icon.
+ *  - Bug 5: On desktop, bottom-nav stays hidden on ALL pages (updates, profile,
+ *    communities), not just chat pages.
  */
 
 const App = (() => {
@@ -171,19 +171,25 @@ const App = (() => {
 
   /* ── Nav ────────────────────────────────────────────────── */
   const showNav = (show) => {
-    if (_isDesktop()) return; // desktop nav is in-panel pill
+    // Bug 5 fix: on desktop, never show the bottom nav regardless of page
+    if (_isDesktop()) {
+      document.getElementById('bottom-nav')?.classList.add('hidden');
+      return;
+    }
     document.getElementById('bottom-nav')?.classList.toggle('hidden', !show);
   };
+
   const setActiveNav = (page) => {
-    // Map 'people' → highlight chats tab (people is a sub-tab of chats)
-    const activeTab = page === 'people' ? 'chats' : page;
+    // Bug 1 fix: 'people' maps to its OWN tab in the mobile nav,
+    // not the 'chats' tab. The HTML has data-page="people" on that tab.
     document.querySelectorAll('.nav-tab').forEach(tab => {
-      const isActive = tab.dataset.page === activeTab;
+      const isActive = tab.dataset.page === page;
       tab.classList.toggle('active', isActive);
       const icon = tab.querySelector('.nav-icon');
       if (icon) icon.textContent = isActive ? tab.dataset.iconOn : tab.dataset.iconOff;
     });
   };
+
   const showPage = (pageId) => {
     // 'people' renders inside page-chats
     const domPage = pageId === 'people' ? 'chats' : pageId;
@@ -297,6 +303,9 @@ const App = (() => {
         showNav(true);
         setActiveNav(page);
         setTitle(null, false);
+      } else {
+        // Bug 5 fix: always hide bottom-nav on desktop regardless of page
+        document.getElementById('bottom-nav')?.classList.add('hidden');
       }
     }
 
@@ -386,6 +395,10 @@ const App = (() => {
       const nowDesktop = _isDesktop();
       if (nowDesktop !== _lastWasDesktop) {
         _lastWasDesktop = nowDesktop;
+        // Bug 5 fix: hide nav on desktop when switching
+        if (nowDesktop) {
+          document.getElementById('bottom-nav')?.classList.add('hidden');
+        }
         if (_page && APP_PAGES.has(_page)) {
           const key = _page==='people' ? 'chats' : _page;
           const mod = MODULES[key]?.();
@@ -415,6 +428,11 @@ const App = (() => {
 
     document.getElementById('app-loader').style.display = 'none';
     document.getElementById('app').style.display        = 'flex';
+
+    // Bug 5 fix: ensure bottom-nav is hidden on desktop from the start
+    if (_isDesktop()) {
+      document.getElementById('bottom-nav')?.classList.add('hidden');
+    }
 
     /* Mobile nav tabs */
     document.querySelectorAll('.nav-tab[data-page]').forEach(tab =>
