@@ -9,39 +9,65 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   --bg:#0a0a0f;
-  --surface:rgba(12,12,20,0.92);
-  --glass:rgba(255,255,255,0.06);
-  --glass-border:rgba(255,255,255,0.1);
+  --surface:rgba(12,12,20,0.94);
+  --glass:rgba(255,255,255,0.07);
+  --glass-border:rgba(255,255,255,0.11);
   --accent:#6ee7f7;
   --accent2:#a78bfa;
   --text:#f0f0f8;
   --text-dim:rgba(240,240,248,0.55);
   --red:#f87171;
-  --ctrl-h:56px;
   --seek-h:4px;
   --seek-h-hover:6px;
   --radius:16px;
-  --radius-sm:8px;
+  --radius-sm:10px;
   --transition:cubic-bezier(0.4,0,0.2,1);
   --font:'SF Pro Display',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
-html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font);color:var(--text);overflow:hidden}
-
-/* ── ROOT ── */
-#np-root{
-  position:relative;width:100%;height:100vh;
-  display:flex;align-items:center;justify-content:center;
-  background:#000;overflow:hidden;user-select:none;
-  contain:strict;
+html,body{
+  width:100%;min-height:100%;
+  background:var(--bg);font-family:var(--font);color:var(--text);
+  display:flex;flex-direction:column;align-items:center;
+  overflow-x:hidden;
 }
-#np-root.fullscreen{border-radius:0}
+
+/* ── PAGE WRAPPER ── */
+#np-page{
+  width:100%;max-width:480px;
+  display:flex;flex-direction:column;
+  align-items:stretch;
+  padding:16px 0 32px;
+}
+
+/* ── VIDEO TITLE ── */
+#np-page-title{
+  font-size:clamp(14px,3.5vw,18px);font-weight:700;
+  letter-spacing:-.02em;color:var(--text);
+  padding:0 16px 10px;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  text-shadow:none;
+}
+
+/* ── PLAYER ROOT (9:16 container) ── */
+#np-root{
+  position:relative;width:100%;
+  aspect-ratio:9/16;
+  background:#000;overflow:hidden;user-select:none;
+  contain:layout style;
+  border-radius:var(--radius);
+  box-shadow:0 8px 40px rgba(0,0,0,.6);
+}
+/* In fullscreen, override aspect ratio to fill viewport */
+#np-root.fullscreen{
+  position:fixed;inset:0;width:100%;height:100%;
+  aspect-ratio:unset;border-radius:0;z-index:9999;
+}
 
 /* ── VIDEO ── */
 #np-video{
   position:absolute;inset:0;width:100%;height:100%;
   object-fit:contain;background:#000;
   will-change:transform;
-  /* 4K optimisation */
   image-rendering:auto;
   -webkit-transform:translateZ(0);transform:translateZ(0);
 }
@@ -49,20 +75,14 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font);co
 /* ── THUMBNAIL ── */
 #np-thumb{
   position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;z-index:1;
-  transition:opacity .4s var(--transition);
-  pointer-events:none;
+  object-fit:cover;z-index:1;pointer-events:none;
 }
 
 /* ── OVERLAY ── */
-#np-overlay{
-  position:absolute;inset:0;z-index:2;cursor:pointer;
-}
-
-/* gradient vignette when ui visible */
+#np-overlay{position:absolute;inset:0;z-index:2;cursor:pointer;}
 #np-overlay::before{
   content:'';position:absolute;inset:0;
-  background:linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 35%,transparent 65%,rgba(0,0,0,.6) 100%);
+  background:linear-gradient(to top,rgba(0,0,0,.88) 0%,transparent 40%,transparent 62%,rgba(0,0,0,.55) 100%);
   opacity:0;transition:opacity .3s var(--transition);pointer-events:none;
 }
 #np-controls.visible~#np-overlay::before,
@@ -71,12 +91,10 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font);co
 /* ── SPINNER ── */
 #np-spinner{
   position:absolute;top:50%;left:50%;z-index:10;
-  width:48px;height:48px;margin:-24px;
+  width:44px;height:44px;margin:-22px;
   border:3px solid rgba(255,255,255,.15);
-  border-top-color:var(--accent);
-  border-radius:50%;
-  opacity:0;pointer-events:none;
-  transition:opacity .2s;
+  border-top-color:var(--accent);border-radius:50%;
+  opacity:0;pointer-events:none;transition:opacity .2s;
 }
 #np-spinner.show{opacity:1;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -84,34 +102,27 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font);co
 /* ── TOP BAR ── */
 #np-top-bar{
   position:absolute;top:0;left:0;right:0;z-index:20;
-  padding:16px 20px 8px;
-  display:flex;align-items:center;justify-content:space-between;
-  opacity:0;transform:translateY(-8px);
+  padding:14px 14px 6px;
+  display:flex;align-items:center;justify-content:flex-end;
+  opacity:0;transform:translateY(-6px);
   transition:opacity .28s var(--transition),transform .28s var(--transition);
   pointer-events:none;
 }
 #np-top-bar.visible{opacity:1;transform:none;pointer-events:auto}
-#np-title{
-  font-size:clamp(13px,1.8vw,17px);font-weight:600;
-  letter-spacing:-.01em;color:var(--text);
-  text-shadow:0 1px 12px rgba(0,0,0,.8);
-  max-width:60%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
-}
-#np-top-right{display:flex;gap:8px;align-items:center}
 
 /* ── CONTROLS BAR ── */
 #np-controls{
   position:absolute;bottom:0;left:0;right:0;z-index:20;
-  padding:0 16px 20px;
-  display:flex;flex-direction:column;gap:4px;
-  opacity:0;transform:translateY(8px);
+  padding:0 12px 14px;
+  display:flex;flex-direction:column;gap:2px;
+  opacity:0;transform:translateY(6px);
   transition:opacity .28s var(--transition),transform .28s var(--transition);
   pointer-events:none;
 }
 #np-controls.visible{opacity:1;transform:none;pointer-events:auto}
 
 /* ── SEEK BAR ── */
-#np-seek-wrap{padding:8px 0;cursor:pointer;touch-action:none}
+#np-seek-wrap{padding:8px 0 4px;cursor:pointer;touch-action:none}
 #np-seek-track{
   position:relative;height:var(--seek-h);background:rgba(255,255,255,.18);
   border-radius:99px;overflow:visible;
@@ -119,10 +130,7 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font);co
 }
 #np-seek-wrap:hover #np-seek-track,
 #np-seek-wrap:active #np-seek-track{height:var(--seek-h-hover)}
-#np-seek-buf{
-  position:absolute;inset:0;width:0;height:100%;
-  background:rgba(255,255,255,.28);border-radius:99px;pointer-events:none;
-}
+#np-seek-buf{position:absolute;inset:0;width:0;height:100%;background:rgba(255,255,255,.28);border-radius:99px;pointer-events:none;}
 #np-seek-fill{
   position:absolute;inset:0;width:0;height:100%;
   background:linear-gradient(90deg,var(--accent2),var(--accent));
@@ -138,16 +146,9 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font);co
 }
 #np-seek-wrap:hover #np-seek-thumb,
 #np-seek-wrap:active #np-seek-thumb{transform:translate(-50%,-50%) scale(1)}
-#np-seek-time{
-  position:absolute;bottom:calc(100% + 10px);left:0;
-  background:rgba(0,0,0,.8);color:#fff;
-  font-size:11px;padding:3px 7px;border-radius:5px;
-  pointer-events:none;opacity:0;white-space:nowrap;
-  transition:opacity .15s;
-}
 #np-seek-hover{
-  position:absolute;bottom:calc(100% + 14px);
-  background:rgba(0,0,0,.82);backdrop-filter:blur(8px);color:#fff;
+  position:absolute;bottom:calc(100% + 12px);
+  background:rgba(0,0,0,.85);backdrop-filter:blur(8px);color:#fff;
   font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;
   pointer-events:none;opacity:0;transform:translateX(-50%);
   white-space:nowrap;transition:opacity .15s;
@@ -156,83 +157,82 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:var(--font);co
 
 /* ── BUTTON ROW ── */
 #np-btn-row{
-  display:flex;align-items:center;gap:4px;
+  display:flex;align-items:center;gap:2px;
 }
-#np-btn-row-right{display:flex;align-items:center;gap:4px;margin-left:auto}
-#np-time{font-size:12px;font-weight:500;color:var(--text-dim);white-space:nowrap;margin:0 6px}
+#np-time{font-size:11px;font-weight:500;color:var(--text-dim);white-space:nowrap;margin:0 4px;flex-shrink:0;}
+#np-btn-row-right{display:flex;align-items:center;gap:2px;margin-left:auto;flex-shrink:0;}
 
 /* ── ICON BUTTONS ── */
 .np-btn{
   display:flex;align-items:center;justify-content:center;
-  width:40px;height:40px;border-radius:50%;border:none;
+  width:38px;height:38px;border-radius:50%;border:none;
   background:transparent;color:var(--text);cursor:pointer;
   transition:background .18s,color .18s,transform .12s;
   flex-shrink:0;position:relative;
 }
 .np-btn:hover{background:var(--glass);color:#fff}
-.np-btn:active{transform:scale(.9)}
-.np-btn svg{width:22px;height:22px;display:block;pointer-events:none}
-.np-btn.np-btn-lg svg{width:30px;height:30px}
+.np-btn:active{transform:scale(.88)}
+.np-btn svg{width:20px;height:20px;display:block;pointer-events:none}
 .np-btn.active{color:var(--accent)}
-#np-play{background:rgba(255,255,255,.12);width:46px;height:46px}
+#np-play{background:rgba(255,255,255,.13);width:44px;height:44px;border-radius:50%;}
 #np-play:hover{background:rgba(255,255,255,.22)}
+#np-play svg{width:26px;height:26px}
 .np-btn-label{
-  display:flex;align-items:center;gap:5px;
-  padding:0 12px;border-radius:99px;height:36px;
-  font-size:12px;font-weight:600;white-space:nowrap;
+  display:flex;align-items:center;gap:4px;
+  padding:0 10px;border-radius:99px;height:34px;
+  font-size:11px;font-weight:700;white-space:nowrap;letter-spacing:.02em;
 }
-.np-btn-label svg{width:16px;height:16px}
+.np-btn-label svg{width:15px;height:15px;flex-shrink:0}
 
 /* ── VOLUME ── */
-#np-vol-wrap{display:flex;align-items:center;gap:6px}
-#np-vol-slider-wrap{
-  width:0;overflow:hidden;
-  transition:width .25s var(--transition);
-}
+#np-vol-wrap{display:flex;align-items:center;gap:4px}
+#np-vol-slider-wrap{width:0;overflow:hidden;transition:width .25s var(--transition);}
 #np-vol-wrap:hover #np-vol-slider-wrap,
-#np-vol-wrap:focus-within #np-vol-slider-wrap{width:72px}
+#np-vol-wrap:focus-within #np-vol-slider-wrap{width:60px}
 #np-vol-track{
   position:relative;height:4px;background:rgba(255,255,255,.2);
-  border-radius:99px;cursor:pointer;width:72px;margin-right:8px;
+  border-radius:99px;cursor:pointer;width:60px;margin-right:6px;
 }
-#np-vol-fill{
-  position:absolute;inset:0;width:100%;height:100%;
-  background:var(--accent);border-radius:99px;pointer-events:none;
-}
-input[type=range]#np-vol-slider{
-  position:absolute;inset:0;width:100%;height:100%;
-  opacity:0;cursor:pointer;margin:0;
-}
+#np-vol-fill{position:absolute;inset:0;width:100%;height:100%;background:var(--accent);border-radius:99px;pointer-events:none;}
+input[type=range]#np-vol-slider{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;}
 
-/* ── MENUS ── */
+/* ── MENUS (scrollable, max height) ── */
 .np-menu{
   position:absolute;bottom:calc(100% + 8px);
-  background:var(--surface);backdrop-filter:blur(20px) saturate(1.8);
+  background:var(--surface);backdrop-filter:blur(24px) saturate(1.8);
   border:1px solid var(--glass-border);border-radius:var(--radius-sm);
-  padding:6px;min-width:120px;
+  padding:4px;min-width:130px;
+  max-height:min(240px, 45vh);
+  overflow-y:auto;overflow-x:hidden;
+  overscroll-behavior:contain;
   opacity:0;transform:translateY(8px) scale(.96);
   pointer-events:none;
   transition:opacity .2s var(--transition),transform .2s var(--transition);
   z-index:30;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(255,255,255,.15) transparent;
 }
+.np-menu::-webkit-scrollbar{width:3px}
+.np-menu::-webkit-scrollbar-track{background:transparent}
+.np-menu::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:99px}
 .np-menu.open{opacity:1;transform:none;pointer-events:auto}
 #np-speed-menu{right:0}
 #np-lang-menu{right:0}
 .np-menu-item{
   display:flex;align-items:center;gap:6px;
-  width:100%;padding:8px 12px;border:none;border-radius:6px;
+  width:100%;padding:9px 12px;border:none;border-radius:6px;
   background:transparent;color:var(--text-dim);
   font-size:13px;font-weight:500;cursor:pointer;text-align:left;
   transition:background .15s,color .15s;white-space:nowrap;
 }
 .np-menu-item:hover{background:var(--glass);color:var(--text)}
 .np-menu-item.active{color:var(--accent)}
-.np-menu-item svg{width:14px;height:14px;flex-shrink:0;color:var(--accent)}
+.np-menu-item svg{width:13px;height:13px;flex-shrink:0;color:var(--accent)}
 
-/* ── PLAYLIST PANEL ── */
+/* ── PLAYLIST PANEL (side drawer, inside np-root) ── */
 #np-pl-panel{
-  position:absolute;right:0;top:0;bottom:0;width:min(320px,85vw);z-index:40;
-  background:rgba(10,10,18,.96);backdrop-filter:blur(24px);
+  position:absolute;right:0;top:0;bottom:0;width:min(260px,80%);z-index:40;
+  background:rgba(8,8,16,.97);backdrop-filter:blur(24px);
   border-left:1px solid var(--glass-border);
   display:flex;flex-direction:column;
   transform:translateX(100%);
@@ -241,221 +241,192 @@ input[type=range]#np-vol-slider{
 }
 #np-pl-panel.open{transform:none}
 #np-pl-header{
-  padding:20px 16px 12px;font-size:13px;font-weight:700;
-  letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);
+  padding:14px 14px 10px;font-size:11px;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);
   border-bottom:1px solid var(--glass-border);flex-shrink:0;
 }
-#np-pl-list{list-style:none;overflow-y:auto;flex:1;padding:8px 0;scroll-behavior:smooth}
-#np-pl-list::-webkit-scrollbar{width:4px}
+#np-pl-list{
+  list-style:none;overflow-y:auto;flex:1;padding:4px 0;
+  scroll-behavior:smooth;
+  overscroll-behavior:contain;
+}
+#np-pl-list::-webkit-scrollbar{width:3px}
 #np-pl-list::-webkit-scrollbar-track{background:transparent}
 #np-pl-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
 .np-pl-item{
-  display:flex;align-items:center;gap:12px;
-  padding:10px 14px;cursor:pointer;
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;cursor:pointer;
   transition:background .15s;
   border-bottom:1px solid rgba(255,255,255,.04);
 }
-.np-pl-item:hover{background:var(--glass)}
+.np-pl-item:hover,.np-pl-item:active{background:var(--glass)}
 .np-pl-item.active{background:rgba(110,231,247,.08)}
 .np-pl-item.active .np-pl-name{color:var(--accent)}
-.np-pl-thumb-wrap{flex-shrink:0;width:72px;height:42px;border-radius:6px;overflow:hidden;background:#1a1a2e}
+.np-pl-thumb-wrap{flex-shrink:0;width:58px;height:34px;border-radius:5px;overflow:hidden;background:#1a1a2e}
 .np-pl-thumb{width:100%;height:100%;object-fit:cover}
-.np-pl-meta{display:flex;flex-direction:column;gap:3px;min-width:0}
-.np-pl-num{font-size:10px;font-weight:700;color:var(--text-dim);letter-spacing:.06em}
-.np-pl-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-pl-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.np-pl-num{font-size:9px;font-weight:800;color:var(--text-dim);letter-spacing:.06em}
+.np-pl-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ── NUDGE ── */
 #np-nudge,#np-nudge-left,#np-nudge-right{
-  position:absolute;top:50%;transform:translate(-50%,-50%);
+  position:absolute;top:42%;transform:translate(-50%,-50%);
   background:rgba(0,0,0,.72);backdrop-filter:blur(8px);
   border:1px solid var(--glass-border);
-  color:#fff;font-size:15px;font-weight:700;
-  padding:8px 18px;border-radius:99px;
+  color:#fff;font-size:14px;font-weight:700;
+  padding:7px 16px;border-radius:99px;
   opacity:0;pointer-events:none;z-index:15;
-  transition:opacity .15s;white-space:nowrap;
-  text-shadow:none;
+  white-space:nowrap;
 }
 #np-nudge{left:50%}
 #np-nudge-left{left:25%}
 #np-nudge-right{left:75%}
-#np-nudge.show,#np-nudge-left.show,#np-nudge-right.show{opacity:1;animation:nudgePop .7s var(--transition) forwards}
-@keyframes nudgePop{0%{opacity:1;transform:translate(-50%,-50%) scale(.9)}60%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}100%{opacity:0;transform:translate(-50%,-54%) scale(1)}}
+#np-nudge.show,#np-nudge-left.show,#np-nudge-right.show{animation:nudgePop .7s var(--transition) forwards}
+@keyframes nudgePop{0%{opacity:1;transform:translate(-50%,-50%) scale(.88)}55%{opacity:1;transform:translate(-50%,-50%) scale(1.04)}100%{opacity:0;transform:translate(-50%,-55%) scale(1)}}
 
-/* ── SPEED HOLD BADGE ── */
+/* ── 2× SPEED BADGE ── */
 #np-speed-hold{
-  position:absolute;top:20px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.75);backdrop-filter:blur(12px);
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.78);backdrop-filter:blur(12px);
   border:1px solid var(--accent);color:var(--accent);
-  font-size:13px;font-weight:800;letter-spacing:.05em;
-  padding:6px 16px;border-radius:99px;
+  font-size:15px;font-weight:900;letter-spacing:.04em;
+  padding:5px 14px;border-radius:99px;
   opacity:0;pointer-events:none;z-index:15;
   transition:opacity .2s;
 }
 #np-speed-hold.show{opacity:1}
 
-/* ── VOICE STATUS ── */
-#np-voice-status{
-  position:absolute;top:20px;right:20px;z-index:15;
-  background:rgba(0,0,0,.75);backdrop-filter:blur(12px);
-  border:1px solid rgba(239,68,68,.4);color:#fca5a5;
-  font-size:11px;font-weight:600;padding:5px 12px;border-radius:99px;
-  opacity:0;pointer-events:none;
-  transition:opacity .2s;
-  max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-#np-voice-status.show{opacity:1}
-#np-voice-status::before{content:'● ';color:var(--red);animation:blink 1s infinite}
-@keyframes blink{50%{opacity:0}}
-
-/* ── KEYBOARD SHORTCUT CHIP ── */
-kbd{
-  display:inline-flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
-  border-radius:4px;font-size:10px;padding:1px 5px;color:var(--text-dim);
-  font-family:monospace;
-}
-
-/* ── MOBILE ── */
-@media(max-width:600px){
-  #np-title{font-size:13px}
-  .np-btn{width:36px;height:36px}
-  .np-btn svg{width:20px;height:20px}
-  #np-play{width:42px;height:42px}
-  #np-play svg{width:26px;height:26px}
-  #np-time{font-size:11px}
-  .np-btn-label{padding:0 8px;font-size:11px;height:32px}
-  #np-vol-wrap:hover #np-vol-slider-wrap{width:56px}
-  #np-controls{padding:0 10px 14px}
-}
-@media(max-width:380px){
-  #np-time{display:none}
-  .np-btn-label span{display:none}
-  .np-btn-label{padding:0 8px;min-width:36px}
-}
-
 /* ── FOCUS VISIBLE ── */
 .np-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .np-menu-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 
-/* ── SKIP ZONES (visual hint) ── */
-.np-skip-zone{
-  position:absolute;top:0;bottom:0;width:35%;z-index:5;
-  display:flex;align-items:center;pointer-events:none;
-  opacity:0;transition:opacity .15s;
+/* ── FULLSCREEN overrides ── */
+#np-root.fullscreen #np-controls{padding:0 16px 20px}
+#np-root.fullscreen #np-top-bar{padding:18px 18px 8px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:400px){
+  #np-page{padding:10px 0 24px}
+  #np-page-title{font-size:14px;padding:0 12px 8px}
+  .np-btn{width:34px;height:34px}
+  .np-btn svg{width:18px;height:18px}
+  #np-play{width:40px;height:40px}
+  #np-play svg{width:22px;height:22px}
+  #np-time{font-size:10px;margin:0 2px}
+  .np-btn-label{padding:0 8px;font-size:10px;height:30px}
 }
-.np-skip-zone-left{left:0;justify-content:flex-start;padding-left:20%}
-.np-skip-zone-right{right:0;justify-content:flex-end;padding-right:20%}
+@media(max-width:340px){
+  #np-time{display:none}
+}
+
+/* ── DESKTOP: center & constrain ── */
+@media(min-width:600px){
+  #np-page{max-width:420px;padding:32px 0 48px}
+  #np-page-title{font-size:17px}
+}
 </style>
 </head>
 <body>
-<div id="np-root" role="region" aria-label="Nova Video Player">
+<div id="np-page">
 
-  <!-- Video -->
-  <video id="np-video" preload="metadata" playsinline webkit-playsinline
-    aria-label="Video player"
-    title="Video"></video>
+  <!-- Video title above player -->
+  <div id="np-page-title">Loading…</div>
 
-  <!-- Thumbnail -->
-  <img id="np-thumb" alt="Video thumbnail" draggable="false"/>
+  <!-- Player container: 9:16 -->
+  <div id="np-root" role="region" aria-label="Nova Video Player">
 
-  <!-- Spinner -->
-  <div id="np-spinner" role="status" aria-label="Loading"></div>
+    <video id="np-video" preload="metadata" playsinline webkit-playsinline
+      aria-label="Video player" title="Video"></video>
 
-  <!-- Speed hold badge -->
-  <div id="np-speed-hold" aria-live="polite">⚡ 2× Speed</div>
+    <img id="np-thumb" alt="Video thumbnail" draggable="false"/>
 
-  <!-- Nudge feedback -->
-  <div id="np-nudge" aria-live="assertive" aria-atomic="true"></div>
-  <div id="np-nudge-left" aria-live="assertive" aria-atomic="true"></div>
-  <div id="np-nudge-right" aria-live="assertive" aria-atomic="true"></div>
+    <div id="np-spinner" role="status" aria-label="Loading"></div>
 
-  <!-- Voice status -->
-  <div id="np-voice-status" role="status" aria-live="polite"></div>
+    <!-- 2× hold badge -->
+    <div id="np-speed-hold" aria-live="polite">2×</div>
 
-  <!-- TOP BAR -->
-  <div id="np-top-bar" role="banner">
-    <div id="np-title">Loading…</div>
-    <div id="np-top-right">
-      <!-- Lang selector -->
+    <!-- Nudge feedback -->
+    <div id="np-nudge" aria-live="assertive" aria-atomic="true"></div>
+    <div id="np-nudge-left" aria-live="assertive" aria-atomic="true"></div>
+    <div id="np-nudge-right" aria-live="assertive" aria-atomic="true"></div>
+
+    <!-- TOP BAR (right side: lang only) -->
+    <div id="np-top-bar" role="banner">
       <div style="position:relative">
-        <button id="np-lang" class="np-btn np-btn-label" aria-haspopup="true" aria-expanded="false" title="Change language">
+        <button id="np-lang" class="np-btn np-btn-label" aria-haspopup="true" aria-expanded="false" title="Change language (EN/HI/JA)">
           <!-- icon injected -->
-          <span>EN</span>
         </button>
         <div id="np-lang-menu" class="np-menu" role="menu" aria-label="Language options"></div>
       </div>
-      <!-- Mic -->
-      <button id="np-mic" class="np-btn" title="Voice control (Space/Play/Pause/Next/Prev/Mute/Lang/Speed)"><!-- icon injected --></button>
     </div>
-  </div>
 
-  <!-- OVERLAY (tap area) -->
-  <div id="np-overlay" role="presentation" aria-hidden="true"></div>
+    <!-- OVERLAY -->
+    <div id="np-overlay" role="presentation" aria-hidden="true"></div>
 
-  <!-- CONTROLS -->
-  <div id="np-controls" role="toolbar" aria-label="Video controls">
+    <!-- CONTROLS -->
+    <div id="np-controls" role="toolbar" aria-label="Video controls">
 
-    <!-- SEEK -->
-    <div id="np-seek-wrap" role="slider"
-      aria-label="Video seek bar"
-      aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
-      tabindex="0">
-      <div id="np-seek-track">
-        <div id="np-seek-buf"></div>
-        <div id="np-seek-fill"></div>
-        <div id="np-seek-thumb"></div>
-        <div id="np-seek-hover"></div>
+      <!-- SEEK -->
+      <div id="np-seek-wrap" role="slider"
+        aria-label="Video seek bar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+        tabindex="0">
+        <div id="np-seek-track">
+          <div id="np-seek-buf"></div>
+          <div id="np-seek-fill"></div>
+          <div id="np-seek-thumb"></div>
+          <div id="np-seek-hover"></div>
+        </div>
       </div>
-    </div>
 
-    <!-- BUTTON ROW -->
-    <div id="np-btn-row">
-      <button id="np-prev" class="np-btn" title="Previous video (P)" aria-label="Previous video"></button>
-      <button id="np-replay" class="np-btn" title="Rewind 10s (←)" aria-label="Rewind 10 seconds"></button>
-      <button id="np-play" class="np-btn" title="Play/Pause (Space)" aria-label="Play or pause"></button>
-      <button id="np-fwd" class="np-btn" title="Forward 10s (→)" aria-label="Forward 10 seconds"></button>
-      <button id="np-next" class="np-btn" title="Next video (N)" aria-label="Next video"></button>
+      <!-- BUTTON ROW -->
+      <div id="np-btn-row">
 
-      <!-- Volume -->
-      <div id="np-vol-wrap">
-        <button id="np-vol" class="np-btn" title="Mute/Unmute (M)" aria-label="Toggle mute"></button>
-        <div id="np-vol-slider-wrap">
-          <div id="np-vol-track">
-            <div id="np-vol-fill"></div>
-            <input type="range" id="np-vol-slider" min="0" max="1" step="0.02" value="1"
-              aria-label="Volume" title="Volume"/>
+        <!-- Prev / Play / Next -->
+        <button id="np-prev" class="np-btn" title="Previous (P)" aria-label="Previous video"></button>
+        <button id="np-play" class="np-btn" title="Play/Pause (Space)" aria-label="Play or pause"></button>
+        <button id="np-next" class="np-btn" title="Next (N)" aria-label="Next video"></button>
+
+        <!-- Volume -->
+        <div id="np-vol-wrap">
+          <button id="np-vol" class="np-btn" title="Mute (M)" aria-label="Toggle mute"></button>
+          <div id="np-vol-slider-wrap">
+            <div id="np-vol-track">
+              <div id="np-vol-fill"></div>
+              <input type="range" id="np-vol-slider" min="0" max="1" step="0.02" value="1"
+                aria-label="Volume" title="Volume"/>
+            </div>
           </div>
         </div>
-      </div>
 
-      <span id="np-time" aria-live="off">0:00 / 0:00</span>
+        <span id="np-time" aria-live="off">0:00 / 0:00</span>
 
-      <div id="np-btn-row-right">
-        <!-- Speed -->
-        <div style="position:relative">
-          <button id="np-speed" class="np-btn np-btn-label" aria-haspopup="true" aria-expanded="false" title="Playback speed (> faster, < slower)">
-            <!-- icon injected -->
-            <span>1x</span>
-          </button>
-          <div id="np-speed-menu" class="np-menu" role="menu" aria-label="Playback speed options"></div>
+        <div id="np-btn-row-right">
+          <!-- Speed -->
+          <div style="position:relative">
+            <button id="np-speed" class="np-btn np-btn-label" aria-haspopup="true" aria-expanded="false" title="Playback speed (< >)">
+              <!-- icon + span injected -->
+            </button>
+            <div id="np-speed-menu" class="np-menu" role="menu" aria-label="Playback speed options"></div>
+          </div>
+
+          <!-- Playlist -->
+          <button id="np-pl" class="np-btn" title="Playlist" aria-label="Toggle playlist" aria-expanded="false"></button>
+
+          <!-- Fullscreen -->
+          <button id="np-fs" class="np-btn" title="Fullscreen (F)" aria-label="Toggle fullscreen"></button>
         </div>
-
-        <!-- Playlist -->
-        <button id="np-pl" class="np-btn" title="Playlist" aria-label="Toggle playlist" aria-expanded="false"></button>
-
-        <!-- Fullscreen -->
-        <button id="np-fs" class="np-btn" title="Fullscreen (F)" aria-label="Toggle fullscreen"></button>
       </div>
     </div>
-  </div>
 
-  <!-- PLAYLIST PANEL -->
-  <div id="np-pl-panel" role="complementary" aria-label="Playlist" aria-hidden="true">
-    <div id="np-pl-header">Playlist</div>
-    <ul id="np-pl-list" role="listbox" aria-label="Video playlist"></ul>
-  </div>
+    <!-- PLAYLIST PANEL (inside root) -->
+    <div id="np-pl-panel" role="complementary" aria-label="Playlist" aria-hidden="true">
+      <div id="np-pl-header">Playlist</div>
+      <ul id="np-pl-list" role="listbox" aria-label="Video playlist"></ul>
+    </div>
 
-</div>
+  </div><!-- /np-root -->
+</div><!-- /np-page -->
 <script src="player.js"></script>
 </body>
 </html>
+
