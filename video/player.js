@@ -22,46 +22,31 @@ const NovaPlayer = (() => {
   };
 
   // ── SAMPLE PLAYLIST ────────────────────────────────────────
+  const _V = 'https://arlabs07.netlify.app/video/arlabs07.mp4';
   const PLAYLIST = [
     {
       id: 0,
       title: 'Cosmos: Birth of Stars',
       thumbnail: 'https://images.unsplash.com/photo-1462332420958-a05d1e002413?w=640&q=80',
-      tracks: {
-        en: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        hi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-        ja: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      },
+      tracks: { en: _V, hi: _V, ja: _V },
     },
     {
       id: 1,
       title: 'Ocean Depths: Silent World',
       thumbnail: 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=640&q=80',
-      tracks: {
-        en: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        hi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-        ja: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-      },
+      tracks: { en: _V, hi: _V, ja: _V },
     },
     {
       id: 2,
       title: 'Mountain Echoes',
       thumbnail: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=640&q=80',
-      tracks: {
-        en: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-        hi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-        ja: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-      },
+      tracks: { en: _V, hi: _V, ja: _V },
     },
     {
       id: 3,
       title: 'Urban Pulse: City Stories',
       thumbnail: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=640&q=80',
-      tracks: {
-        en: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-        hi: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4',
-        ja: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
-      },
+      tracks: { en: _V, hi: _V, ja: _V },
     },
   ];
 
@@ -125,7 +110,7 @@ const NovaPlayer = (() => {
       video: document.getElementById('np-video'),
       overlay: document.getElementById('np-overlay'),
       thumb: document.getElementById('np-thumb'),
-      title: document.getElementById('np-title'),
+      title: document.getElementById('np-page-title'),
       controls: document.getElementById('np-controls'),
       topBar: document.getElementById('np-top-bar'),
       seekTrack: document.getElementById('np-seek-track'),
@@ -137,8 +122,6 @@ const NovaPlayer = (() => {
       playBtn: document.getElementById('np-play'),
       prevBtn: document.getElementById('np-prev'),
       nextBtn: document.getElementById('np-next'),
-      replayBtn: document.getElementById('np-replay'),
-      fwdBtn: document.getElementById('np-fwd'),
       volBtn: document.getElementById('np-vol'),
       volSlider: document.getElementById('np-vol-slider'),
       volFill: document.getElementById('np-vol-fill'),
@@ -151,8 +134,6 @@ const NovaPlayer = (() => {
       plBtn: document.getElementById('np-pl'),
       plPanel: document.getElementById('np-pl-panel'),
       plList: document.getElementById('np-pl-list'),
-      micBtn: document.getElementById('np-mic'),
-      voiceStatus: document.getElementById('np-voice-status'),
       nudge: document.getElementById('np-nudge'),
       nudgeLeft: document.getElementById('np-nudge-left'),
       nudgeRight: document.getElementById('np-nudge-right'),
@@ -173,14 +154,19 @@ const NovaPlayer = (() => {
   function injectIcons() {
     const map = {
       'np-play': 'play', 'np-prev': 'prev', 'np-next': 'next',
-      'np-replay': 'replay10', 'np-fwd': 'forward10',
       'np-vol': 'volume', 'np-speed': 'speed', 'np-lang': 'lang',
-      'np-fs': 'fullscreen', 'np-pl': 'playlist', 'np-mic': 'mic',
+      'np-fs': 'fullscreen', 'np-pl': 'playlist',
     };
     for (const [id, key] of Object.entries(map)) {
       const el = document.getElementById(id);
       if (el) el.innerHTML = ICONS[key];
     }
+    // Speed button: icon + label span
+    const spd = document.getElementById('np-speed');
+    if (spd) spd.innerHTML = ICONS.speed + '<span>1x</span>';
+    // Lang button: icon + label span
+    const lng = document.getElementById('np-lang');
+    if (lng) lng.innerHTML = ICONS.lang + '<span>EN</span>';
   }
 
   // ── TRACK LOADING ──────────────────────────────────────────
@@ -245,7 +231,8 @@ const NovaPlayer = (() => {
       el.classList.toggle('active', active);
       el.innerHTML = active ? `${ICONS.check}<span>${el.dataset.speed}x</span>` : `${el.dataset.speed}x`;
     });
-    R.speedBtn.querySelector('span') && (R.speedBtn.querySelector('span').textContent = S.speed + 'x');
+    const sp = R.speedBtn && R.speedBtn.querySelector('span');
+    if (sp) sp.textContent = S.speed + 'x';
   }
 
   // ── LANG MENU ──────────────────────────────────────────────
@@ -258,15 +245,6 @@ const NovaPlayer = (() => {
       btn.textContent = CFG.langLabels[l];
       btn.addEventListener('click', e => { e.stopPropagation(); setLang(l); togglePanel('lang', false); });
       R.langMenu.appendChild(btn);
-    });
-  }
-
-  function updateLangMenuUI() {
-    document.querySelectorAll('.np-menu-item[data-lang]').forEach(el => {
-      const active = el.dataset.lang === S.lang;
-      el.classList.toggle('active', active);
-      const label = CFG.langLabels[el.dataset.lang];
-      el.innerHTML = active ? `${ICONS.check}<span>${label}</span>` : label;
     });
   }
 
@@ -426,7 +404,6 @@ const NovaPlayer = (() => {
     S.holdTimer = setTimeout(() => {
       R.video.playbackRate = CFG.holdSpeed;
       R.speedHold.classList.add('show');
-      showNudge('2×', 'center');
     }, CFG.holdDelay);
   }
 
@@ -438,52 +415,17 @@ const NovaPlayer = (() => {
     }
   }
 
-  // ── VOICE CONTROL ──────────────────────────────────────────
-  function initVoice() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { R.micBtn.style.display = 'none'; return; }
-    S.recognition = new SR();
-    S.recognition.continuous = true;
-    S.recognition.interimResults = false;
-    S.recognition.lang = 'en-US';
-    S.recognition.addEventListener('result', e => {
-      const cmd = e.results[e.results.length - 1][0].transcript.toLowerCase().trim();
-      handleVoiceCmd(cmd);
+  // ── LANG MENU UI UPDATE ────────────────────────────────────
+  function updateLangMenuUI() {
+    document.querySelectorAll('.np-menu-item[data-lang]').forEach(el => {
+      const active = el.dataset.lang === S.lang;
+      el.classList.toggle('active', active);
+      const label = CFG.langLabels[el.dataset.lang];
+      el.innerHTML = active ? `${ICONS.check}<span>${label}</span>` : label;
     });
-    S.recognition.addEventListener('end', () => { if (S.voiceActive) S.recognition.start(); });
-  }
-
-  function toggleVoice() {
-    if (!S.recognition) return;
-    S.voiceActive = !S.voiceActive;
-    if (S.voiceActive) {
-      S.recognition.start();
-      R.micBtn.innerHTML = ICONS.mic;
-      R.micBtn.classList.add('active');
-      R.voiceStatus.textContent = 'Listening…';
-      R.voiceStatus.classList.add('show');
-    } else {
-      S.recognition.stop();
-      R.micBtn.innerHTML = ICONS.micOff;
-      R.micBtn.classList.remove('active');
-      R.voiceStatus.classList.remove('show');
-    }
-  }
-
-  function handleVoiceCmd(cmd) {
-    R.voiceStatus.textContent = `"${cmd}"`;
-    if (/\b(play|resume|start)\b/.test(cmd)) { if (R.video.paused) togglePlay(); }
-    else if (/\b(pause|stop)\b/.test(cmd)) { if (!R.video.paused) togglePlay(); }
-    else if (/\b(next|forward video)\b/.test(cmd)) nextTrack();
-    else if (/\b(previous|back|prev)\b/.test(cmd)) prevTrack();
-    else if (/\bmute\b/.test(cmd)) { S.muted = true; R.video.muted = true; updateVolUI(); }
-    else if (/\bunmute\b/.test(cmd)) { S.muted = false; R.video.muted = false; updateVolUI(); }
-    else if (/\bfullscreen\b/.test(cmd)) toggleFS();
-    else if (/\b(hindi|हिंदी)\b/.test(cmd)) setLang('hi');
-    else if (/\b(english)\b/.test(cmd)) setLang('en');
-    else if (/\b(japanese|japan)\b/.test(cmd)) setLang('ja');
-    else if (/\bspeed\s*(up|faster|increase)\b/.test(cmd)) { const i = CFG.speeds.indexOf(S.speed); if (i < CFG.speeds.length - 1) setSpeed(CFG.speeds[i + 1]); }
-    else if (/\bspeed\s*(down|slower|decrease)\b/.test(cmd)) { const i = CFG.speeds.indexOf(S.speed); if (i > 0) setSpeed(CFG.speeds[i - 1]); }
+    // update lang button label
+    const labels = { en: 'EN', hi: 'HI', ja: 'JA' };
+    if (R.langBtn) R.langBtn.innerHTML = ICONS.lang + `<span>${labels[S.lang] || S.lang.toUpperCase()}</span>`;
   }
 
   // ── KEYBOARD SHORTCUTS ─────────────────────────────────────
@@ -572,11 +514,8 @@ const NovaPlayer = (() => {
     R.playBtn.addEventListener('click', e => { e.stopPropagation(); togglePlay(); });
     R.prevBtn.addEventListener('click', e => { e.stopPropagation(); prevTrack(); });
     R.nextBtn.addEventListener('click', e => { e.stopPropagation(); nextTrack(); });
-    R.replayBtn.addEventListener('click', e => { e.stopPropagation(); skip(-CFG.skipSec); });
-    R.fwdBtn.addEventListener('click', e => { e.stopPropagation(); skip(CFG.skipSec); });
     R.volBtn.addEventListener('click', e => { e.stopPropagation(); toggleMute(); });
     R.fsBtn.addEventListener('click', e => { e.stopPropagation(); toggleFS(); });
-    R.micBtn.addEventListener('click', e => { e.stopPropagation(); toggleVoice(); });
 
     R.speedBtn.addEventListener('click', e => { e.stopPropagation(); closeAllMenus(); togglePanel('speed', !S.speedOpen); });
     R.langBtn.addEventListener('click', e => { e.stopPropagation(); closeAllMenus(); togglePanel('lang', !S.langOpen); });
@@ -646,7 +585,6 @@ const NovaPlayer = (() => {
 
     // RAF loop
     rafLoop();
-    initVoice();
     showUI();
   }
 
