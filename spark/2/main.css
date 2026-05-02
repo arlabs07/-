@@ -1,6 +1,9 @@
 /* ═══════════════════════════════════════════════════════════
    main.css — Spark v9 — iOS 26 Liquid Glass · Light Mode
-   Desktop: NO sidebar. Nav tabs float inside left panel.
+   FIXES:
+   - Bug 5: bottom-nav hidden on desktop for ALL pages
+   - Modal sheet: completely hidden when closed (translateY(110%) not 100%)
+   - Unified floating tab pill visible on ALL desktop pages
    ═══════════════════════════════════════════════════════════ */
 
 :root {
@@ -56,16 +59,15 @@
   --bubble-recv-border:rgba(0,0,0,0.07);
   --story-grad: linear-gradient(135deg,#FF9500,#FF2D55,#AF52DE);
 
-  /* Layout — mobile uses floating nav, desktop uses inline nav */
+  /* Layout */
   --header-h: 52px;
-  --nav-h:    0px; /* nav is floating, not in flow */
-  --sidebar-w:0px; /* NO sidebar on desktop */
+  --nav-h:    0px;
+  --sidebar-w:0px;
 
   /* Radii */
   --r-xs:   6px;  --r-sm:  12px; --r-md:  16px;
   --r-lg:  22px;  --r-xl:  28px; --r-2xl: 36px;
   --r-pill:999px;
-  /* legacy aliases */
   --radius-sm: var(--r-sm); --radius-md: var(--r-md);
   --radius-lg: var(--r-lg); --radius-pill: var(--r-pill);
 
@@ -220,7 +222,6 @@ a{text-decoration:none;color:inherit;}
 @keyframes pageIn{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
 
 /* ─── MOBILE FLOATING NAV ────────────────────────────────── */
-/* On mobile: absolute pill floating above content */
 #bottom-nav{
   position:absolute;
   bottom:calc(env(safe-area-inset-bottom,8px) + 10px);
@@ -375,7 +376,9 @@ a{text-decoration:none;color:inherit;}
   border-top:1px solid rgba(255,255,255,0.88);
   border-radius:var(--r-xl) var(--r-xl) 0 0;
   padding-bottom:env(safe-area-inset-bottom,0);
-  transform:translateY(100%);transition:transform var(--dur) var(--spring);
+  /* Fix: use translateY(110%) so it's fully off-screen when closed, not just 100% */
+  transform:translateY(110%);
+  transition:transform var(--dur) var(--spring);
   max-height:90dvh;overflow-y:auto;box-shadow:var(--shadow-xl);
 }
 #modal-sheet::before{
@@ -400,7 +403,7 @@ a{text-decoration:none;color:inherit;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-center{flex:1;display:flex;align-items:center;justify-content:center;}
 
-/* FAB — sits above floating nav on mobile, normal position on desktop */
+/* FAB */
 .fab{
   position:absolute;
   bottom:calc(env(safe-area-inset-bottom,8px) + 82px);right:20px;
@@ -442,28 +445,68 @@ a{text-decoration:none;color:inherit;}
 .subpage-overlay.open{transform:translateX(0);}
 
 /* ═══════════════════════════════════════════════════════════
+   UNIFIED DESKTOP TAB PILL
+   Used in: chats left panel, communities left panel,
+            updates page, profile page
+   Same pill component, same design, positioned consistently.
+   ═══════════════════════════════════════════════════════════ */
+
+/* The shared .ch-tab-pill class is used by ALL pages' desktop nav */
+.ch-tab-pill{
+  position:absolute;
+  bottom:10px;
+  left:50%;transform:translateX(-50%);
+  width:calc(100% - 24px);max-width:380px;
+  height:58px;
+  background:var(--glass-mid);
+  backdrop-filter:blur(60px) saturate(220%) brightness(1.03);
+  -webkit-backdrop-filter:blur(60px) saturate(220%) brightness(1.03);
+  border:1px solid rgba(255,255,255,0.72);
+  border-top-color:rgba(255,255,255,0.94);
+  border-radius:29px;
+  box-shadow:var(--shadow-lg),0 1px 0 rgba(255,255,255,0.88) inset;
+  display:flex;align-items:center;padding:0 6px;
+  z-index:20;
+}
+
+/* On mobile, hide in-panel pills — the global #bottom-nav handles nav */
+@media(max-width:767px){
+  .ch-tab-pill{display:none !important;}
+}
+
+.ch-tab-btn{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1px;
+  color:var(--text-3);height:46px;border-radius:23px;
+  border:none;font-family:var(--font);cursor:pointer;
+  transition:color var(--dur-sm) var(--ease),background var(--dur-sm) var(--ease);
+  padding:4px 2px;background:none;
+}
+.ch-tab-btn .material-icons-round{font-size:20px;transition:transform var(--dur-sm) var(--bounce);}
+.ch-tab-btn span:last-child{font-size:9px;font-weight:700;letter-spacing:0.2px;}
+.ch-tab-btn.active{color:var(--accent);background:rgba(0,122,255,0.10);}
+.ch-tab-btn.active .material-icons-round{transform:scale(1.08);}
+.ch-tab-btn:active .material-icons-round{transform:scale(0.84);}
+
+/* ═══════════════════════════════════════════════════════════
    DESKTOP ≥ 768px
-   Layout: full-height left panel | full-height right panel
-   NO sidebar. Nav tabs are inside left panel at bottom.
    ═══════════════════════════════════════════════════════════ */
 @media(min-width:768px){
-  /* Kill sidebar concept */
   :root{ --sidebar-w: 0px; }
 
   body::before{opacity:0.65;}
 
-  /* App is pure column — header hidden, content fills everything */
   #app{ flex-direction:column; }
   #app-header{ display:none !important; }
   #main-content{ flex:1; overflow:hidden; }
 
-  /* Pages fill full width, no bottom padding (no floating nav) */
+  /* Pages fill full width, no bottom padding */
   .page{ padding-bottom:0; }
 
-  /* Bottom nav: HIDDEN on desktop — tabs live inside left panels */
+  /* Bug 5 Fix: bottom nav ALWAYS hidden on desktop */
   #bottom-nav{ display:none !important; }
 
-  /* Dual-panel pages (chats & communities) */
+  /* Dual-panel pages */
   #page-chats,
   #page-communities{
     flex-direction:row;
@@ -471,7 +514,7 @@ a{text-decoration:none;color:inherit;}
     height:100%;
   }
 
-  /* Left list panel — fixed width, full height */
+  /* Left list panels */
   #page-chats .chat-list-panel,
   #page-chats.chat-open .chat-list-panel{
     display:flex !important;
@@ -480,16 +523,14 @@ a{text-decoration:none;color:inherit;}
     border-right:1px solid var(--glass-stroke);
     flex-direction:column; overflow:hidden;
     background:var(--bg-secondary);
-    position:relative; /* for floating nav inside */
+    position:relative;
   }
-  /* Right chat panel */
   #page-chats .chat-window-panel,
   #page-chats.chat-open .chat-window-panel{
     display:flex !important; flex:1; overflow:hidden; flex-direction:column;
     background:var(--bg-primary);
   }
 
-  /* Same for communities */
   #page-communities .comm-list-panel,
   #page-communities.comm-open .comm-list-panel{
     display:flex !important;
@@ -504,21 +545,41 @@ a{text-decoration:none;color:inherit;}
     background:var(--bg-primary);
   }
 
-  /* Single-column pages (updates, profile) fill full width */
-  #page-updates,#page-profile{
+  /* Single-column pages: updates and profile get their OWN tab pill
+     positioned at the bottom of their main content area */
+  #page-updates,
+  #page-profile{
     overflow:hidden;
+    position:relative;
   }
 
-  /* Subpage in profile becomes inline */
+  /* Tab pill for single-column pages sits at the bottom of the page content */
+  #page-updates .ch-tab-pill,
+  #page-profile .ch-tab-pill{
+    position:fixed;
+    bottom:16px;
+    left:50%;
+    width:auto;
+    min-width:400px;
+    max-width:500px;
+  }
+
   .subpage-overlay{position:static;transform:none !important;transition:none;flex:1;}
 
-  /* Toast centered in full window */
   #toast-bar{ bottom:24px; }
 
-  /* Modal centered */
-  #modal-sheet{ max-width:520px; margin:0 auto; border-radius:var(--r-xl); bottom:24px; left:0; right:0; }
+  /* Modal: centered on desktop, fully off-screen when closed */
+  #modal-sheet{
+    max-width:520px;
+    margin:0 auto;
+    border-radius:var(--r-xl);
+    bottom:0;
+    left:0;right:0;
+  }
+  #modal-sheet:not(.open){
+    transform:translateY(110%);
+  }
 
-  /* FAB normal position */
   .fab{ bottom:24px; }
 }
 
