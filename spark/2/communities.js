@@ -1,6 +1,9 @@
 /**
- * communities.js — Communities Page v8
- * Desktop: left panel with list + floating tab pill, right panel for chat.
+ * communities.js — Communities Page v8 (Fixed)
+ * FIXES:
+ *  - Unified tab pill: now uses the same 5-tab .ch-tab-pill / .ch-tab-btn
+ *    system as chats.js, so all desktop pages have identical navigation.
+ *  - Active state: "Groups" tab is highlighted as current page.
  */
 const CommunitiesPage = (() => {
 
@@ -45,24 +48,33 @@ const CommunitiesPage = (() => {
             <span class="material-icons-round" style="font-size:20px;color:var(--ios-purple)">groups</span>
             <span style="font-family:var(--font-logo);font-size:18px;color:var(--text-1)">Communities</span>
           </div>
-          <button class="icon-btn" id="cm-fab" title="New Community">
-            <span class="material-icons-round" style="color:var(--accent)">add</span>
+          <button class="icon-btn" id="cm-fab" title="New Community" style="color:var(--accent)">
+            <span class="material-icons-round">add</span>
           </button>
         </div>
         <div class="communities-list" id="cm-list"></div>
-        <!-- Floating tab pill inside left panel (desktop only) -->
+
+        <!-- Unified 5-tab pill — same as chats.js, communities is active -->
         <div class="ch-tab-pill" id="comm-tab-pill">
           <button class="ch-tab-btn" data-page="chats">
-            <span class="material-icons-round">chat_bubble_outline</span><span>Chats</span>
+            <span class="material-icons-round">chat_bubble_outline</span>
+            <span>Chats</span>
           </button>
           <button class="ch-tab-btn" data-page="updates">
-            <span class="material-icons-round">radio_button_unchecked</span><span>Updates</span>
+            <span class="material-icons-round">radio_button_unchecked</span>
+            <span>Updates</span>
           </button>
           <button class="ch-tab-btn active" data-page="communities">
-            <span class="material-icons-round">groups</span><span>Groups</span>
+            <span class="material-icons-round">groups</span>
+            <span>Groups</span>
+          </button>
+          <button class="ch-tab-btn" data-page="people">
+            <span class="material-icons-round">people_outline</span>
+            <span>People</span>
           </button>
           <button class="ch-tab-btn" data-page="profile">
-            <span class="material-icons-round">person_outline</span><span>Profile</span>
+            <span class="material-icons-round">person_outline</span>
+            <span>Profile</span>
           </button>
         </div>
       </div>
