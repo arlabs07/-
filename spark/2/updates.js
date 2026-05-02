@@ -1,6 +1,9 @@
 /**
- * updates.js — Status / Updates v9
- * iOS 26 Liquid Glass light mode
+ * updates.js — Status / Updates v9 (Fixed)
+ * FIXES:
+ *  - Unified tab pill: 5-tab .ch-tab-pill matching all other pages
+ *  - Updates tab is highlighted as active
+ *  - Status feed uses overflow-y:auto so more statuses can be scrolled
  */
 const UpdatesPage = (() => {
 
@@ -40,9 +43,10 @@ const UpdatesPage = (() => {
     App.setTitle(null);
 
     container.innerHTML = `
-      <div class="updates-shell">
-        <div class="updates-body">
-          <div class="updates-feed" id="up-feed">
+      <div class="updates-shell" style="position:relative;padding-bottom:0">
+        <div class="updates-body" style="flex:1;overflow:hidden;display:flex">
+          <!-- Feed: scrollable, leaves room for bottom pill on desktop -->
+          <div class="updates-feed" id="up-feed" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;padding-bottom:calc(env(safe-area-inset-bottom,8px) + 84px)">
             <div class="updates-top">
               <div class="stories-rail" id="stories-rail">
                 ${[...Array(5)].map(()=>`
@@ -56,7 +60,36 @@ const UpdatesPage = (() => {
           </div>
           <div class="updates-panel" id="up-panel"></div>
         </div>
+
+        <!-- Unified 5-tab pill — Updates tab active -->
+        <div class="ch-tab-pill" id="updates-tab-pill">
+          <button class="ch-tab-btn" data-page="chats">
+            <span class="material-icons-round">chat_bubble_outline</span>
+            <span>Chats</span>
+          </button>
+          <button class="ch-tab-btn active" data-page="updates">
+            <span class="material-icons-round">radio_button_checked</span>
+            <span>Updates</span>
+          </button>
+          <button class="ch-tab-btn" data-page="communities">
+            <span class="material-icons-round">groups</span>
+            <span>Groups</span>
+          </button>
+          <button class="ch-tab-btn" data-page="people">
+            <span class="material-icons-round">people_outline</span>
+            <span>People</span>
+          </button>
+          <button class="ch-tab-btn" data-page="profile">
+            <span class="material-icons-round">person_outline</span>
+            <span>Profile</span>
+          </button>
+        </div>
       </div>`;
+
+    // Bind tab pill navigation
+    document.querySelectorAll('#updates-tab-pill .ch-tab-btn[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => App.goTo('#' + btn.dataset.page));
+    });
 
     await _load();
     SyncManager.watch(SYNC_KEY, async () => {
