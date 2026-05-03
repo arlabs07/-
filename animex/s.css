@@ -28,7 +28,7 @@ body{display:flex;flex-direction:column;}
 /* ── Overlay backdrop blur ── */
 body.overlay-open::before{
   content:'';position:fixed;inset:0;z-index:490;
-  background:rgba(0,0,0,.55);
+  background:rgba(0,0,0,0.00);
   backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
   pointer-events:none;
