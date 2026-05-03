@@ -8,7 +8,7 @@ episodes:[
 {id:"s1e3",s:1,e:3,t:"Ash Catches a Pokémon",d:"16 Aug 2023",dur:"20m",thumb:"https://picsum.photos/seed/ep3/160/90",desc:"Ash catches a Caterpie. Misty's bug phobia makes her uneasy."},
 {id:"s1e4",s:1,e:4,t:"Challenge of the Samurai",d:"23 Aug 2023",dur:"21m",thumb:"https://picsum.photos/seed/ep4/160/90",desc:"A samurai challenges Ash to a duel in the forest near Viridian City."}
 ]},
-{id:"mario",t:"Super Mario Bros. Movie",s:"Animation • Family • Comedy",y:"2023",seasons:1,langs:"5 Languages",ep:"Full Movie",rating:"5.8",desc:"A plumber from Brooklyn is transported to a fantastical world where he must stop a powerful villain.",genres:["Animation","Family","Comedy","Adventure"],thumb:"https://picsum.photos/seed/mario/300/450",hero:"https://picsum.photos/seed/marioh/800/450",
+{id:"mario",t:"Super Mario Bros.",s:"Animation • Family • Comedy",y:"2023",seasons:1,langs:"5 Languages",ep:"Full Movie",rating:"5.8",desc:"A plumber from Brooklyn is transported to a fantastical world where he must stop a powerful villain.",genres:["Animation","Family","Comedy","Adventure"],thumb:"https://picsum.photos/seed/mario/300/450",hero:"https://picsum.photos/seed/marioh/800/450",
 tracks:{en:{"1080p":"https://arlabs07.netlify.app/video/arlabs07.mp4","720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
 episodes:[
 {id:"s1e1",s:1,e:1,t:"The Super Mario Bros. Movie",d:"2023",dur:"1h 32m",thumb:"https://picsum.photos/seed/marioe/160/90",desc:"Full theatrical release of the Super Mario Bros. Movie."}
@@ -24,7 +24,7 @@ tracks:{hi:{"720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
 episodes:[
 {id:"s1e1",s:1,e:1,t:"Pilot",d:"2022",dur:"18m",thumb:"https://picsum.photos/seed/motue/160/90",desc:"The first adventure of Motu and Patlu in Furfuri Nagar."}
 ]},
-{id:"dragon",t:"How to Train Your Dragon",s:"Animation • Fantasy • Adventure",y:"2023",seasons:1,langs:"Hindi",ep:"Full Movie",rating:"8.1",desc:"A young Viking befriends a dragon and changes the relationship between humans and dragons forever.",genres:["Animation","Fantasy","Adventure","Family"],thumb:"https://picsum.photos/seed/httyd/300/450",hero:"https://picsum.photos/seed/httydh/800/450",
+{id:"dragon",t:"How To Train Your Dragon",s:"Animation • Fantasy • Adventure",y:"2023",seasons:1,langs:"Hindi",ep:"Full Movie",rating:"8.1",desc:"A young Viking befriends a dragon and changes the relationship between humans and dragons forever.",genres:["Animation","Fantasy","Adventure","Family"],thumb:"https://picsum.photos/seed/httyd/300/450",hero:"https://picsum.photos/seed/httydh/800/450",
 tracks:{hi:{"720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"},en:{"1080p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
 episodes:[
 {id:"s1e1",s:1,e:1,t:"How to Train Your Dragon",d:"2023",dur:"1h 38m",thumb:"https://picsum.photos/seed/httyde/160/90",desc:"Hiccup befriends Toothless and discovers how to live alongside dragons."}
@@ -42,20 +42,34 @@ sections:[
 {title:"New Releases",ids:["mario","balganesh","dragon"]},
 {title:"Top Rated",ids:["doraemon","dragon","pokemon","mario"]}
 ],
-wishlist:new Set(),
-progress:{},
 langLabels:{en:"English",hi:"Hindi",ja:"Japanese",es:"Spanish",fr:"French",de:"German"},
-setProgress(showId,epId,pct){
-if(!this.progress[showId])this.progress[showId]={};
-this.progress[showId][epId]=pct;
+_wl:null,_pr:{},
+get wishlist(){
+if(!this._wl){
+try{const s=localStorage.getItem('ax_wl');this._wl=new Set(s?JSON.parse(s):[]);}catch(e){this._wl=new Set();}
+}
+return this._wl;
 },
-getProgress(showId,epId){return(this.progress[showId]||{})[epId]||0;},
+saveWL(){try{localStorage.setItem('ax_wl',JSON.stringify([...this._wl]));}catch(e){}},
+get progress(){
+if(!Object.keys(this._pr).length){
+try{const s=localStorage.getItem('ax_pr');if(s)this._pr=JSON.parse(s);}catch(e){}
+}
+return this._pr;
+},
+savePR(){try{localStorage.setItem('ax_pr',JSON.stringify(this._pr));}catch(e){}},
+setProgress(showId,epId,pct){
+if(!this._pr[showId])this._pr[showId]={};
+this._pr[showId][epId]=pct;
+this.savePR();
+},
+getProgress(showId,epId){return(this._pr[showId]||{})[epId]||0;},
 getContinueWatching(){
 const out=[];
 Object.keys(this.progress).forEach(sid=>{
 const s=this.shows.find(x=>x.id===sid);if(!s)return;
-Object.keys(this.progress[sid]).forEach(eid=>{
-const pct=this.progress[sid][eid];
+Object.keys(this._pr[sid]).forEach(eid=>{
+const pct=this._pr[sid][eid];
 if(pct>2&&pct<95){
 const ep=s.episodes.find(x=>x.id===eid);
 if(ep)out.push({show:s,ep,pct});
