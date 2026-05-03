@@ -1,81 +1,259 @@
-const D={
-shows:[
-{id:"pokemon",t:"Pokémon",s:"Animation • Kids • Adventure",y:"2023",seasons:4,langs:"4 Languages",ep:"S1 E1 • I Choose You",rating:"7.6",desc:"A young trainer and his Pikachu travel the world, battling Pokémon and growing stronger together.",genres:["Animation","Kids","Animals","Coming-of-Age","Comedy"],thumb:"https://picsum.photos/seed/poke/300/450",hero:"https://picsum.photos/seed/pokeh/800/450",
-tracks:{ja:{"720p":"https://cdn.videas.fr/v-medias/s5/hlsv1/7e/53/7e531338-0aae-407e-8f1a-21814314389a/playlist.m3u8"},en:{"720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
-episodes:[
-{id:"s1e1",s:1,e:1,t:"I Choose You",d:"16 Jul 2023",dur:"21m",thumb:"https://picsum.photos/seed/ep1/160/90",desc:"Ash's journey begins with a grumpy Pikachu. Spearow attack and Pikachu proves its loyalty."},
-{id:"s1e2",s:1,e:2,t:"Pokémon Emergency",d:"16 Aug 2023",dur:"20m",thumb:"https://picsum.photos/seed/ep2/160/90",desc:"Ash and his injured Pikachu race into Viridian City where Team Rocket causes chaos."},
-{id:"s1e3",s:1,e:3,t:"Ash Catches a Pokémon",d:"16 Aug 2023",dur:"20m",thumb:"https://picsum.photos/seed/ep3/160/90",desc:"Ash catches a Caterpie. Misty's bug phobia makes her uneasy."},
-{id:"s1e4",s:1,e:4,t:"Challenge of the Samurai",d:"23 Aug 2023",dur:"21m",thumb:"https://picsum.photos/seed/ep4/160/90",desc:"A samurai challenges Ash to a duel in the forest near Viridian City."}
-]},
-{id:"mario",t:"Super Mario Bros.",s:"Animation • Family • Comedy",y:"2023",seasons:1,langs:"5 Languages",ep:"Full Movie",rating:"5.8",desc:"A plumber from Brooklyn is transported to a fantastical world where he must stop a powerful villain.",genres:["Animation","Family","Comedy","Adventure"],thumb:"https://picsum.photos/seed/mario/300/450",hero:"https://picsum.photos/seed/marioh/800/450",
-tracks:{en:{"1080p":"https://arlabs07.netlify.app/video/arlabs07.mp4","720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
-episodes:[
-{id:"s1e1",s:1,e:1,t:"The Super Mario Bros. Movie",d:"2023",dur:"1h 32m",thumb:"https://picsum.photos/seed/marioe/160/90",desc:"Full theatrical release of the Super Mario Bros. Movie."}
-]},
-{id:"doraemon",t:"Doraemon",s:"Animation • Kids • Comedy",y:"2022",seasons:6,langs:"3 Languages",ep:"S1 E1 • The Beginning",rating:"8.1",desc:"A robotic cat from the future helps a young boy with magical gadgets.",genres:["Animation","Kids","Comedy","Family"],thumb:"https://picsum.photos/seed/dora/300/450",hero:"https://picsum.photos/seed/dorah/800/450",
-tracks:{en:{"720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"},ja:{"720p":"https://cdn.videas.fr/v-medias/s5/hlsv1/7e/53/7e531338-0aae-407e-8f1a-21814314389a/playlist.m3u8"}},
-episodes:[
-{id:"s1e1",s:1,e:1,t:"The Beginning",d:"12 Jan 2022",dur:"22m",thumb:"https://picsum.photos/seed/dorae1/160/90",desc:"Doraemon arrives from the future to help Nobita with his studies."},
-{id:"s1e2",s:1,e:2,t:"The Anywhere Door",d:"19 Jan 2022",dur:"22m",thumb:"https://picsum.photos/seed/dorae2/160/90",desc:"Doraemon pulls out the Anywhere Door, and adventure begins."}
-]},
-{id:"motupatlu",t:"Motu Patlu",s:"Animation • Kids • Comedy",y:"2022",seasons:8,langs:"2 Languages",ep:"S1 E1",rating:"6.9",desc:"Two best friends Motu and Patlu go on hilarious adventures in Furfuri Nagar.",genres:["Animation","Kids","Comedy"],thumb:"https://picsum.photos/seed/motu/300/450",hero:"https://picsum.photos/seed/motuh/800/450",
-tracks:{hi:{"720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
-episodes:[
-{id:"s1e1",s:1,e:1,t:"Pilot",d:"2022",dur:"18m",thumb:"https://picsum.photos/seed/motue/160/90",desc:"The first adventure of Motu and Patlu in Furfuri Nagar."}
-]},
-{id:"dragon",t:"How To Train Your Dragon",s:"Animation • Fantasy • Adventure",y:"2023",seasons:1,langs:"Hindi",ep:"Full Movie",rating:"8.1",desc:"A young Viking befriends a dragon and changes the relationship between humans and dragons forever.",genres:["Animation","Fantasy","Adventure","Family"],thumb:"https://picsum.photos/seed/httyd/300/450",hero:"https://picsum.photos/seed/httydh/800/450",
-tracks:{hi:{"720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"},en:{"1080p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
-episodes:[
-{id:"s1e1",s:1,e:1,t:"How to Train Your Dragon",d:"2023",dur:"1h 38m",thumb:"https://picsum.photos/seed/httyde/160/90",desc:"Hiccup befriends Toothless and discovers how to live alongside dragons."}
-]},
-{id:"balganesh",t:"Bal Ganesh",s:"Animation • Mythology • Kids",y:"2022",seasons:2,langs:"Hindi",ep:"S1 E1",rating:"7.2",desc:"The adventures of young Lord Ganesha told through colorful animation.",genres:["Animation","Mythology","Kids"],thumb:"https://picsum.photos/seed/balg/300/450",hero:"https://picsum.photos/seed/balgh/800/450",
-tracks:{hi:{"720p":"https://arlabs07.netlify.app/video/arlabs07.mp4"}},
-episodes:[
-{id:"s1e1",s:1,e:1,t:"The Beginning",d:"2022",dur:"20m",thumb:"https://picsum.photos/seed/balge/160/90",desc:"The story of young Ganesha begins."}
-]}
-],
-sections:[
-{title:"Featured",ids:["mario","pokemon","doraemon"]},
-{title:"Popular in Kids",ids:["motupatlu","doraemon","balganesh","pokemon","dragon"]},
-{title:"Trending Now",ids:["pokemon","dragon","mario","motupatlu"]},
-{title:"New Releases",ids:["mario","balganesh","dragon"]},
-{title:"Top Rated",ids:["doraemon","dragon","pokemon","mario"]}
-],
-langLabels:{en:"English",hi:"Hindi",ja:"Japanese",es:"Spanish",fr:"French",de:"German"},
-_wl:null,_pr:{},
-get wishlist(){
-if(!this._wl){
-try{const s=localStorage.getItem('ax_wl');this._wl=new Set(s?JSON.parse(s):[]);}catch(e){this._wl=new Set();}
-}
-return this._wl;
-},
-saveWL(){try{localStorage.setItem('ax_wl',JSON.stringify([...this._wl]));}catch(e){}},
-get progress(){
-if(!Object.keys(this._pr).length){
-try{const s=localStorage.getItem('ax_pr');if(s)this._pr=JSON.parse(s);}catch(e){}
-}
-return this._pr;
-},
-savePR(){try{localStorage.setItem('ax_pr',JSON.stringify(this._pr));}catch(e){}},
-setProgress(showId,epId,pct){
-if(!this._pr[showId])this._pr[showId]={};
-this._pr[showId][epId]=pct;
-this.savePR();
-},
-getProgress(showId,epId){return(this._pr[showId]||{})[epId]||0;},
-getContinueWatching(){
-const out=[];
-Object.keys(this.progress).forEach(sid=>{
-const s=this.shows.find(x=>x.id===sid);if(!s)return;
-Object.keys(this._pr[sid]).forEach(eid=>{
-const pct=this._pr[sid][eid];
-if(pct>2&&pct<95){
-const ep=s.episodes.find(x=>x.id===eid);
-if(ep)out.push({show:s,ep,pct});
-}
-});
-});
-return out;
-}
-};
+/* ═══════════════════════════════════════════════
+   AnimeX · d.js  — Unified Data Layer v3
+   All show data is structured identically.
+   Progress & wishlist persisted in localStorage.
+   ═══════════════════════════════════════════════ */
+const D = (() => {
+  'use strict';
+
+  /* ── Language label map ── */
+  const LANG_LABELS = {
+    en:'English', hi:'Hindi', ja:'Japanese',
+    es:'Spanish', fr:'French', de:'German', ta:'Tamil', te:'Telugu'
+  };
+
+  /* ── Unified show schema ──────────────────────
+     Every show has:
+       id, title, subtitle, year, rating, desc
+       genres[]
+       seasons  (count)
+       langs[]  (array of lang keys)
+       thumb    (poster 2:3)
+       hero     (banner 16:9)
+       tracks   { langKey: { qualKey: url } }
+       episodes[]  { id, s, e, title, date, dur, thumb, desc }
+  ─────────────────────────────────────────────── */
+  const SHOWS = [
+    {
+      id: 'pokemon',
+      title: 'Pokémon',
+      subtitle: 'Animation · Kids · Adventure',
+      year: '2023',
+      rating: 7.6,
+      seasons: 4,
+      langs: ['en','ja'],
+      desc: 'A young trainer and his Pikachu travel the world, battling Pokémon and growing stronger together.',
+      genres: ['Animation','Kids','Animals','Coming-of-Age','Comedy'],
+      thumb: 'https://picsum.photos/seed/poke/300/450',
+      hero:  'https://picsum.photos/seed/pokeh/800/450',
+      tracks: {
+        ja: { '720p': 'https://cdn.videas.fr/v-medias/s5/hlsv1/7e/53/7e531338-0aae-407e-8f1a-21814314389a/playlist.m3u8' },
+        en: { '720p': 'https://arlabs07.netlify.app/video/arlabs07.mp4' }
+      },
+      episodes: [
+        { id:'s1e1', s:1, e:1, title:'I Choose You',          date:'16 Jul 2023', dur:'21m', thumb:'https://picsum.photos/seed/ep1/160/90',  desc:'Ash\'s journey begins with a grumpy Pikachu. Spearow attack and Pikachu proves its loyalty.' },
+        { id:'s1e2', s:1, e:2, title:'Pokémon Emergency',     date:'16 Aug 2023', dur:'20m', thumb:'https://picsum.photos/seed/ep2/160/90',  desc:'Ash and his injured Pikachu race into Viridian City where Team Rocket causes chaos.' },
+        { id:'s1e3', s:1, e:3, title:'Ash Catches a Pokémon', date:'23 Aug 2023', dur:'20m', thumb:'https://picsum.photos/seed/ep3/160/90',  desc:'Ash catches a Caterpie. Misty\'s bug phobia makes her uneasy.' },
+        { id:'s1e4', s:1, e:4, title:'Challenge of the Samurai',date:'30 Aug 2023',dur:'21m', thumb:'https://picsum.photos/seed/ep4/160/90',  desc:'A samurai challenges Ash to a duel in the forest near Viridian City.' },
+        { id:'s1e5', s:1, e:5, title:'Showdown in Pewter City', date:'6 Sep 2023', dur:'21m', thumb:'https://picsum.photos/seed/ep5/160/90',  desc:'Ash challenges Brock, the Rock-type Gym Leader, in his first official battle.' },
+        { id:'s1e6', s:1, e:6, title:'Clefairy and the Moon Stone',date:'13 Sep 2023',dur:'20m',thumb:'https://picsum.photos/seed/ep6/160/90', desc:'A rare Moon Stone is discovered in Mt. Moon, attracting Team Rocket.' },
+        { id:'s2e1', s:2, e:1, title:'Princess vs. Princess',  date:'1 Jan 2024', dur:'21m', thumb:'https://picsum.photos/seed/ep7/160/90',  desc:'Misty enters a princess competition on Princess Day.' },
+        { id:'s2e2', s:2, e:2, title:'The Purr-fect Hero',     date:'8 Jan 2024', dur:'21m', thumb:'https://picsum.photos/seed/ep8/160/90',  desc:'Meowth becomes a class mascot for a group of kids.' }
+      ]
+    },
+    {
+      id: 'mario',
+      title: 'Super Mario Bros.',
+      subtitle: 'Animation · Family · Comedy',
+      year: '2023',
+      rating: 5.8,
+      seasons: 1,
+      langs: ['en'],
+      desc: 'A plumber from Brooklyn is transported to a fantastical world where he must stop a powerful villain.',
+      genres: ['Animation','Family','Comedy','Adventure'],
+      thumb: 'https://picsum.photos/seed/mario/300/450',
+      hero:  'https://picsum.photos/seed/marioh/800/450',
+      tracks: {
+        en: { '1080p':'https://arlabs07.netlify.app/video/arlabs07.mp4', '720p':'https://arlabs07.netlify.app/video/arlabs07.mp4' }
+      },
+      episodes: [
+        { id:'s1e1', s:1, e:1, title:'The Super Mario Bros. Movie', date:'2023', dur:'1h 32m', thumb:'https://picsum.photos/seed/marioe/160/90', desc:'Full theatrical release of the Super Mario Bros. Movie.' }
+      ]
+    },
+    {
+      id: 'doraemon',
+      title: 'Doraemon',
+      subtitle: 'Animation · Kids · Comedy',
+      year: '2022',
+      rating: 8.1,
+      seasons: 6,
+      langs: ['en','ja'],
+      desc: 'A robotic cat from the future helps a young boy with magical gadgets.',
+      genres: ['Animation','Kids','Comedy','Family'],
+      thumb: 'https://picsum.photos/seed/dora/300/450',
+      hero:  'https://picsum.photos/seed/dorah/800/450',
+      tracks: {
+        en: { '720p':'https://arlabs07.netlify.app/video/arlabs07.mp4' },
+        ja: { '720p':'https://cdn.videas.fr/v-medias/s5/hlsv1/7e/53/7e531338-0aae-407e-8f1a-21814314389a/playlist.m3u8' }
+      },
+      episodes: [
+        { id:'s1e1', s:1, e:1, title:'The Beginning',      date:'12 Jan 2022', dur:'22m', thumb:'https://picsum.photos/seed/dorae1/160/90', desc:'Doraemon arrives from the future to help Nobita with his studies.' },
+        { id:'s1e2', s:1, e:2, title:'The Anywhere Door',  date:'19 Jan 2022', dur:'22m', thumb:'https://picsum.photos/seed/dorae2/160/90', desc:'Doraemon pulls out the Anywhere Door, and adventure begins.' },
+        { id:'s1e3', s:1, e:3, title:'Small Light',        date:'26 Jan 2022', dur:'22m', thumb:'https://picsum.photos/seed/dorae3/160/90', desc:'The Small Light shrinks everything it touches causing chaos.' }
+      ]
+    },
+    {
+      id: 'motupatlu',
+      title: 'Motu Patlu',
+      subtitle: 'Animation · Kids · Comedy',
+      year: '2022',
+      rating: 6.9,
+      seasons: 8,
+      langs: ['hi'],
+      desc: 'Two best friends Motu and Patlu go on hilarious adventures in Furfuri Nagar.',
+      genres: ['Animation','Kids','Comedy'],
+      thumb: 'https://picsum.photos/seed/motu/300/450',
+      hero:  'https://picsum.photos/seed/motuh/800/450',
+      tracks: {
+        hi: { '720p':'https://arlabs07.netlify.app/video/arlabs07.mp4' }
+      },
+      episodes: [
+        { id:'s1e1', s:1, e:1, title:'Pilot',        date:'2022', dur:'18m', thumb:'https://picsum.photos/seed/motue/160/90',  desc:'The first adventure of Motu and Patlu in Furfuri Nagar.' },
+        { id:'s1e2', s:1, e:2, title:'Samosa Crisis', date:'2022', dur:'18m', thumb:'https://picsum.photos/seed/motue2/160/90', desc:'Motu\'s obsession with samosas lands them both in trouble.' }
+      ]
+    },
+    {
+      id: 'dragon',
+      title: 'How To Train Your Dragon',
+      subtitle: 'Animation · Fantasy · Adventure',
+      year: '2023',
+      rating: 8.1,
+      seasons: 1,
+      langs: ['hi','en'],
+      desc: 'A young Viking befriends a dragon and changes the relationship between humans and dragons forever.',
+      genres: ['Animation','Fantasy','Adventure','Family'],
+      thumb: 'https://picsum.photos/seed/httyd/300/450',
+      hero:  'https://picsum.photos/seed/httydh/800/450',
+      tracks: {
+        hi: { '720p':'https://arlabs07.netlify.app/video/arlabs07.mp4' },
+        en: { '1080p':'https://arlabs07.netlify.app/video/arlabs07.mp4' }
+      },
+      episodes: [
+        { id:'s1e1', s:1, e:1, title:'How to Train Your Dragon', date:'2023', dur:'1h 38m', thumb:'https://picsum.photos/seed/httyde/160/90', desc:'Hiccup befriends Toothless and discovers how to live alongside dragons.' }
+      ]
+    },
+    {
+      id: 'balganesh',
+      title: 'Bal Ganesh',
+      subtitle: 'Animation · Mythology · Kids',
+      year: '2022',
+      rating: 7.2,
+      seasons: 2,
+      langs: ['hi'],
+      desc: 'The adventures of young Lord Ganesha told through colorful animation.',
+      genres: ['Animation','Mythology','Kids'],
+      thumb: 'https://picsum.photos/seed/balg/300/450',
+      hero:  'https://picsum.photos/seed/balgh/800/450',
+      tracks: {
+        hi: { '720p':'https://arlabs07.netlify.app/video/arlabs07.mp4' }
+      },
+      episodes: [
+        { id:'s1e1', s:1, e:1, title:'The Beginning', date:'2022', dur:'20m', thumb:'https://picsum.photos/seed/balge/160/90', desc:'The story of young Ganesha begins.' }
+      ]
+    }
+  ];
+
+  /* ── Section definitions ── */
+  const SECTIONS = [
+    { title:'Featured',          ids:['mario','pokemon','doraemon','dragon'] },
+    { title:'Popular in Kids',   ids:['motupatlu','doraemon','balganesh','pokemon','dragon'] },
+    { title:'Trending Now',      ids:['pokemon','dragon','mario','motupatlu'] },
+    { title:'New Releases',      ids:['mario','balganesh','dragon'] },
+    { title:'Top Rated',         ids:['doraemon','dragon','pokemon','mario'] }
+  ];
+
+  /* ── Build lookup map ── */
+  const _showMap = {};
+  SHOWS.forEach(s => { _showMap[s.id] = s; });
+
+  /* ── localStorage helpers ── */
+  function lsGet(key, def) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }
+    catch { return def; }
+  }
+  function lsSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+  }
+
+  /* ── Wishlist ── */
+  let _wl = null;
+  function getWL() {
+    if (!_wl) _wl = new Set(lsGet('ax_wl3', []));
+    return _wl;
+  }
+  function saveWL() { lsSet('ax_wl3', [...getWL()]); }
+
+  /* ── Progress ── */
+  let _pr = null;
+  function getPR() {
+    if (!_pr) _pr = lsGet('ax_pr3', {});
+    return _pr;
+  }
+  function savePR() { lsSet('ax_pr3', getPR()); }
+
+  /* ── Public API ── */
+  return {
+    shows: SHOWS,
+    sections: SECTIONS,
+    langLabels: LANG_LABELS,
+
+    getShow(id)      { return _showMap[id] || null; },
+    getEp(showId, epId) {
+      const s = _showMap[showId]; if (!s) return null;
+      return s.episodes.find(e => e.id === epId) || null;
+    },
+
+    /* Wishlist */
+    get wishlist() { return getWL(); },
+    toggleWL(id) {
+      const wl = getWL();
+      wl.has(id) ? wl.delete(id) : wl.add(id);
+      saveWL();
+      return wl.has(id);
+    },
+
+    /* Progress — pct is 0-100 */
+    setProgress(showId, epId, pct) {
+      const pr = getPR();
+      if (!pr[showId]) pr[showId] = {};
+      pr[showId][epId] = pct;
+      savePR();
+    },
+    getProgress(showId, epId) {
+      return (getPR()[showId] || {})[epId] || 0;
+    },
+    /* Resume time in seconds given a duration string like "21m" or "1h 32m" */
+    getResumeTime(showId, epId) {
+      const pct = this.getProgress(showId, epId);
+      if (!pct) return 0;
+      const ep = this.getEp(showId, epId);
+      if (!ep) return 0;
+      const totalSec = parseDur(ep.dur);
+      return Math.floor(totalSec * pct / 100);
+    },
+
+    getContinueWatching() {
+      const out = [];
+      const pr = getPR();
+      Object.keys(pr).forEach(sid => {
+        const s = _showMap[sid]; if (!s) return;
+        Object.keys(pr[sid]).forEach(eid => {
+          const pct = pr[sid][eid];
+          if (pct > 2 && pct < 95) {
+            const ep = s.episodes.find(x => x.id === eid);
+            if (ep) out.push({ show: s, ep, pct });
+          }
+        });
+      });
+      return out;
+    }
+  };
+
+  function parseDur(dur) {
+    /* "21m" → 1260,  "1h 32m" → 5520 */
+    let sec = 0;
+    const h = dur.match(/(\d+)h/); if (h) sec += parseInt(h[1]) * 3600;
+    const m = dur.match(/(\d+)m/); if (m) sec += parseInt(m[1]) * 60;
+    return sec || 1800; /* fallback 30m */
+  }
+})();
