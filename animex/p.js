@@ -1,21 +1,22 @@
 const P={
-_hcIdx:0,_hcTotal:0,_hcAnim:false,
+_hcIdx:0,_hcTotal:0,_hcAuto:null,_hcTouchX:0,_hcTouchT:0,_tt:null,
 home(){
 const feat=D.shows.slice(0,4);
-P._hcIdx=0;P._hcTotal=feat.length;P._hcAnim=false;
+P._hcIdx=0;P._hcTotal=feat.length;
+clearInterval(P._hcAuto);
 let h=`<div id="tb"><span class="logo">ANIMEX</span></div>`;
 h+=`<div id="hc"><div class="hcs" id="hcs">`;
 feat.forEach((s,i)=>{
 const wl=D.wishlist.has(s.id);
-h+=`<div class="hcd${i===0?' cur':''}" id="hcd${i}" onclick="R.show('${s.id}')">`;
+h+=`<div class="hcd${i===0?' cur':''}" id="hcd${i}">`;
 h+=`<img class="hci" src="${s.thumb}" loading="lazy" alt="${s.t}"><div class="hco"></div>`;
 h+=`<div class="hcb"><div class="hct">${s.t}</div><div class="hcm">${s.y} · ${s.langs} · ${s.s.split(' · ')[0]}</div>`;
 h+=`<div class="hca">`;
 h+=`<button class="btnp" onclick="event.stopPropagation();R.ep('${s.id}','${s.episodes[0].id}')"><i class="fa-solid fa-play"></i> Play</button>`;
 h+=`<button class="btnw${wl?' on':''}" onclick="event.stopPropagation();P.toggleWL('${s.id}',this)"><i class="fa-${wl?'solid':'regular'} fa-plus"></i></button>`;
+h+=`<button class="btninfo" onclick="event.stopPropagation();R.show('${s.id}')"><i class="fa-solid fa-circle-info"></i></button>`;
 h+=`</div></div></div>`;
 });
-h+=`</div>`;
 h+=`<div class="hcdots" id="hcdots">`;
 feat.forEach((_,i)=>h+=`<div class="hcdot${i===0?' act':''}" id="dot${i}" onclick="P.hcGo(${i})"></div>`);
 h+=`</div></div>`;
@@ -34,32 +35,56 @@ if(D.wishlist.size){
 h+=`<div class="sec"><div class="sech"><span class="sect">Your Watchlist</span></div><div class="secr">`;
 [...D.wishlist].forEach(id=>{
 const s=D.shows.find(x=>x.id===id);if(!s)return;
-h+=`<div class="sc" onclick="R.show('${s.id}')"><img class="sci" src="${s.thumb}" loading="lazy" alt="${s.t}"><div class="sct">${s.t}</div></div>`;
+h+=P._card(s);
 });
 h+=`</div></div>`;
 }
 D.sections.slice(1).forEach(sec=>{
 h+=`<div class="sec"><div class="sech"><span class="sect">${sec.title}</span>`;
 h+=`<div class="seca" onclick="R.seeAll('${sec.title}')"><i class="fa-solid fa-chevron-right"></i></div></div><div class="secr">`;
-sec.ids.forEach(id=>{
-const s=D.shows.find(x=>x.id===id);if(!s)return;
-h+=`<div class="sc" onclick="R.show('${s.id}')"><img class="sci" src="${s.thumb}" loading="lazy" alt="${s.t}"><div class="sct">${s.t}</div></div>`;
-});
+sec.ids.forEach(id=>{const s=D.shows.find(x=>x.id===id);if(!s)return;h+=P._card(s);});
 h+=`</div></div>`;
 });
-document.getElementById('page-home').innerHTML=h;
+const pg=document.getElementById('page-home');
+pg.innerHTML=h;
+P._bindHcTouch();
+P._hcAuto=setInterval(()=>P.hcNext(),4000);
+},
+_card(s){
+return`<div class="sc" onclick="R.show('${s.id}')"><div class="sc-inner"><img class="sci" src="${s.thumb}" loading="lazy" alt="${s.t}"><div class="sc-overlay"><div class="sc-title">${s.t}</div><div class="sc-meta">⭐${s.rating} · ${s.y}</div></div></div></div>`;
+},
+_bindHcTouch(){
+const el=document.getElementById('hc');if(!el)return;
+el.addEventListener('touchstart',e=>{P._hcTouchX=e.touches[0].clientX;P._hcTouchT=Date.now();},{passive:true});
+el.addEventListener('touchend',e=>{
+const dx=e.changedTouches[0].clientX-P._hcTouchX;
+const dt=Date.now()-P._hcTouchT;
+if(Math.abs(dx)>40&&dt<400){
+clearInterval(P._hcAuto);
+if(dx<0)P.hcNext();else P.hcPrev();
+P._hcAuto=setInterval(()=>P.hcNext(),4000);
+}
+},{passive:true});
+el.addEventListener('click',e=>{
+if(e.target.closest('.btnp')||e.target.closest('.btnw')||e.target.closest('.btninfo'))return;
+const cur=document.querySelector('.hcd.cur');if(!cur)return;
+const idx=parseInt(cur.id.replace('hcd',''));
+R.show(D.shows[idx].id);
+});
 },
 hcGo(idx){
-if(P._hcAnim||idx===P._hcIdx)return;
+if(idx===P._hcIdx)return;
 const prev=document.getElementById('hcd'+P._hcIdx);
 const next=document.getElementById('hcd'+idx);
 if(!prev||!next)return;
-P._hcAnim=true;
-prev.className='hcd turn-out';
+const dir=idx>P._hcIdx?1:-1;
+prev.className='hcd turn-out'+(dir>0?'',' turn-out-rev');
+prev.style.animationName=dir>0?'bookOut':'bookOutRev';
 setTimeout(()=>{
-prev.className='hcd';
+prev.className='hcd';prev.style.animationName='';
 next.className='hcd turn-in';
-setTimeout(()=>{next.className='hcd cur';P._hcAnim=false;},500);
+next.style.animationName=dir>0?'bookIn':'bookInRev';
+setTimeout(()=>{next.className='hcd cur';next.style.animationName='';},500);
 },480);
 document.querySelectorAll('.hcdot').forEach((d,i)=>d.className='hcdot'+(i===idx?' act':''));
 P._hcIdx=idx;
@@ -68,6 +93,7 @@ hcNext(){P.hcGo((P._hcIdx+1)%P._hcTotal);},
 hcPrev(){P.hcGo((P._hcIdx-1+P._hcTotal)%P._hcTotal);},
 toggleWL(id,el){
 if(D.wishlist.has(id))D.wishlist.delete(id);else D.wishlist.add(id);
+D.saveWL();
 const on=D.wishlist.has(id);
 el.className='btnw'+(on?' on':'');
 el.innerHTML=`<i class="fa-${on?'solid':'regular'} fa-plus"></i>`;
@@ -75,9 +101,12 @@ P.toast(on?'Added to Watchlist':'Removed from Watchlist');
 },
 toggleWLShow(id){
 if(D.wishlist.has(id))D.wishlist.delete(id);else D.wishlist.add(id);
+D.saveWL();
 const on=D.wishlist.has(id);
 const btn=document.getElementById('sdoact-wl');
 if(btn){btn.className='sdoact'+(on?' on':'');btn.innerHTML=`<i class="fa-${on?'solid':'regular'} fa-bookmark"></i><span>Watchlist</span>`;}
+const ebtn=document.getElementById('evo-wl-btn');
+if(ebtn){ebtn.className='evoact'+(on?' on':'');ebtn.innerHTML=`<i class="fa-${on?'solid':'regular'} fa-bookmark"></i><span>Watchlist</span>`;}
 P.toast(on?'Added to Watchlist':'Removed from Watchlist');
 },
 toast(msg){
@@ -107,24 +136,47 @@ res.innerHTML=`<div class="srl" style="padding:0 16px">`+hits.map(s=>`<div class
 },
 profile(){
 const wl=[...D.wishlist];
-document.getElementById('page-profile').innerHTML=`<div id="prp">
-<div class="prav"><i class="fa-solid fa-user"></i></div>
-<div class="prn">Guest User</div><div class="pre">guest@animex.com</div>
-<div class="prst">
-<div class="prsti"><div class="prstn">${wl.length}</div><div class="prstl">WATCHLIST</div></div>
-<div class="prsti"><div class="prstn">${D.shows.length}</div><div class="prstl">SHOWS</div></div>
-<div class="prsti"><div class="prstn">${Object.keys(D.progress).length}</div><div class="prstl">WATCHED</div></div>
-</div>
-<div class="prbtn"><button onclick="P.toast('Sign in coming soon')">Sign In</button><button onclick="P.toast('Settings coming soon')">Settings</button></div>
-<div class="prtabs"><div class="prtab act" onclick="P.ptab(this,'wl')">Watchlist</div><div class="prtab" onclick="P.ptab(this,'hist')">History</div></div>
-<div id="ptab-wl">${wl.length?`<div class="prgrid">`+wl.map(id=>{const s=D.shows.find(x=>x.id===id);return s?`<div class="prgc" onclick="R.show('${s.id}')"><img src="${s.thumb}" alt="${s.t}"></div>`:''}).join('')+`</div>`:'<div style="padding:40px;text-align:center;color:var(--w3)"><i class="fa-regular fa-bookmark" style="font-size:32px;display:block;margin-bottom:8px"></i>Your watchlist is empty</div>'}</div>
-<div id="ptab-hist" style="display:none">${Object.keys(D.progress).length?`<div class="prgrid">`+Object.keys(D.progress).map(id=>{const s=D.shows.find(x=>x.id===id);return s?`<div class="prgc" onclick="R.show('${s.id}')"><img src="${s.thumb}" alt="${s.t}"></div>`:''}).join('')+`</div>`:'<div style="padding:40px;text-align:center;color:var(--w3)"><i class="fa-regular fa-clock" style="font-size:32px;display:block;margin-bottom:8px"></i>No watch history</div>'}</div>
-</div>`;
-},
-ptab(el,id){
-document.querySelectorAll('.prtab').forEach(t=>t.classList.remove('act'));
-el.classList.add('act');
-document.getElementById('ptab-wl').style.display=id==='wl'?'':'none';
-document.getElementById('ptab-hist').style.display=id==='hist'?'':'none';
+const cw=D.getContinueWatching();
+const watched=Object.keys(D.progress);
+let h=`<div id="prp">`;
+h+=`<div class="pr-header">`;
+h+=`<div class="pr-avatar"><span>A</span></div>`;
+h+=`<div class="pr-info"><div class="pr-name">Animex Viewer</div><div class="pr-stats-inline">${wl.length} in wishlist · ${watched.length} in history</div></div>`;
+h+=`</div>`;
+if(cw.length){
+h+=`<div class="pr-section-title">Continue Here</div>`;
+h+=`<div class="pr-continue-row">`;
+cw.slice(0,4).forEach(({show:s,ep,pct})=>{
+h+=`<div class="pr-cw-card" onclick="R.ep('${s.id}','${ep.id}')">`;
+h+=`<div class="pr-cw-img-wrap"><img src="${ep.thumb}" alt="${ep.t}"><div class="pr-cw-bar"><div class="pr-cw-fill" style="width:${pct}%"></div></div></div>`;
+h+=`<div class="pr-cw-name">${s.t}</div><div class="pr-cw-sub">EP ${ep.e} · ${pct}%</div>`;
+h+=`</div>`;
+});
+h+=`</div>`;
+}
+if(wl.length){
+h+=`<div class="pr-section-title">Your Wishlist</div>`;
+h+=`<div class="pr-wl-grid">`;
+wl.forEach(id=>{
+const s=D.shows.find(x=>x.id===id);if(!s)return;
+h+=`<div class="pr-wl-card" onclick="R.show('${s.id}')"><img src="${s.thumb}" alt="${s.t}"><div class="pr-wl-overlay"><div class="pr-wl-name">${s.t}</div><div class="pr-wl-meta">⭐${s.rating} · ${s.y}</div></div></div>`;
+});
+h+=`</div>`;
+}
+if(watched.length){
+h+=`<div class="pr-section-title">Watch History</div>`;
+h+=`<div class="pr-wl-grid">`;
+watched.forEach(id=>{
+const s=D.shows.find(x=>x.id===id);if(!s)return;
+h+=`<div class="pr-wl-card" onclick="R.show('${s.id}')"><img src="${s.thumb}" alt="${s.t}"><div class="pr-wl-overlay"><div class="pr-wl-name">${s.t}</div><div class="pr-wl-meta">⭐${s.rating} · ${s.y}</div></div></div>`;
+});
+h+=`</div>`;
+}
+if(!wl.length&&!cw.length&&!watched.length){
+h+=`<div class="pr-empty"><i class="fa-regular fa-face-smile-beam"></i><p>Start watching to see your history here</p></div>`;
+}
+h+=`<div style="height:16px"></div>`;
+h+=`</div>`;
+document.getElementById('page-profile').innerHTML=h;
 },
 };
