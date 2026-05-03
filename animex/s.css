@@ -34,7 +34,7 @@ body.overlay-open::before{
   pointer-events:none;
   animation:bdFadeIn .25s ease forwards;
 }
-@keyframes bdFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes bdFadeIn{from{opacity:0}to{opacity:0}}
 
 /* ── Pages ── */
 .pg{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--bn) + 12px);display:none;scrollbar-width:none;scroll-behavior:smooth;}
