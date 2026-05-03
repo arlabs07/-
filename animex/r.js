@@ -1,3 +1,4 @@
+console.log('r.js loaded, P=', typeof P, 'D=', typeof D);
 const R={
 _cur:'home',_curShow:null,_curEp:null,
 init(){
