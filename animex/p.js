@@ -78,7 +78,7 @@ const prev=document.getElementById('hcd'+P._hcIdx);
 const next=document.getElementById('hcd'+idx);
 if(!prev||!next)return;
 const dir=idx>P._hcIdx?1:-1;
-prev.className='hcd turn-out'+(dir>0?'',' turn-out-rev');
+prev.className='hcd '+(dir>0?'turn-out':'turn-out-rev');
 prev.style.animationName=dir>0?'bookOut':'bookOutRev';
 setTimeout(()=>{
 prev.className='hcd';prev.style.animationName='';
