@@ -18,7 +18,7 @@
   --bn:clamp(56px,8vh,70px);
   --r:14px;--r2:9px;
   --tra:.22s cubic-bezier(.4,0,.2,1);
-  --shadow:0 8px 32px rgba(0,0,0,.6);
+  --shadow:0 8px 32px rgba(0,0,0,.00);
 }
 
 html,body{height:100%;background:var(--b0);color:var(--w);font-family:'DM Sans',sans-serif;font-size:14px;overflow:hidden;-webkit-font-smoothing:antialiased;}
