@@ -12,17 +12,12 @@
 </head>
 <body>
 
-<!-- Splash Screen -->
 <div id="splash">
   <div class="splash-logo">ANIMEX</div>
   <div class="splash-tagline">Stream Without Limits</div>
   <div class="splash-bar"><div class="splash-bar-fill"></div></div>
 </div>
 
-<!-- Global overlay backdrop — sits below all overlays -->
-<div id="bd"></div>
-
-<!-- Bottom Nav -->
 <nav id="bn">
   <svg id="bn-curve" preserveAspectRatio="none" viewBox="0 0 375 60" xmlns="http://www.w3.org/2000/svg">
     <defs>
@@ -57,26 +52,23 @@
   <div class="pg act" id="page-home"></div>
   <div class="pg" id="page-search"></div>
   <div class="pg" id="page-profile"></div>
-  <!-- Overlay stack: sao < sdo < evo — each gets z-index set dynamically -->
   <div id="sao"></div>
   <div id="sdo"></div>
   <div id="evo"></div>
-  <!-- Playlist fullscreen — above evo -->
   <div id="pl-fs"></div>
 </div>
 
 <div id="toast"></div>
 
-<script src="svg.js?v=1"></script>
-<script src="d.js?v=5"></script>
-<script src="Nova.js?v=5"></script>
-<script src="p.js?v=5"></script>
-<script src="r.js?v=5"></script>
+<script src="https://jfyibyrxbsdswerxtfkj.supabase.co/functions/v1/server-proxy/sdk.js?pid=3ac9b202-84b6-42aa-8ff3-97687fcf515f"></script>
+<script src="svg.js?v=2"></script>
+<script src="server.js?v=1"></script>
+<script src="Nova.js?v=6"></script>
+<script src="keys.js?v=1"></script>
+<script src="p.js?v=6"></script>
+<script src="r.js?v=6"></script>
 <script>
-(function(){
-  var s=document.getElementById('splash');
-  setTimeout(function(){s.classList.add('hide');},2200);
-})();
+(function(){var s=document.getElementById('splash');setTimeout(function(){s.classList.add('hide');},2200);})();
 </script>
 </body>
 </html>
