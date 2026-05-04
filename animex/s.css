@@ -24,7 +24,7 @@ body{display:flex;flex-direction:column}
 
 /* ── BACKDROP ── */
 #bd{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:490}
-#bd.on{opacity:1;pointer-events:auto}
+#bd.on{opacity:0;pointer-events:auto}
 
 /* ── PAGES ── */
 .pg{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--bn) + 16px);display:none;scrollbar-width:none;scroll-behavior:smooth}
