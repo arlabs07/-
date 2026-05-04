@@ -23,7 +23,7 @@ body{display:flex;flex-direction:column}
 @keyframes splashLoad{from{width:0}to{width:100%}}
 
 /* ── BACKDROP ── */
-#bd{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:490}
+#bd{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:1;pointer-events:none;transition:opacity .3s;z-index:490}
 #bd.on{opacity:0;pointer-events:auto}
 
 /* ── PAGES ── */
