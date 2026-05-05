@@ -19,12 +19,16 @@ try{
 const db=new ParqraDB('hero_cards');
 const db2=new ParqraDB('sections');
 const db3=new ParqraDB('series');
-const [r1,r2,r3]=await Promise.all([
+const db4=new ParqraDB('movies');
+const [r1,r2,r3,r4]=await Promise.all([
 db.list({limit:'100',sort_by:'created_at',sort_order:'asc'}),
 db2.list({limit:'50',sort_by:'created_at',sort_order:'asc'}),
-db3.list({limit:'200',sort_by:'created_at',sort_order:'asc'})
+db3.list({limit:'200',sort_by:'created_at',sort_order:'asc'}),
+db4.list({limit:'200',sort_by:'created_at',sort_order:'asc'})
 ]);
-_shows=(r3&&r3.data?r3.data:[]).map(x=>x.data);
+const series=(r3&&r3.data?r3.data:[]).map(x=>x.data);
+const mvs=(r4&&r4.data?r4.data:[]).map(x=>({...x.data,isMovie:true}));
+_shows=[...series,...mvs];
 _sections=(r2&&r2.data?r2.data:[]).map(x=>x.data);
 _map={};
 _shows.forEach(s=>{if(s&&s.id)_map[s.id]=s;});
@@ -45,6 +49,7 @@ get sections(){return _sections;},
 load:_load,
 onReady,
 getShow(id){return _map[id]||null;},
+isMovie(id){return!!(_map[id]&&_map[id].isMovie);},
 getEp(sid,eid){const s=_map[sid];return s?s.episodes.find(e=>e.id===eid)||null:null;},
 get wishlist(){return gWL();},
 toggleWL(id){const w=gWL();w.has(id)?w.delete(id):w.add(id);svWL();return w.has(id);},
