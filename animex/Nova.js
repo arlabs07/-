@@ -102,7 +102,10 @@ function updVol(){if(!el.vs||!el.vf||!el.vol)return;const v=ST.muted?0:ST.vol;el
 function updSpd(){document.querySelectorAll('.nmi[data-s]').forEach(b=>{const n=parseFloat(b.dataset.s)===ST.spd;b.classList.toggle('na',n);b.innerHTML=n?`${IC.check}<span>${b.dataset.s}x</span>`:`${b.dataset.s}x`;if(n&&ST.spdOpen)b.scrollIntoView({block:'nearest'});});if(el.spb)el.spb.querySelector('span').textContent=ST.spd+'x';}
 function sFrac(f){const d=el.vid&&el.vid.duration;if(isFinite(d))el.vid.currentTime=Math.max(0,Math.min(d,f*d));}
 function fFrac(e){const r=el.st.getBoundingClientRect(),x=e.touches?e.touches[0].clientX:e.clientX;return Math.max(0,Math.min(1,(x-r.left)/r.width));}
-function tick(){if(!el.vid)return;const d=el.vid.duration||0,c=el.vid.currentTime||0,f=d?c/d:0;if(el.sf)el.sf.style.width=100*f+'%';if(el.sth)el.sth.style.left=100*f+'%';if(el.tm)el.tm.textContent=`${fT(c)} / ${fT(d)}`;if(el.vid.buffered.length>0&&d>0){let b=0;for(let i=0;i<el.vid.buffered.length;i++)if(el.vid.buffered.start(i)<=c&&el.vid.buffered.end(i)>=c){b=el.vid.buffered.end(i);break;}if(el.sbuf)el.sbuf.style.width=b/d*100+'%';}if(d>0)D.setProgress(_sid,_eid,Math.min(100,Math.round(f*100)));ST.raf=requestAnimationFrame(tick);}
+const _lsKey=(sid,eid)=>`ax_pos_${sid}_${eid}`;
+const _savePos=()=>{if(!_sid||!_eid||!el.vid)return;const t=el.vid.currentTime,d=el.vid.duration;if(t>2&&isFinite(d)&&t<d-5)try{localStorage.setItem(_lsKey(_sid,_eid),String(Math.round(t)));}catch{}};
+const _loadPos=()=>{try{const v=localStorage.getItem(_lsKey(_sid,_eid));return v?parseInt(v,10):0;}catch{return 0;}};
+function tick(){if(!el.vid)return;const d=el.vid.duration||0,c=el.vid.currentTime||0,f=d?c/d:0;if(el.sf)el.sf.style.width=100*f+'%';if(el.sth)el.sth.style.left=100*f+'%';if(el.tm)el.tm.textContent=`${fT(c)} / ${fT(d)}`;if(el.vid.buffered.length>0&&d>0){let b=0;for(let i=0;i<el.vid.buffered.length;i++)if(el.vid.buffered.start(i)<=c&&el.vid.buffered.end(i)>=c){b=el.vid.buffered.end(i);break;}if(el.sbuf)el.sbuf.style.width=b/d*100+'%';}if(d>0){D.setProgress(_sid,_eid,Math.min(100,Math.round(f*100)));_savePos();}ST.raf=requestAnimationFrame(tick);}
 function loadTrk(lk,qk,resume){const tr=(_ep&&_ep.tracks)||{};const langs=Object.keys(tr);if(!langs.length)return;if(!langs.includes(lk))lk=langs[0];ST.lang=lk;const quals=Object.keys(tr[lk]);if(!quals.includes(qk))qk=quals[0];ST.qual=qk;const src=tr[lk][qk],ct=resume?el.vid.currentTime:0,wp=!el.vid.paused;el.vid.src=src;el.vid.load();el.vid.currentTime=ct;ST.ended=false;if(wp&&resume)el.vid.play().catch(()=>{});if(el.th){el.th.src=_ep.thumb;el.th.style.display='block';}if(el.cth)el.cth.src=_ep.thumb;if(el.fst)el.fst.textContent=`${_show.title} · ${_ep.title}`;bldLng(langs);bldQual(quals);if(el.lb){el.lb.querySelector('span').textContent=lk.toUpperCase();el.lb.style.display=langs.length>1?'flex':'none';}if(el.qb){el.qb.querySelector('span').textContent=qk;el.qb.style.display=quals.length>1?'flex':'none';}}
 function bldLng(ls2){if(!el.lm)return;el.lm.innerHTML='';ls2.forEach(lk=>{const b=document.createElement('button');b.className='nmi';b.dataset.l=lk;const label=D.langLabels[lk]||lk.toUpperCase(),act=lk===ST.lang;b.classList.toggle('na',act);b.innerHTML=act?`${IC.check}<span>${label}</span>`:label;b.onclick=e=>{e.stopPropagation();if(ST.lang!==lk){loadTrk(lk,ST.qual,true);nudge(label,'c');}sMn('l',false);};el.lm.appendChild(b);});}
 function bldQual(qs){if(!el.qm)return;el.qm.innerHTML='';qs.forEach(qk=>{const b=document.createElement('button');b.className='nmi';b.dataset.q=qk;const act=qk===ST.qual;b.classList.toggle('na',act);b.innerHTML=act?`${IC.check}<span>${qk}</span>`:qk;b.onclick=e=>{e.stopPropagation();if(ST.qual!==qk){loadTrk(ST.lang,qk,true);nudge(qk,'c');}sMn('q',false);};el.qm.appendChild(b);});}
@@ -112,13 +115,13 @@ function bndEvt(){
 const v=el.vid;
 v.addEventListener('play',()=>{ST.started=true;ST.playing=true;ST.ended=false;if(el.pl2)el.pl2.innerHTML=IC.pause;if(el.cp){el.cp.innerHTML=IC.pause;}if(el.th)el.th.style.display='none';el.cp&&el.cp.classList.remove('ns');showUI();el.spin&&el.spin.classList.remove('ns');});
 v.addEventListener('pause',()=>{ST.playing=false;if(!ST.ended){if(el.pl2)el.pl2.innerHTML=IC.play;if(el.cp)el.cp.innerHTML=IC.play;}showUI();el.spin&&el.spin.classList.remove('ns');});
-v.addEventListener('ended',()=>{const i=_pl.findIndex(x=>x.id===_eid);if(i<_pl.length-1)R.ep(_sid,_pl[i+1].id);else{ST.playing=false;ST.ended=true;if(el.pl2)el.pl2.innerHTML=IC.replay;if(el.cp){el.cp.innerHTML=IC.replay;el.cp.classList.add('ns');}showUI();}});
+v.addEventListener('ended',()=>{try{localStorage.removeItem(_lsKey(_sid,_eid));}catch{}const i=_pl.findIndex(x=>x.id===_eid);if(i<_pl.length-1)R.ep(_sid,_pl[i+1].id);else{ST.playing=false;ST.ended=true;if(el.pl2)el.pl2.innerHTML=IC.replay;if(el.cp){el.cp.innerHTML=IC.replay;el.cp.classList.add('ns');}showUI();}});
 v.addEventListener('waiting',()=>el.spin&&el.spin.classList.add('ns'));
 v.addEventListener('canplay',()=>el.spin&&el.spin.classList.remove('ns'));
 v.addEventListener('loadedmetadata',()=>{
 tick();
-const rt=D.getResumeTime(_sid,_eid);
-if(rt>5&&rt<(v.duration-10)){
+const rt=_loadPos();
+if(rt>2&&rt<(v.duration-5)){
 v.currentTime=rt;
 nudge(`Resumed ${fT(rt)}`,'c');
 v.play().catch(()=>{});
