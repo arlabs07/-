@@ -201,13 +201,13 @@ else if(ST.fsOvTab==='speed'){spds.forEach(v=>{const act=v===ST.spd;body.insertA
 const _noSub=()=>!el.vid||Array.from(el.vid.textTracks||[]).every(t=>t.mode!=='showing');
 const _subAct=lang=>el.vid&&Array.from(el.vid.textTracks||[]).some(t=>t.srclang===lang&&t.mode==='showing');
 /* ---- fs playlist overlay ---- */
-let _fsplTab='episodes',_fsplSeason=1;
-function openFspl(tab){if(!el.fspl)return;ST.fsOvOpen=true;_fsplTab=tab||'episodes';clearTimeout(ST.uiTmr);if(el.vid&&ST.playing)el.vid.pause();el.fspl.classList.add('on');renderFsplTabs();renderFsplBody();}
+let _fsplCurTab='episodes',_fsplCurSeason=1;
+function openFspl(tab){if(!el.fspl)return;ST.fsOvOpen=true;_fsplCurTab=tab||'episodes';clearTimeout(ST.uiTmr);if(el.vid&&ST.playing)el.vid.pause();el.fspl.classList.add('on');renderFsplTabs();renderFsplBody();}
 function closeFspl(){if(!el.fspl)return;ST.fsOvOpen=false;el.fspl.classList.remove('on');if(el.vid)el.vid.play().catch(()=>{});showUI();}
-function renderFsplTabs(){const tabs=g('nfspl-tabs');if(!tabs)return;tabs.innerHTML=['watchnext','episodes'].map(t=>`<div class="nfspl-tab${_fsplTab===t?' act':''}" onclick="NV._fsplTab('${t}')">${t==='watchnext'?'Watch Next':'Episodes'}</div>`).join('');}
+function renderFsplTabs(){const tabs=g('nfspl-tabs');if(!tabs)return;tabs.innerHTML=['watchnext','episodes'].map(t=>`<div class="nfspl-tab${_fsplCurTab===t?' act':''}" onclick="NV._fsplTab('${t}')">${t==='watchnext'?'Watch Next':'Episodes'}</div>`).join('');}
 function renderFsplBody(){const body=g('nfspl-body');if(!body)return;body.innerHTML='';
-if(_fsplTab==='watchnext'){const cw=D.getContinueWatching().filter(x=>x.show.id!==_sid).slice(0,12);const row=document.createElement('div');row.className='nfspl-eprow';cw.forEach(({show:s,ep,pct})=>{const mv=!!s.isMovie;row.innerHTML+=`<div class="nfspl-ep" onclick="NV._fsplPlay('${s.id}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||s.thumb||''}" loading="lazy"><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${s.title}</div><div class="nfspl-ep-meta">${mv?ep.dur:`S${ep.s} E${ep.e}`}</div></div>`;});if(!cw.length)row.innerHTML='<p style="padding:20px;color:rgba(255,255,255,.35);font-size:13px">Nothing in progress</p>';body.appendChild(row);}
-else{const s=D.getShow(_sid);if(!s)return;const seasons=[...new Set(s.episodes.map(e=>e.s))];if(seasons.length>1){const stabs=document.createElement('div');stabs.id='nfspl-seasons';seasons.forEach(sn=>{stabs.innerHTML+=`<div class="nfspl-stab${sn===_fsplSeason?' act':''}" onclick="NV._fsplSeason(${sn})">${`S${sn}`}</div>`;});body.appendChild(stabs);}const row=document.createElement('div');row.className='nfspl-eprow';s.episodes.filter(e=>e.s===_fsplSeason).forEach(ep=>{const pct=D.getProgress(_sid,ep.id),act=ep.id===_eid;row.innerHTML+=`<div class="nfspl-ep${act?' nfspl-ep-act':''}" onclick="NV._fsplPlay('${_sid}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||''}" loading="lazy"><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${ep.title}</div><div class="nfspl-ep-meta">S${ep.s} E${ep.e} · ${ep.dur}</div></div>`;});body.appendChild(row);}}
+if(_fsplCurTab==='watchnext'){const cw=D.getContinueWatching().filter(x=>x.show.id!==_sid).slice(0,12);const row=document.createElement('div');row.className='nfspl-eprow';cw.forEach(({show:s,ep,pct})=>{const mv=!!s.isMovie;row.innerHTML+=`<div class="nfspl-ep" onclick="NV._fsplPlay('${s.id}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||s.thumb||''}" loading="lazy"><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${s.title}</div><div class="nfspl-ep-meta">${mv?ep.dur:`S${ep.s} E${ep.e}`}</div></div>`;});if(!cw.length)row.innerHTML='<p style="padding:20px;color:rgba(255,255,255,.35);font-size:13px">Nothing in progress</p>';body.appendChild(row);}
+else{const s=D.getShow(_sid);if(!s)return;const seasons=[...new Set(s.episodes.map(e=>e.s))];if(seasons.length>1){const stabs=document.createElement('div');stabs.id='nfspl-seasons';seasons.forEach(sn=>{stabs.innerHTML+=`<div class="nfspl-stab${sn===_fsplCurSeason?' act':''}" onclick="NV._fsplSeason(${sn})">S${sn}</div>`;});body.appendChild(stabs);}const row=document.createElement('div');row.className='nfspl-eprow';s.episodes.filter(e=>e.s===_fsplCurSeason).forEach(ep=>{const pct=D.getProgress(_sid,ep.id),act=ep.id===_eid;row.innerHTML+=`<div class="nfspl-ep${act?' nfspl-ep-act':''}" onclick="NV._fsplPlay('${_sid}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||''}" loading="lazy"><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${ep.title}</div><div class="nfspl-ep-meta">S${ep.s} E${ep.e} · ${ep.dur}</div></div>`;});body.appendChild(row);}}
 /* ---- misc helpers ---- */
 function tPlay(){if(!el.vid)return;if(ST.ended){el.vid.currentTime=0;el.vid.play();ST.ended=false;}else{el.vid.paused?el.vid.play():el.vid.pause();}}
 function seek(d){if(!el.vid)return;el.vid.currentTime=Math.max(0,Math.min(el.vid.duration||0,el.vid.currentTime+d));nudge((d>0?'+':'')+d+'s',d>0?'r':'l');}
@@ -219,10 +219,10 @@ function _setQual(q){loadTrk(ST.lang,q,true);renderFsOvBody();}
 function _setLang(l){loadTrk(l,ST.qual,true);renderFsOvBody();}
 function _setSub(lang){if(!el.vid)return;Array.from(el.vid.textTracks).forEach(t=>t.mode='hidden');if(lang){const trk=Array.from(el.vid.textTracks).find(t=>t.srclang===lang);if(trk)trk.mode='showing';}renderFsOvBody();}
 function _seekTo(t){if(el.vid)el.vid.currentTime=t;closeFsOv();}
-function _fsplTab(t){_fsplTab=t;renderFsplTabs();renderFsplBody();}
-function _fsplSeason(s){_fsplSeason=s;renderFsplBody();}
+function _fsplTab(t){_fsplCurTab=t;renderFsplTabs();renderFsplBody();}
+function _fsplSeason(s){_fsplCurSeason=s;renderFsplBody();}
 function _fsplPlay(sid,eid){closeFspl();R.ep(sid,eid);}
-function _showGesture(type){const v=type==='vol'?ST.vol:ST.bright;const fill=type==='vol'?el.ngrfFill:el.nglfFill;const pct=Math.round(v*100);if(fill)fill.style.height=pct+'%';if(el.ngt){el.ngt.textContent=(type==='vol'?'၊၊||၊ ':'⛭')+pct+'%';el.ngt.classList.add('ns');clearTimeout(ST.gtTmr);ST.gtTmr=setTimeout(()=>el.ngt&&el.ngt.classList.remove('ns'),1200);}}
+function _showGesture(type){const v=type==='vol'?ST.vol:ST.bright;const fill=type==='vol'?el.ngrfFill:el.nglfFill;const pct=Math.round(v*100);if(fill)fill.style.height=pct+'%';if(el.ngt){el.ngt.innerHTML=(type==='vol'?IC.volumeUp:IC.brightness)+`<span style="font-size:12px;font-weight:700">${pct}%</span>`;el.ngt.classList.add('ns');clearTimeout(ST.gtTmr);ST.gtTmr=setTimeout(()=>el.ngt&&el.ngt.classList.remove('ns'),1200);}}
 function sFrac(f){const d=el.vid&&el.vid.duration;if(isFinite(d))el.vid.currentTime=Math.max(0,Math.min(d,f*d));}
 function fFrac(e){const r=el.st.getBoundingClientRect(),x=e.touches?e.touches[0].clientX:e.clientX;return Math.max(0,Math.min(1,(x-r.left)/r.width));}
 /* ---- network monitor ---- */
@@ -231,7 +231,7 @@ const v=el.vid;if(!v)return;
 let _wasPlaying=false,_stallPos=0;
 v.addEventListener('stalled',()=>{_stallPos=v.currentTime;});
 v.addEventListener('error',()=>{sysMsg('⚠ Connection error — retrying…',true);_retry();});
-const _offline=()=>{ST.netOk=false;_wasPlaying=ST.playing;sysMsg('✈︎ No connection',true);};
+const _offline=()=>{ST.netOk=false;_wasPlaying=ST.playing;sysMsg('📶 No connection',true);};
 const _online=()=>{ST.netOk=true;clearSysMsg();if(_wasPlaying){const pos=v.currentTime;v.src=v.src;v.load();v.addEventListener('loadedmetadata',()=>{v.currentTime=pos;v.play().catch(()=>{});},{once:true});sysMsg('✓ Reconnected');}};
 window.addEventListener('offline',_offline);
 window.addEventListener('online',_online);
@@ -339,10 +339,13 @@ if(ST.fsOvOpen&&el.fspl&&el.fspl.classList.contains('on')&&!el.fspl.contains(e.t
 });
 _bindGestures();
 _netSetup();
+// set gesture strip icons
+const gbi=g('ng-bright-icon');if(gbi)gbi.innerHTML=IC.brightness;
+const gvi=g('ng-vol-icon');if(gvi)gvi.innerHTML=IC.volumeUp;
 }
 return{
 init(sid,eid,show,ep){
-injectCSS();_sid=sid;_eid=eid;_show=show;_ep=ep;_pl=show.episodes||[];_fsplSeason=(ep&&ep.s)||1;
+injectCSS();_sid=sid;_eid=eid;_show=show;_ep=ep;_pl=show.episodes||[];_fsplCurSeason=(ep&&ep.s)||1;
 ST={lang:'en',qual:'720p',spd:1,vol:1,bright:1,muted:false,playing:false,ended:false,started:false,uiTmr:null,uiFull:false,fsOvOpen:false,fsOvTab:'quality',lastTap:0,tapCnt:0,tapSide:'',tapTmr:null,drag:false,raf:null,holdTmr:null,fs:false,netOk:true,netTmr:null,gestDrag:null};
 el=glk();
 if(el.cp)el.cp.innerHTML=IC.play;
@@ -354,9 +357,9 @@ destroy(){if(ST.raf)cancelAnimationFrame(ST.raf);ST.raf=null;clearTimeout(ST.uiT
 _tPlay:tPlay,_showUI:showUI,_hideUI:hideUI,
 _seek:seek,_adjSpd:adjSpd,_setVol:setVol,_tMute:tMute,
 _getVol:()=>ST.vol,_getSpd:()=>ST.spd,_isPlaying:()=>ST.playing,
-_seekTo,_setQual,_setLang,_setSub,_fsSetSpd,
-_fsOvTab(t){ST.fsOvTab=t;renderFsOvTabs();renderFsOvBody();},
-_fsplTab,_fsplSeason,_fsplPlay,
-openFsOv,closeFsOv,openFspl,closeFspl
+_seekTo:_seekTo,_setQual:_setQual,_setLang:_setLang,_setSub:_setSub,_fsSetSpd:_fsSetSpd,
+_fsOvTab:(t)=>{ST.fsOvTab=t;renderFsOvTabs();renderFsOvBody();},
+_fsplTab:_fsplTab,_fsplSeason:_fsplSeason,_fsplPlay:_fsplPlay,
+openFsOv:openFsOv,closeFsOv:closeFsOv,openFspl:openFspl,closeFspl:closeFspl
 };
 })();
