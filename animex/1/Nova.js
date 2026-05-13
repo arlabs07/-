@@ -231,7 +231,7 @@ const v=el.vid;if(!v)return;
 let _wasPlaying=false,_stallPos=0;
 v.addEventListener('stalled',()=>{_stallPos=v.currentTime;});
 v.addEventListener('error',()=>{sysMsg('⚠ Connection error — retrying…',true);_retry();});
-const _offline=()=>{ST.netOk=false;_wasPlaying=ST.playing;sysMsg('📶 No connection',true);};
+const _offline=()=>{ST.netOk=false;_wasPlaying=ST.playing;sysMsg('✈︎ No connection',true);};
 const _online=()=>{ST.netOk=true;clearSysMsg();if(_wasPlaying){const pos=v.currentTime;v.src=v.src;v.load();v.addEventListener('loadedmetadata',()=>{v.currentTime=pos;v.play().catch(()=>{});},{once:true});sysMsg('✓ Reconnected');}};
 window.addEventListener('offline',_offline);
 window.addEventListener('online',_online);
