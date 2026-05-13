@@ -280,11 +280,6 @@ img.li{opacity:1}
 /* EPISODE PLAYER */
 #evo{position:fixed;inset:0;background:#000;transform:translateY(100%);transition:transform .38s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;overflow:hidden;z-index:700}
 #evo.op{transform:none}
-#evotb{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0a0a0f;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.08)}
-#evobk{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,.7);transition:all var(--tra);flex-shrink:0}
-#evobk svg{width:20px;height:20px}
-#evobk:hover{color:#fff;background:rgba(255,255,255,.15)}
-#evott{font-size:13px;font-weight:600;color:#fff;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #np-page{width:100%;padding:0;flex-shrink:0}
 #nr{border-radius:0!important;box-shadow:none!important}
 #evobody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--b0);padding:16px;scrollbar-width:none}
