@@ -21,20 +21,84 @@ function sSeason(sid,n,te){document.querySelectorAll('.stab').forEach(t=>t.class
 function closeShow(){const el=_sdo();el.classList.remove('op');_stack=_stack.filter(z=>z!==600);document.body.style.overflow='';setTimeout(()=>{el.innerHTML='';history.back();},380);}
 function ep(sid,eid,push=true){D.onReady(()=>{const s=D.getShow(sid);if(!s)return;const epData=D.getEp(sid,eid);if(!epData)return;const evoEl=_evo(),isOp=evoEl.classList.contains('op');if(isOp){_cShow=sid;_cEp=eid;NV.destroy();_bldEvo(s,epData,sid,evoEl);NV.init(sid,eid,s,epData);return;}if(push)history.pushState(null,'','#ep/'+sid+'/'+eid);_cShow=sid;_cEp=eid;_bldEvo(s,epData,sid,evoEl);const z=700;evoEl.style.zIndex=z;_stack.push(z);document.body.style.overflow='hidden';requestAnimationFrame(()=>evoEl.classList.add('op'));NV.init(sid,eid,s,epData);P.setMeta(sid,eid);});}
 function _bldEvo(s,epData,sid,evoEl){const wl=D.wishlist.has(sid),isDesk=_isDesktop(),mv=!!s.isMovie;
-const hasCh=!!(epData.chapters&&epData.chapters.length);
-const hasCap=!!(epData.captions&&epData.captions.length);
-const fsBtns=`<div id="nct-fs-btns">${hasCh?`<button id="nchb" class="nb nbl" title="Chapters">${IC.chapters}<span>Chapters</span></button>`:''} ${hasCap?`<button id="ncapb" class="nb nbl" title="Subtitles">${IC.captions}<span>Subs</span></button>`:''}</div>`;
-const videoHtml=`<div id="np-page"><div id="nr" role="region" tabindex="-1"><video id="nvid" preload="metadata" playsinline webkit-playsinline></video><img id="nth" alt="" draggable="false"><div id="nsp" role="status"></div><div id="nsh2">2×</div><div id="nn"></div><div id="nnl"></div><div id="nnr"></div><div id="nov" role="presentation" aria-hidden="true"></div><button id="ncp" class="nb"></button><div id="nct"><div id="nfst"></div>${fsBtns}<div style="display:flex;gap:6px;margin-left:0"><div style="position:relative"><button id="nqb" class="nb nbl" aria-haspopup="true"></button><div id="nqm" class="nm ndd xsc" role="menu"></div></div><div style="position:relative"><button id="nlb" class="nb nbl" aria-haspopup="true"></button><div id="nlm" class="nm ndd xsc" role="menu"></div></div></div></div><div id="nb" role="toolbar"><div id="nsw" role="slider" tabindex="0"><div id="nst"><div id="nsbuf"></div><div id="nsf"></div><div id="nsth"></div><div id="nsh"></div></div></div><div id="nbl"><div style="display:flex;align-items:center;gap:8px">${mv?'':`<img id="ncth" alt="" style="width:52px;height:30px;border-radius:5px;object-fit:cover;background:#000">`}<div class="ncg">${mv?'':`<button id="nprev" class="nb" title="Prev"></button>`}<button id="npl2" class="nb" title="Play"></button>${mv?'':`<button id="nnext" class="nb" title="Next"></button>`}<div id="nvw"><button id="nvol" class="nb"></button><div id="nvs"><div id="nvt"><div id="nvf"></div><input type="range" id="nvsl" min="0" max="1" step="0.02" value="1"></div></div></div><span id="ntm">0:00 / 0:00</span></div></div><div class="ncg"><div style="position:relative"><button id="nspb" class="nb nbl"></button><div id="nspm" class="nm ndu xsc" role="menu"></div></div>${mv?'':`<button id="nplb" class="nb" title="Episodes"></button>`}<button id="nfs" class="nb" title="Fullscreen"></button></div></div></div>${mv?'':`<div id="npp" role="complementary"><div id="npph"><span>Episodes</span><button id="nppc" class="nb">${IC.close}</button></div><ul id="nppls" class="xsc" role="listbox"></ul></div>`}</div></div>`;
-const metaLine=mv?`${epData.date} · ${epData.dur}`:`S${epData.s} E${epData.e} · ${epData.date} · ${epData.dur}`;
+// build video HTML with new Nova layout
+const videoHtml=`<div id="np-page"><div id="nr" role="region" tabindex="-1">
+<video id="nvid" preload="metadata" playsinline webkit-playsinline></video>
+<img id="nth" alt="" draggable="false">
+<div id="nsp" role="status"></div>
+<div id="nsh2"></div>
+<div id="nn"></div><div id="nnl"></div><div id="nnr"></div>
+<div id="ng-left"><div class="ng-track"><div class="ng-fill" id="ng-left-fill" style="height:100%"></div></div><div class="ng-icon">☀</div></div>
+<div id="ng-right"><div class="ng-track"><div class="ng-fill" id="ng-right-fill" style="height:80%"></div></div><div class="ng-icon">🔊</div></div>
+<div id="ng-toast"></div>
+<div id="nov" role="presentation" aria-hidden="true"></div>
+<!-- TOP BAR -->
+<div id="nct">
+  <div id="nctl">
+    <button class="nb" onclick="R.closeEp()">${IC.chevDown}</button>
+    <span id="nfst"></span>
+  </div>
+  <div id="nctr">
+    <div id="nct-fsr">
+      <button class="nb" id="nset" title="Settings">${IC.quality}</button>
+      <button class="nb" id="nfs-exit" title="Exit fullscreen">${IC.exitFs}</button>
+    </div>
+    <button class="nb" id="nfs-inline" title="Fullscreen">${IC.fullscreen}</button>
+  </div>
+</div>
+<!-- CENTRE (non-FS only) -->
+<div id="ncc">
+  <button class="nb nb-seek" id="nsk10m">${IC.skipPrev}<span class="nb-seek-lbl">10</span></button>
+  <button class="nb" id="npl2" style="width:52px;height:52px" title="Play">${IC.play}</button>
+  <button class="nb nb-seek" id="nsk10p">${IC.skipNext}<span class="nb-seek-lbl">10</span></button>
+</div>
+<!-- BOTTOM BAR -->
+<div id="nb" role="toolbar">
+  <div id="nbrow-seek">
+    <div id="nsw" role="slider" tabindex="0">
+      <div id="nst">
+        <div id="nsbuf"></div>
+        <div id="nsf"></div>
+        <div id="nsth"></div>
+        <div id="nsh"></div>
+      </div>
+    </div>
+    <span id="ntm">-0:00</span>
+  </div>
+  <div id="nbrow-fs">
+    <div style="display:flex;gap:8px;align-items:center">
+      ${mv?'':`<button class="nb nbl" id="nwnb-fs">${IC.playlist}<span>Watch Next</span></button>`}
+      ${mv?'':`<button class="nb nbl" id="nplb-fs">${IC.chapters}<span>Episodes</span></button>`}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="nb nbl" id="nspb-fs">1×</button>
+      ${mv?'':`<button class="nb" id="nnxt-fs" title="Next episode">${IC.skipNext}</button>`}
+    </div>
+  </div>
+</div>
+<!-- SETTINGS OVERLAY (FS) -->
+<div id="nfsov">
+  <button class="nb" id="nfsov-close" style="position:absolute;top:10px;right:12px;z-index:51">${IC.close}</button>
+  <div id="nfsov-tabs"></div>
+  <div id="nfsov-body" class="xsc"></div>
+</div>
+<!-- PLAYLIST OVERLAY (FS) -->
+<div id="nfspl">
+  <button class="nb" id="nfspl-close" style="position:absolute;top:10px;right:12px;z-index:51">${IC.close}</button>
+  <div id="nfspl-tabs"></div>
+  <div id="nfspl-body" class="xsc"></div>
+</div>
+</div></div>`;
+const metaLine=mv?`${epData.date} · ${epData.dur}`:`S${epData.s||''} E${epData.e||''} · ${epData.date} · ${epData.dur}`;
 let bodyHtml=`<div id="evobody"><div class="evott2">${mv?s.title:epData.title}</div><div class="evometa">${metaLine}</div><div style="font-size:11px;color:var(--w3);line-height:1.6;margin-bottom:14px">${epData.desc||s.desc||''}</div><div class="evoacts"><button class="evoact wlb${wl?' on':''}" data-wl-s="${sid}" onclick="P._twls('${sid}',this)">${(wl?IC.check:IC.bookmark)}<span>Watchlist</span></button><button class="evoact" onclick="P.share('${sid}','${epData.id}')">${IC.share}<span>Share</span></button><button class="evoact" onclick="P.openRating('${sid}')">${IC.heart}<span>Rate</span></button></div>`;
 if(!mv){bodyHtml+=`<div class="sch">${s.title} — Episodes</div><div class="stabs" id="evostabs">`;for(let i=1;i<=s.seasons;i++)bodyHtml+=`<div class="stab${i===epData.s?' act':''}" onclick="R._evoss('${sid}',${i},this)">Season ${i}</div>`;bodyHtml+=`</div><div id="evoepsl">${P.buildEps(sid,epData.s,epData.id)}</div>`;}
 const rel=D.shows.filter(x=>x.id!==sid).slice(0,8);
-// You May Like cards close evo before navigating
 const ymlCard=ms=>`<div class="sc" onclick="R.closeEp();setTimeout(()=>R.show('${ms.id}'),350)"><div class="sc-i"><div class="sc-img-w"><img data-src="${ms.thumb||''}" src="" class="sci" alt="${ms.title}" loading="lazy"></div><div class="sc-gl"></div><div class="sc-bot"><div class="sc-t">${ms.title}</div><div class="sc-m">⭐${ms.rating} · ${ms.year}</div></div></div></div>`;
 if(isDesk){bodyHtml+=`<div id="evo-yml"><div id="evo-yml-title">You May Like</div><div id="evo-yml-grid">`;rel.forEach(ms=>bodyHtml+=ymlCard(ms));bodyHtml+=`</div></div>`;}
 else if(rel.length){bodyHtml+=`<div class="sch">You May Like</div><div class="secr" style="padding:0 0 8px">`;rel.forEach(ms=>bodyHtml+=ymlCard(ms));bodyHtml+=`</div>`;}
 bodyHtml+=`</div>`;
-let h=`<div id="evotb"><div id="evobk" onclick="R.closeEp()">${IC.chevDown}</div><div id="evott">${mv?s.title:`${s.title} · S${epData.s} E${epData.e}`}</div></div>`;
+// No #evotb bar — back button is inside #nct
+let h='';
 if(isDesk&&!mv){h+=`<div id="evo-main-col">${videoHtml}${bodyHtml}</div>`;h+=_bldDeskPlPanel(s,epData,sid);}
 else{h+=isDesk?`<div id="evo-main-col">${videoHtml}${bodyHtml}</div>`:videoHtml+bodyHtml;}
 evoEl.innerHTML=h;P.obsL(evoEl);if(isDesk&&!mv)_bindDeskPl(s,sid,epData);}
