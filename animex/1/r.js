@@ -28,8 +28,8 @@ const videoHtml=`<div id="np-page"><div id="nr" role="region" tabindex="-1">
 <div id="nsp" role="status"></div>
 <div id="nsh2"></div>
 <div id="nn"></div><div id="nnl"></div><div id="nnr"></div>
-<div id="ng-left"><div class="ng-track"><div class="ng-fill" id="ng-left-fill" style="height:100%"></div></div><div class="ng-icon">☀</div></div>
-<div id="ng-right"><div class="ng-track"><div class="ng-fill" id="ng-right-fill" style="height:80%"></div></div><div class="ng-icon">🔊</div></div>
+<div id="ng-left"><div class="ng-track"><div class="ng-fill" id="ng-left-fill" style="height:100%"></div></div><div class="ng-icon">⛭</div></div>
+<div id="ng-right"><div class="ng-track"><div class="ng-fill" id="ng-right-fill" style="height:80%"></div></div><div class="ng-icon">၊၊||၊</div></div>
 <div id="ng-toast"></div>
 <div id="nov" role="presentation" aria-hidden="true"></div>
 <!-- TOP BAR -->
