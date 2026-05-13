@@ -222,7 +222,7 @@ function _seekTo(t){if(el.vid)el.vid.currentTime=t;closeFsOv();}
 function _fsplTab(t){_fsplTab=t;renderFsplTabs();renderFsplBody();}
 function _fsplSeason(s){_fsplSeason=s;renderFsplBody();}
 function _fsplPlay(sid,eid){closeFspl();R.ep(sid,eid);}
-function _showGesture(type){const v=type==='vol'?ST.vol:ST.bright;const fill=type==='vol'?el.ngrfFill:el.nglfFill;const pct=Math.round(v*100);if(fill)fill.style.height=pct+'%';if(el.ngt){el.ngt.textContent=(type==='vol'?'🔊 ':'☀b ')+pct+'%';el.ngt.classList.add('ns');clearTimeout(ST.gtTmr);ST.gtTmr=setTimeout(()=>el.ngt&&el.ngt.classList.remove('ns'),1200);}}
+function _showGesture(type){const v=type==='vol'?ST.vol:ST.bright;const fill=type==='vol'?el.ngrfFill:el.nglfFill;const pct=Math.round(v*100);if(fill)fill.style.height=pct+'%';if(el.ngt){el.ngt.textContent=(type==='vol'?'၊၊||၊ ':'⛭')+pct+'%';el.ngt.classList.add('ns');clearTimeout(ST.gtTmr);ST.gtTmr=setTimeout(()=>el.ngt&&el.ngt.classList.remove('ns'),1200);}}
 function sFrac(f){const d=el.vid&&el.vid.duration;if(isFinite(d))el.vid.currentTime=Math.max(0,Math.min(d,f*d));}
 function fFrac(e){const r=el.st.getBoundingClientRect(),x=e.touches?e.touches[0].clientX:e.clientX;return Math.max(0,Math.min(1,(x-r.left)/r.width));}
 /* ---- network monitor ---- */
