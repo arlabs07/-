@@ -219,7 +219,7 @@ const langs=Object.keys(tr),qs=langs.length?Object.keys(tr[ST.lang]||tr[langs[0]
 qs.forEach(q=>{body.insertAdjacentHTML('beforeend',_fsItem(q,'',q===ST.qual,`NV._setQual('${q}')`,q==='1080p'?'HD':q==='4K'?'Ultra HD':''));});
 }else if(ST.fsOvTab==='audio'){
 const langs=Object.keys(tr);
-langs.forEach((lk,i)=>{body.insertAdjacentHTML('beforeend',_fsItem(D.langLabels[lk]||lk.toUpperCase(),i===0?'Original':'',lk===ST.lang,`NV._setLang('${lk}')`,'')));});
+langs.forEach((lk,i)=>{body.insertAdjacentHTML('beforeend',_fsItem(D.langLabels[lk]||lk.toUpperCase(),i===0?'Original':'',lk===ST.lang,`NV._setLang('${lk}')`,''));});
 }else if(ST.fsOvTab==='subtitles'){
 const langsList=Object.keys(tr);
 let html=`<div class="nfsov-2col"><div class="nfsov-col"><div class="nfsov-col-hd">AUDIO</div>`;
