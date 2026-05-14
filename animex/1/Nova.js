@@ -20,15 +20,14 @@ s.textContent=`
 #nvid{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
 #nth{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1;pointer-events:none}
 #nov{position:absolute;inset:0;z-index:2;cursor:pointer}
-/* gradients when UI shown */
-#nct.nv~#nov::before,#nb.nv~#nov::after{opacity:1}
 #nov::before{content:'';position:absolute;top:0;left:0;right:0;height:40%;background:linear-gradient(to bottom,rgba(0,0,0,.75),transparent);opacity:0;transition:opacity .3s;pointer-events:none}
 #nov::after{content:'';position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);opacity:0;transition:opacity .3s;pointer-events:none}
+#nct.nv~#nov::before,#nb.nv~#nov::after{opacity:1}
 /* spinner */
 #nsp{position:absolute;top:50%;left:50%;z-index:12;width:44px;height:44px;margin:-22px;border:3px solid rgba(255,255,255,.15);border-top-color:#fff;border-radius:50%;opacity:0;pointer-events:none;transition:opacity .2s}
 #nsp.ns{opacity:1;animation:nvSpin .75s linear infinite}
 @keyframes nvSpin{to{transform:rotate(360deg)}}
-/* system message — centre, shared slot */
+/* system message */
 #nsh2{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:14;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:15px;font-weight:700;padding:10px 24px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;text-align:center}
 #nsh2.ns{opacity:1}
 /* seek nudge labels */
@@ -37,16 +36,15 @@ s.textContent=`
 .snp{animation:nvNudge .65s ease forwards}
 @keyframes nvNudge{0%{opacity:1;transform:translateY(-50%) scale(.9)}40%{opacity:1;transform:translateY(-65%) scale(1.05)}100%{opacity:0;transform:translateY(-80%) scale(1)}}
 /* ===== TOP BAR ===== */
-#nct{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;align-items:flex-start;padding:14px 16px 10px;opacity:0;transform:translateY(-6px);transition:opacity .28s,transform .28s;pointer-events:none}
+#nct{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px;opacity:0;transform:translateY(-6px);transition:opacity .28s,transform .28s;pointer-events:none}
 #nct.nv{opacity:1;transform:none;pointer-events:auto}
-#nct-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-#nct-title{display:none;flex-direction:column;gap:2px;min-width:0;flex:1}
-#nct-title-main{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
-#nct-title-sub{font-size:12px;color:rgba(255,255,255,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* show title only in fullscreen */
+#nct-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+#nct-title{display:none;flex-direction:column;gap:1px;min-width:0;flex:1}
+#nct-title-main{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+#nct-title-sub{font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #nr.nrfs #nct-title{display:flex}
-#nct-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
-/* FS-only right buttons */
+#nct-right{display:flex;align-items:center;gap:4px;flex-shrink:0}
+/* FS-only buttons in top bar */
 .nct-fs-only{display:none}
 #nr.nrfs .nct-fs-only{display:flex;align-items:center;justify-content:center}
 /* non-FS fullscreen button */
@@ -56,7 +54,7 @@ s.textContent=`
 #ncc{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;display:flex;align-items:center;gap:28px;opacity:0;pointer-events:none;transition:opacity .28s}
 #ncc.nv{opacity:1;pointer-events:auto}
 .nb-seek{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border:none;background:none;color:#fff;cursor:pointer;transition:transform .12s,opacity .15s;flex-shrink:0}
-.nb-seek svg{width:38px;height:38px}
+.nb-seek svg{width:40px;height:40px}
 .nb-seek:active{transform:scale(.82);opacity:.7}
 #npl2{display:flex;align-items:center;justify-content:center;width:68px;height:68px;border:none;background:none;color:#fff;cursor:pointer;transition:transform .12s;flex-shrink:0}
 #npl2 svg{width:52px;height:52px}
@@ -65,7 +63,7 @@ s.textContent=`
 #nb{position:absolute;bottom:0;left:0;right:0;z-index:20;padding:0 0 10px;display:flex;flex-direction:column;gap:0;opacity:0;transform:translateY(6px);transition:opacity .28s,transform .28s;pointer-events:none}
 #nb.nv{opacity:1;transform:none;pointer-events:auto}
 /* seekbar row */
-#nbseek{display:flex;align-items:center;gap:0;padding:0 16px}
+#nbseek{display:flex;align-items:center;gap:0;padding:0 14px}
 #nsw{flex:1;padding:12px 0 4px;cursor:pointer;touch-action:none}
 #nst{position:relative;height:3px;background:rgba(255,255,255,.3);border-radius:99px;transition:height .18s}
 #nsw:hover #nst,#nsw:active #nst{height:5px}
@@ -74,29 +72,28 @@ s.textContent=`
 #nsf{background:#fff}
 #nsth{position:absolute;top:50%;left:0;width:16px;height:16px;border-radius:50%;background:#fff;transform:translate(-50%,-50%) scale(0);transition:transform .18s;pointer-events:none;box-shadow:0 0 6px rgba(0,0,0,.6)}
 #nsw:hover #nsth,#nsw:active #nsth,#nr.nrfs #nsth{transform:translate(-50%,-50%) scale(1)}
-/* chapter dots on seekbar */
 .nsch-dot{position:absolute;top:50%;transform:translate(-50%,-50%);width:5px;height:5px;border-radius:50%;background:rgba(255,180,0,.85);pointer-events:none}
-#ntm{font-size:16px;font-weight:700;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums;padding-left:10px;flex-shrink:0;line-height:1}
+#ntm{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums;padding-left:10px;flex-shrink:0;line-height:1}
 /* hover time tooltip */
 #nsh{position:absolute;bottom:calc(100% + 6px);background:rgba(0,0,0,.85);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;opacity:0;transform:translateX(-50%);pointer-events:none;white-space:nowrap}
-/* FS bottom row */
-#nbrow-fs{display:none;align-items:center;justify-content:space-between;padding:6px 14px 2px}
+/* FS bottom action row */
+#nbrow-fs{display:none;align-items:center;justify-content:space-between;padding:4px 14px 2px}
 #nr.nrfs #nbrow-fs{display:flex}
-.nbfs-btn{display:flex;align-items:center;gap:7px;background:none;border:none;color:rgba(255,255,255,.88);font-size:13px;font-weight:600;cursor:pointer;padding:6px 4px;white-space:nowrap;font-family:inherit;transition:color .15s}
-.nbfs-btn svg{width:18px;height:18px;flex-shrink:0}
+.nbfs-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:rgba(255,255,255,.85);font-size:12px;font-weight:600;cursor:pointer;padding:6px 6px;white-space:nowrap;font-family:inherit;transition:color .15s}
+.nbfs-btn svg{width:17px;height:17px;flex-shrink:0}
 .nbfs-btn:hover{color:#fff}
 .nbfs-btn:active{opacity:.7}
-/* FS episode peek row */
+/* FS episode peek strip */
 #nbpeek{display:none;overflow-x:auto;padding:6px 14px 0;scrollbar-width:none;gap:8px}
 #nbpeek::-webkit-scrollbar{display:none}
 #nr.nrfs #nbpeek{display:flex}
 .nbpeek-ep{flex-shrink:0;width:100px;cursor:pointer}
 .nbpeek-ep-img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:5px;border:1.5px solid rgba(255,255,255,.12)}
 .nbpeek-ep.act .nbpeek-ep-img{border-color:#fff}
-/* non-FS body title (below video) */
-#nvbody{padding:14px 16px 0;background:transparent}
-#nvbody-title{font-size:22px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:4px;font-family:'Bebas Neue',cursive;letter-spacing:.02em}
-#nvbody-sub{font-size:15px;font-weight:600;color:rgba(255,255,255,.75)}
+/* generic icon button */
+.nb{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;border:none;background:transparent;color:#fff;cursor:pointer;transition:background .18s,transform .1s;flex-shrink:0}
+.nb:hover{background:rgba(255,255,255,.1)}.nb:active{transform:scale(.84)}
+.nb svg{width:22px;height:22px;pointer-events:none}
 /* ===== GESTURE STRIPS ===== */
 #ng-left,#ng-right{position:absolute;top:0;bottom:0;width:22%;z-index:3;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 #nr.nrfs #ng-left,#nr.nrfs #ng-right{display:flex}
@@ -117,7 +114,6 @@ s.textContent=`
 #nfsov-hd::-webkit-scrollbar{display:none}
 .nfsov-tab{padding:16px 18px;font-size:13px;font-weight:700;color:rgba(255,255,255,.45);white-space:nowrap;cursor:pointer;border-bottom:2.5px solid transparent;transition:color .18s,border-color .18s;flex-shrink:0}
 .nfsov-tab.act{color:#fff;border-bottom-color:#fff}
-#nfsov-close{position:absolute;right:14px;top:50%;transform:translateY(-50%);flex-shrink:0}
 #nfsov-body{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
 #nfsov-body::-webkit-scrollbar{display:none}
 /* two-col layout for Audio & Subtitles */
@@ -125,7 +121,6 @@ s.textContent=`
 .nfsov-col{overflow-y:auto;border-right:1px solid rgba(255,255,255,.08)}
 .nfsov-col:last-child{border-right:none}
 .nfsov-col-hd{font-size:11px;font-weight:800;color:rgba(255,255,255,.4);letter-spacing:.1em;text-transform:uppercase;padding:16px 20px 8px}
-/* single-col items */
 .nfsov-item{display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;transition:background .15s}
 .nfsov-item:hover{background:rgba(255,255,255,.05)}
 .nfsov-item-texts{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
@@ -134,7 +129,6 @@ s.textContent=`
 .nfsov-item.act .nfsov-item-lbl{color:#4d9fff;font-weight:700}
 .nfsov-item-check{width:20px;height:20px;flex-shrink:0;color:#4d9fff;opacity:0}
 .nfsov-item.act .nfsov-item-check{opacity:1}
-/* chapters items */
 .nfsov-item-ch{display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(255,255,255,.05)}
 .nfsov-item-ch:hover{background:rgba(255,255,255,.05)}
 .nfsov-item-ch.act{background:rgba(255,255,255,.07)}
@@ -145,12 +139,10 @@ s.textContent=`
 /* ===== PLAYLIST OVERLAY ===== */
 #nfspl{position:absolute;inset:0;z-index:50;background:rgba(5,5,10,.88);backdrop-filter:blur(22px);display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .22s}
 #nfspl.on{opacity:1;pointer-events:auto}
-#nfspl-hd{display:flex;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.1);position:relative;padding:0 52px 0 0}
-#nfspl-tabs{display:flex;overflow-x:auto;scrollbar-width:none}
+#nfspl-tabs{display:flex;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.1);position:relative;overflow-x:auto;scrollbar-width:none;padding:0 52px 0 0}
 #nfspl-tabs::-webkit-scrollbar{display:none}
 .nfspl-tab{padding:16px 22px;font-size:15px;font-weight:700;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:2.5px solid transparent;transition:color .18s,border-color .18s;white-space:nowrap}
 .nfspl-tab.act{color:#fff;border-bottom-color:#fff}
-#nfspl-close{position:absolute;right:14px;top:50%;transform:translateY(-50%)}
 #nfspl-seasons{display:flex;overflow-x:auto;padding:12px 16px 0;gap:10px;flex-shrink:0;scrollbar-width:none}
 #nfspl-seasons::-webkit-scrollbar{display:none}
 .nfspl-stab{padding:7px 18px;border-radius:99px;font-size:13px;font-weight:700;color:rgba(255,255,255,.5);border:1.5px solid rgba(255,255,255,.18);cursor:pointer;white-space:nowrap;transition:all .18s;flex-shrink:0}
@@ -172,10 +164,6 @@ s.textContent=`
 .nfspl-ep-title{font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
 .nfspl-ep-meta{font-size:11px;color:rgba(255,255,255,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
 .nfspl-ep-desc{font-size:10px;color:rgba(255,255,255,.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* generic nb button */
-.nb{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;border:none;background:transparent;color:#fff;cursor:pointer;transition:background .18s,transform .1s;flex-shrink:0}
-.nb:hover{background:rgba(255,255,255,.1)}.nb:active{transform:scale(.84)}
-.nb svg{width:22px;height:22px;pointer-events:none}
 video::cue{font-size:1.1em;background:rgba(0,0,0,.78);color:#fff;border-radius:3px;padding:2px 6px}
 `;
 document.head.appendChild(s);
@@ -231,9 +219,8 @@ const langs=Object.keys(tr),qs=langs.length?Object.keys(tr[ST.lang]||tr[langs[0]
 qs.forEach(q=>{body.insertAdjacentHTML('beforeend',_fsItem(q,'',q===ST.qual,`NV._setQual('${q}')`,q==='1080p'?'HD':q==='4K'?'Ultra HD':''));});
 }else if(ST.fsOvTab==='audio'){
 const langs=Object.keys(tr);
-langs.forEach((lk,i)=>{body.insertAdjacentHTML('beforeend',_fsItem(D.langLabels[lk]||lk.toUpperCase(),i===0?'Original':'',lk===ST.lang,`NV._setLang('${lk}')`,''));});
+langs.forEach((lk,i)=>{body.insertAdjacentHTML('beforeend',_fsItem(D.langLabels[lk]||lk.toUpperCase(),i===0?'Original':'',lk===ST.lang,`NV._setLang('${lk}')`,'')));});
 }else if(ST.fsOvTab==='subtitles'){
-// two-column: audio left, subtitles right
 const langsList=Object.keys(tr);
 let html=`<div class="nfsov-2col"><div class="nfsov-col"><div class="nfsov-col-hd">AUDIO</div>`;
 langsList.forEach((lk,i)=>{html+=_fsItem(D.langLabels[lk]||lk.toUpperCase(),i===0?'Original':'',lk===ST.lang,`NV._setLang('${lk}')`,'')} );
@@ -271,8 +258,14 @@ if(el.vid&&!ST.ended)el.vid.play().catch(()=>{});
 showUI();
 }
 function _renderFsplTabs(){
+/* Build tab bar + close button into #nfspl-tabs */
 const tabs=g('nfspl-tabs');if(!tabs)return;
-tabs.innerHTML=['watchnext','episodes'].map(t=>`<div class="nfspl-tab${_fsplCurTab===t?' act':''}" onclick="NV._fsplSetTab('${t}')">${t==='watchnext'?'Watch Next':'Episodes'}</div>`).join('');
+tabs.innerHTML=['watchnext','episodes'].map(t=>
+`<div class="nfspl-tab${_fsplCurTab===t?' act':''}" onclick="NV._fsplSetTab('${t}')">${t==='watchnext'?'Watch Next':'Episodes'}</div>`
+).join('')
++`<button class="nb" id="nfspl-close-btn" style="position:absolute;right:10px;top:50%;transform:translateY(-50%)">${IC.close}</button>`;
+/* re-bind close btn */
+const cb=g('nfspl-close-btn');if(cb)cb.onclick=e=>{e.stopPropagation();closeFspl();};
 }
 function _renderFsplBody(){
 const body=g('nfspl-body');if(!body)return;
@@ -309,7 +302,7 @@ function seek(d){if(!el.vid)return;el.vid.currentTime=Math.max(0,Math.min(el.vid
 function adjSpd(dir){const idx=CFG.speeds.indexOf(ST.spd),ni=Math.max(0,Math.min(CFG.speeds.length-1,idx+dir));_fsSetSpd(CFG.speeds[ni]);}
 function setVol(v){if(!el.vid)return;ST.vol=Math.max(0,Math.min(1,v));el.vid.volume=ST.vol;ST.muted=ST.vol===0;el.vid.muted=ST.muted;_showGst('vol');}
 function tMute(){if(!el.vid)return;ST.muted=!ST.muted;el.vid.muted=ST.muted;}
-function _fsSetSpd(v){if(!el.vid)return;ST.spd=v;el.vid.playbackRate=v;const b=g('nspd-lbl');if(b)b.textContent=v+'x';sysMsg(v+'× speed');}
+function _fsSetSpd(v){if(!el.vid)return;ST.spd=v;el.vid.playbackRate=v;const b=g('nspd-lbl');if(b)b.textContent=v+'×';sysMsg(v+'× speed');}
 function _setQual(q){loadTrk(ST.lang,q,true);_renderFsOvBody();}
 function _setLang(l){loadTrk(l,ST.qual,true);_renderFsOvBody();}
 function _setSub(lang){if(!el.vid)return;Array.from(el.vid.textTracks).forEach(t=>t.mode='hidden');if(lang){const trk=Array.from(el.vid.textTracks).find(t=>t.srclang===lang);if(trk)trk.mode='showing';}_renderFsOvBody();}
@@ -403,6 +396,7 @@ peek.appendChild(d);
 /* ===== bind events ===== */
 function bndEvt(){
 const v=el.vid;
+
 v.addEventListener('play',()=>{ST.started=true;ST.playing=true;ST.ended=false;const cp=g('npl2');if(cp)cp.innerHTML=IC.pause;const nth=g('nth');if(nth)nth.style.display='none';showUI();const sp=g('nsp');if(sp)sp.classList.remove('ns');});
 v.addEventListener('pause',()=>{ST.playing=false;if(!ST.ended){const cp=g('npl2');if(cp)cp.innerHTML=IC.play;}showUI();const sp=g('nsp');if(sp)sp.classList.remove('ns');});
 v.addEventListener('ended',()=>{
@@ -419,29 +413,39 @@ if(rt>2&&rt<(v.duration-5)){v.currentTime=rt;sysMsg('Resumed '+fT(rt));v.play().
 });
 v.addEventListener('durationchange',_drawChDots);
 
-// play/pause btn
+/* play/pause centre btn */
 const cp=g('npl2');if(cp)cp.onclick=e=>{e.stopPropagation();tPlay();};
-// seek btns (non-FS)
+
+/* seek buttons (centre, non-FS) */
 const skm=g('nsk10m'),skp=g('nsk10p');
 if(skm)skm.onclick=e=>{e.stopPropagation();seek(-CFG.skip);};
 if(skp)skp.onclick=e=>{e.stopPropagation();seek(CFG.skip);};
-// fs toggle
-const fsBtn=g('nfs-btn');if(fsBtn)fsBtn.onclick=e=>{e.stopPropagation();el.root&&el.root.requestFullscreen();};
-const fsExit=g('nfs-exit');if(fsExit)fsExit.onclick=e=>{e.stopPropagation();document.exitFullscreen();};
-// settings
-const setBtn=g('nset');if(setBtn)setBtn.onclick=e=>{e.stopPropagation();openFsOv('quality');};
-// screenshot placeholder
-const ssBtn=g('nss');if(ssBtn)ssBtn.onclick=e=>{e.stopPropagation();sysMsg('Screenshot saved');};
-// FS bottom btns
-const wnBtn=g('nwn'),epBtn=g('nep'),nxBtn=g('nnx'),spdBtn=g('nspd');
+
+/* fullscreen toggle — #nfs-btn enters, #nfs-exit exits */
+const fsBtn=g('nfs-btn');
+if(fsBtn)fsBtn.onclick=e=>{e.stopPropagation();el.root&&el.root.requestFullscreen&&el.root.requestFullscreen();};
+const fsExit=g('nfs-exit');
+if(fsExit)fsExit.onclick=e=>{e.stopPropagation();document.exitFullscreen&&document.exitFullscreen();};
+
+/* screenshot */
+const ssBtn=g('nss');
+if(ssBtn)ssBtn.onclick=e=>{e.stopPropagation();sysMsg('Screenshot saved');};
+
+/* settings gear */
+const setBtn=g('nset');
+if(setBtn)setBtn.onclick=e=>{e.stopPropagation();openFsOv('quality');};
+
+/* FS bottom row buttons — ids: nwn, nep, nspd, nnx */
+const wnBtn=g('nwn'),epBtn=g('nep'),spdBtn=g('nspd'),nxBtn=g('nnx');
 if(wnBtn)wnBtn.onclick=e=>{e.stopPropagation();openFspl('watchnext');};
 if(epBtn)epBtn.onclick=e=>{e.stopPropagation();openFspl('episodes');};
-if(nxBtn)nxBtn.onclick=e=>{e.stopPropagation();const i=_pl.findIndex(x=>x.id===_eid);if(i>=0&&i<_pl.length-1)R.ep(_sid,_pl[i+1].id);};
 if(spdBtn)spdBtn.onclick=e=>{e.stopPropagation();openFsOv('speed');};
-// overlay close btns
+if(nxBtn)nxBtn.onclick=e=>{e.stopPropagation();const i=_pl.findIndex(x=>x.id===_eid);if(i>=0&&i<_pl.length-1)R.ep(_sid,_pl[i+1].id);};
+
+/* settings overlay close btn — built by init() into #nfsov-hd */
 const fsovc=g('nfsov-close-btn');if(fsovc)fsovc.onclick=e=>{e.stopPropagation();closeFsOv();};
-const fsplc=g('nfspl-close-btn');if(fsplc)fsplc.onclick=e=>{e.stopPropagation();closeFspl();};
-// seekbar
+
+/* seekbar */
 const sw=g('nsw');
 if(sw){
 const ss=e=>{ST.drag=true;sFrac(fFrac(e));e.stopPropagation();};
@@ -454,7 +458,8 @@ document.addEventListener('mouseup',se);document.addEventListener('touchend',se)
 sw.addEventListener('mousemove',e=>{const f=fFrac(e);const sh=g('nsh');if(sh){sh.textContent=fT(f*(v.duration||0));sh.style.left=(f*100)+'%';sh.style.opacity='1';}});
 sw.addEventListener('mouseleave',()=>{const sh=g('nsh');if(sh)sh.style.opacity='0';});
 }
-// overlay click / tap
+
+/* overlay tap / double-tap */
 const ov=g('nov');
 if(ov){
 ov.addEventListener('click',e=>{
@@ -463,7 +468,6 @@ if(ST.fsOvOpen)return;
 if(!ST.started){tPlay();return;}
 ST.uiFull?hideUI():showUI();
 });
-// escalating tap seek
 let _td={side:'',cnt:0,tmr:null,lastT:0};
 ov.addEventListener('touchstart',e=>{
 if(ST.fsOvOpen)return;
@@ -486,7 +490,8 @@ ST.holdTmr=setTimeout(()=>{if(!v.paused){v.playbackRate=CFG.holdSpd;sysMsg('2× 
 },{passive:true});
 ov.addEventListener('touchend',()=>{clearTimeout(ST.holdTmr);if(v.playbackRate===CFG.holdSpd&&ST.spd!==CFG.holdSpd){v.playbackRate=ST.spd;clearSysMsg();}},{passive:true});
 }
-// gesture strips (volume / brightness)
+
+/* gesture strips */
 ['ng-left','ng-right'].forEach(id=>{
 const strip=g(id);if(!strip)return;
 const isLeft=id==='ng-left';let sy=0,sv=0;
@@ -498,20 +503,24 @@ else setVol(nv);
 e.stopPropagation();
 },{passive:true});
 });
-// fullscreen change
+
+/* fullscreen change */
 document.addEventListener('fullscreenchange',()=>{
 ST.fs=!!document.fullscreenElement;
 if(el.root)el.root.classList.toggle('nrfs',ST.fs);
 if(ST.fs&&el.vid)el.vid.play().catch(()=>{});
 });
-// click outside closes overlays
+
+/* click outside overlays to close */
 document.addEventListener('click',e=>{
 const fsov=g('nfsov');if(fsov&&fsov.classList.contains('on')&&!fsov.contains(e.target)&&e.target!==g('nset'))closeFsOv();
 const fspl=g('nfspl');if(fspl&&fspl.classList.contains('on')&&!fspl.contains(e.target)&&e.target!==g('nwn')&&e.target!==g('nep'))closeFspl();
 });
-// set gesture icons
+
+/* gesture icon injection */
 const gbi=g('ng-bright-icon');if(gbi)gbi.innerHTML=IC.brightness;
 const gvi=g('ng-vol-icon');if(gvi)gvi.innerHTML=IC.volumeUp;
+
 _netSetup();
 }
 
@@ -520,29 +529,52 @@ init(sid,eid,show,ep){
 injectCSS();_sid=sid;_eid=eid;_show=show;_ep=ep;_pl=show.episodes||[];
 _fsplCurSeason=(ep&&ep.s)||1;
 ST={lang:'en',qual:'720p',spd:1,vol:1,bright:1,muted:false,playing:false,ended:false,started:false,uiTmr:null,uiFull:false,fsOvOpen:false,fsOvTab:'quality',drag:false,raf:null,holdTmr:null,fs:false,netOk:true,sysTmr:null,gtTmr:null};
-el={root:g('nr'),vid:g('nvid'),ct:g('nct'),bot:g('nb'),cc:g('ncc'),sh2:g('nsh2'),nul:g('nnl'),nur:g('nnr'),ngrfFill:g('ng-right-fill'),nglfFill:g('ng-left-fill')};
+el={root:g('nr'),vid:g('nvid'),ct:g('nct'),bot:g('nb'),cc:g('ncc'),sh2:g('nsh2'),nul:g('nnl'),nur:g('nnr')};
 const cp=g('npl2');if(cp)cp.innerHTML=IC.play;
+
 if(ep.tracks){
 const pref=_loadPref();const langs=Object.keys(ep.tracks);
 const fl=pref&&langs.includes(pref.lang)?pref.lang:langs[0];
 const qs=Object.keys(ep.tracks[fl]||{});const fq=pref&&qs.includes(pref.qual)?pref.qual:qs[0];
 loadTrk(fl,fq,false);
 }
+
 bndEvt();
 _buildPeek();
-const spdb=g('nspd-lbl');if(spdb)spdb.textContent='1x';
+
+/* Speed label */
+const spdb=g('nspd-lbl');if(spdb)spdb.textContent='1×';
+
+/* Focus root for keyboard */
 if(el.root)el.root.focus();
 if(ST.raf)cancelAnimationFrame(ST.raf);tick();
-// build settings tabs
+
+/* Build settings tabs into #nfsov-hd */
 const fsoHd=g('nfsov-hd');
 if(fsoHd){
-const tabs=['quality','audio & subtitles','playback speed','chapters'];
-const tabKeys=['quality','subtitles','speed','chapters'];
-fsoHd.innerHTML=tabs.map((t,i)=>`<div class="nfsov-tab" data-tab="${tabKeys[i]}" onclick="NV._fsOvTabClick('${tabKeys[i]}')">${t.charAt(0).toUpperCase()+t.slice(1)}</div>`).join('')
-+`<button class="nb nfsov-tab" id="nfsov-close-btn" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:20px">${IC.close}</button>`;
+const tabDefs=[
+{key:'quality',label:'Quality'},
+{key:'subtitles',label:'Audio & Subtitles'},
+{key:'speed',label:'Playback Speed'},
+{key:'chapters',label:'Chapters'}
+];
+fsoHd.innerHTML=tabDefs.map(t=>
+`<div class="nfsov-tab" data-tab="${t.key}" onclick="NV._fsOvTabClick('${t.key}')">${t.label}</div>`
+).join('')
++`<button class="nb" id="nfsov-close-btn" style="position:absolute;right:10px;top:50%;transform:translateY(-50%)">${IC.close}</button>`;
+/* bind close immediately so bndEvt's g('nfsov-close-btn') also works */
+const cb=g('nfsov-close-btn');if(cb)cb.onclick=e=>{e.stopPropagation();closeFsOv();};
+/* activate first tab */
+_setFsOvTab('quality');
 }
 },
-destroy(){if(ST.raf)cancelAnimationFrame(ST.raf);ST.raf=null;clearTimeout(ST.uiTmr);clearTimeout(ST.holdTmr);if(el.vid){el.vid.pause();el.vid.src='';}if(document.fullscreenElement)document.exitFullscreen();el={};},
+destroy(){
+if(ST.raf)cancelAnimationFrame(ST.raf);ST.raf=null;
+clearTimeout(ST.uiTmr);clearTimeout(ST.holdTmr);
+if(el.vid){el.vid.pause();el.vid.src='';}
+if(document.fullscreenElement)document.exitFullscreen();
+el={};
+},
 _tPlay:tPlay,_showUI:showUI,_hideUI:hideUI,
 _seek:seek,_adjSpd:adjSpd,_setVol:setVol,_tMute:tMute,
 _getVol:()=>ST.vol,_getSpd:()=>ST.spd,_isPlaying:()=>ST.playing,
