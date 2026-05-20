@@ -63,11 +63,18 @@ s.textContent=`
 #npl2:active{transform:scale(.88);background:rgba(0,0,0,.55)}
 
 /* ═══ BOTTOM BAR ═══ */
-/* nb always visible — seekbar glued to bottom; only time/action rows fade (point 1) */
-#nb{position:absolute;bottom:0;left:0;right:0;z-index:20;padding:0;display:flex;flex-direction:column;gap:0;pointer-events:auto}
+/* Non-FS: seekbar always visible at bottom, time/action rows fade with UI
+   Full-FS: entire #nb fades with UI (seekbar disappears when idle) */
+#nb{position:absolute;bottom:0;left:0;right:0;z-index:20;padding:0;display:flex;flex-direction:column;gap:0;pointer-events:auto;transition:opacity .28s}
+/* non-FS: seekbar row always on, only sub-rows fade */
 #nb-time-row,#nbrow-fs,#nbpeek{opacity:0;transition:opacity .28s;pointer-events:none}
 #nb.nv #nb-time-row,#nb.nv #nbrow-fs,#nb.nv #nbpeek{opacity:1;pointer-events:auto}
-#nbseek{pointer-events:auto}
+#nbseek{pointer-events:auto;opacity:1;transition:opacity .28s}
+/* FS: entire bar (including seekbar) fades when UI hidden */
+#nr.nrfs #nb{opacity:0;pointer-events:none}
+#nr.nrfs #nb.nv{opacity:1;pointer-events:auto}
+/* In FS, time/action/peek always follow parent opacity so reset them */
+#nr.nrfs #nb-time-row,#nr.nrfs #nbrow-fs,#nr.nrfs #nbpeek{opacity:1;pointer-events:auto}
 
 /* Timer row above seekbar — right-aligned (point 5) */
 #nb-time-row{display:flex;justify-content:flex-end;padding:0 16px 6px;pointer-events:none}
@@ -291,7 +298,7 @@ if(_fsplCurTab==='watchnext'){
 const cw=D.getContinueWatching().filter(x=>x.show.id!==_sid).slice(0,14);
 const row=document.createElement('div');row.className='nfspl-eprow';
 cw.forEach(({show:s,ep,pct})=>{const mv=!!s.isMovie;
-row.innerHTML+=`<div class="nfspl-ep" onclick="NV._fsplPlay('${s.id}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||s.thumb||''}" loading="lazy"><div class="nfspl-ep-play">${IC.playCircle}</div><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${s.title}</div><div class="nfspl-ep-meta">${mv?ep.dur:`S${ep.s} E${ep.e}`}</div></div>`;});
+row.innerHTML+=`<div class="nfspl-ep" onclick="NV._fsplPlay('${s.id}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||s.thumb||''}"><div class="nfspl-ep-play">${IC.playCircle}</div><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${s.title}</div><div class="nfspl-ep-meta">${mv?ep.dur:`S${ep.s} E${ep.e}`}</div></div>`;});
 if(!cw.length)row.innerHTML='<p style="padding:28px 16px;color:rgba(255,255,255,.35);font-size:15px">Nothing in progress</p>';
 body.appendChild(row);
 }else{
@@ -305,7 +312,7 @@ body.appendChild(stabs);
 const row=document.createElement('div');row.className='nfspl-eprow';
 s.episodes.filter(e=>e.s===_fsplCurSeason).forEach(ep=>{
 const pct=D.getProgress(_sid,ep.id),act=ep.id===_eid;
-row.innerHTML+=`<div class="nfspl-ep${act?' act':''}" onclick="NV._fsplPlay('${_sid}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||''}" loading="lazy"><div class="nfspl-ep-play">${IC.playCircle}</div><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${ep.title}</div><div class="nfspl-ep-meta">S${ep.s} E${ep.e} · ${ep.date} · ${ep.dur}</div><div class="nfspl-ep-desc">${ep.desc||''}</div></div>`;});
+row.innerHTML+=`<div class="nfspl-ep${act?' act':''}" onclick="NV._fsplPlay('${_sid}','${ep.id}')"><div class="nfspl-ep-tw"><img src="${ep.thumb||''}"><div class="nfspl-ep-play">${IC.playCircle}</div><div class="nfspl-ep-pb"><div class="nfspl-ep-pbf" style="width:${pct}%"></div></div></div><div class="nfspl-ep-title">${ep.title}</div><div class="nfspl-ep-meta">S${ep.s} E${ep.e} · ${ep.date} · ${ep.dur}</div><div class="nfspl-ep-desc">${ep.desc||''}</div></div>`;});
 body.appendChild(row);
 }
 }
