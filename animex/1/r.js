@@ -73,6 +73,8 @@ const videoHtml=`<div id="np-page"><div id="nr" role="region" tabindex="-1">
   <button class="nb" id="npl2" title="Play/Pause">${IC.play}</button>
 </div>
 <div id="nb" role="toolbar">
+  <!-- Skip Intro/Outro button (point 4) — sits above timer row, right-aligned, FS only -->
+  <button id="nskip" onclick="NV._doSkip()"></button>
   <div id="nb-time-row"><span id="ntm">0:00</span></div>
   <div id="nbseek">
     <div id="nsw" role="slider" tabindex="0">
