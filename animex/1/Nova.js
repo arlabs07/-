@@ -63,8 +63,11 @@ s.textContent=`
 #npl2:active{transform:scale(.88);background:rgba(0,0,0,.55)}
 
 /* ═══ BOTTOM BAR ═══ */
-#nb{position:absolute;bottom:0;left:0;right:0;z-index:20;padding:0 0 12px;display:flex;flex-direction:column;gap:0;opacity:0;transform:translateY(8px);transition:opacity .28s,transform .28s;pointer-events:none}
-#nb.nv{opacity:1;transform:none;pointer-events:auto}
+/* nb always visible — seekbar glued to bottom; only time/action rows fade (point 1) */
+#nb{position:absolute;bottom:0;left:0;right:0;z-index:20;padding:0;display:flex;flex-direction:column;gap:0;pointer-events:auto}
+#nb-time-row,#nbrow-fs,#nbpeek{opacity:0;transition:opacity .28s;pointer-events:none}
+#nb.nv #nb-time-row,#nb.nv #nbrow-fs,#nb.nv #nbpeek{opacity:1;pointer-events:auto}
+#nbseek{pointer-events:auto}
 
 /* Timer row above seekbar — right-aligned (point 5) */
 #nb-time-row{display:flex;justify-content:flex-end;padding:0 16px 6px;pointer-events:none}
@@ -176,6 +179,11 @@ s.textContent=`
 .nfspl-ep-meta{font-size:12px;color:rgba(255,255,255,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
 .nfspl-ep-desc{font-size:11px;color:rgba(255,255,255,.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 video::cue{font-size:1.15em;background:rgba(0,0,0,.8);color:#fff;border-radius:3px;padding:2px 6px}
+/* ═══ SKIP INTRO/OUTRO BUTTON (point 4) ═══ */
+#nskip{position:absolute;right:18px;z-index:25;bottom:calc(100% + 8px);display:none;align-items:center;gap:8px;background:rgba(10,10,20,.85);backdrop-filter:blur(12px);border:1.5px solid rgba(255,255,255,.35);color:#fff;font-size:14px;font-weight:700;padding:10px 22px;border-radius:8px;cursor:pointer;white-space:nowrap;font-family:inherit;letter-spacing:.02em;transition:background .18s,transform .12s}
+#nskip.vis{display:flex}
+#nskip:hover{background:rgba(255,255,255,.15)}
+#nskip:active{transform:scale(.95)}
 `;
 document.head.appendChild(s);
 }
@@ -199,9 +207,9 @@ if(!persist){clearTimeout(ST.sysTmr);ST.sysTmr=setTimeout(()=>el.sh2&&el.sh2.cla
 }
 function clearSysMsg(){clearTimeout(ST.sysTmr);if(el.sh2)el.sh2.classList.remove('ns');}
 
-// point 4 — show UI resets 5s timer, single tap on video shows UI but doesn't toggle-hide
-function showUI(){if(!ST.started)return;ST.uiFull=true;el.bot&&el.bot.classList.add('nv');el.ct&&el.ct.classList.add('nv');el.cc&&el.cc.classList.add('nv');hiTmr();}
-function hideUI(){if(!ST.started||ST.fsOvOpen)return;ST.uiFull=false;[el.bot,el.ct,el.cc].forEach(x=>x&&x.classList.remove('nv'));}
+// seekbar always visible; only top bar + centre + sub-rows toggle (points 1,4)
+function showUI(){if(!ST.started)return;ST.uiFull=true;el.bot&&el.bot.classList.add('nv');el.ct&&el.ct.classList.add('nv');el.cc&&el.cc.classList.add('nv');_updSkip();hiTmr();}
+function hideUI(){if(!ST.started||ST.fsOvOpen)return;ST.uiFull=false;[el.ct,el.cc].forEach(x=>x&&x.classList.remove('nv'));if(el.bot)el.bot.classList.remove('nv');}
 function hiTmr(){clearTimeout(ST.uiTmr);if(ST.playing&&!ST.fsOvOpen)ST.uiTmr=setTimeout(hideUI,CFG.uiHide);}
 
 /* ═══ Settings overlay — only × closes (point 7) ═══ */
@@ -308,7 +316,7 @@ function seek(d){if(!el.vid)return;el.vid.currentTime=Math.max(0,Math.min(el.vid
 function adjSpd(dir){const idx=CFG.speeds.indexOf(ST.spd),ni=Math.max(0,Math.min(CFG.speeds.length-1,idx+dir));_fsSetSpd(CFG.speeds[ni]);}
 function setVol(v){if(!el.vid)return;ST.vol=Math.max(0,Math.min(1,v));el.vid.volume=ST.vol;ST.muted=ST.vol===0;el.vid.muted=ST.muted;_showGst('vol');}
 function tMute(){if(!el.vid)return;ST.muted=!ST.muted;el.vid.muted=ST.muted;}
-function _fsSetSpd(v){if(!el.vid)return;ST.spd=v;el.vid.playbackRate=v;const b=g('nspd-lbl');if(b)b.textContent=v+'x';sysMsg(v+'× speed');}
+function _fsSetSpd(v){if(!el.vid)return;ST.spd=v;el.vid.playbackRate=v;const b=g('nspd-lbl');if(b)b.textContent=v+'x';sysMsg(v+'× speed');if(ST.fsOvTab==='speed')_renderFsOvBody();}
 function _setQual(q){loadTrk(ST.lang,q,true);_renderFsOvBody();}
 function _setLang(l){loadTrk(l,ST.qual,true);_renderFsOvBody();}
 function _setSub(lang){if(!el.vid)return;Array.from(el.vid.textTracks).forEach(t=>t.mode='hidden');if(lang){const trk=Array.from(el.vid.textTracks).find(t=>t.srclang===lang);if(trk)trk.mode='showing';}_renderFsOvBody();}
@@ -355,7 +363,7 @@ if(!el.vid)return;
 el.vid.src=src;el.vid.load();el.vid.currentTime=ct;ST.ended=false;ST.bufErr=0;
 if(wp&&resume)el.vid.play().catch(()=>{});
 // show thumbnail (point 11)
-const nth=g('nth');if(nth){nth.src=_ep.thumb||'';nth.style.display='block';}
+const nth=g('nth');if(nth){nth.src=_ep.thumb||'';nth.style.display='block';}if(el.vid&&_ep.thumb)el.vid.setAttribute('poster',_ep.thumb);
 const fst=g('nct-title-main');if(fst)fst.textContent=_show.title||'';
 const fstsub=g('nct-title-sub');if(fstsub)fstsub.textContent=`S${_ep.s} E${_ep.e} · ${_ep.title||''}`;
 _savePref();_loadCaptions();_drawChDots();
@@ -404,6 +412,29 @@ v.addEventListener('contextmenu',e=>e.preventDefault());
 }
 
 /* peek row */
+/* ═══ Skip Intro/Outro (point 4) ═══ */
+function _getSkipCh(){
+const chs=(_ep&&_ep.chapters)||[];
+if(!chs.length||!el.vid)return null;
+const t=el.vid.currentTime;
+for(let i=0;i<chs.length;i++){
+const ch=chs[i],next=chs[i+1];
+const inRange=t>=ch.t&&(next?t<next.t:t<(el.vid.duration||Infinity));
+if(inRange){
+const lc=(ch.title||'').toLowerCase();
+if(lc==='intro'||lc.includes('intro'))return{label:'Skip Intro',next:next?next.t:ch.t+90};
+if(lc==='outro'||lc.includes('outro')||lc==='credits'||lc.includes('credit'))return{label:'Skip Outro',next:el.vid.duration||ch.t+300};
+}
+}
+return null;
+}
+function _updSkip(){
+if(!ST.fs)return;// skip button only in fullscreen
+const btn=g('nskip');if(!btn)return;
+const sk=_getSkipCh();
+if(sk){btn.textContent=sk.label;btn._skipTo=sk.next;btn.classList.add('vis');}
+else{btn.classList.remove('vis');}
+}
 function _buildPeek(){
 const peek=g('nbpeek');if(!peek)return;
 peek.innerHTML='';
@@ -452,6 +483,7 @@ if(rt>2&&rt<(v.duration-5)){v.currentTime=rt;sysMsg('Resumed '+fT(rt));}
 v.play().catch(()=>{});// auto-play regardless
 });
 v.addEventListener('durationchange',_drawChDots);
+v.addEventListener('timeupdate',()=>{if(ST.fs)_updSkip();});
 
 // play/pause centre btn
 const cp=g('npl2');if(cp)cp.onclick=e=>{e.stopPropagation();tPlay();};
@@ -541,6 +573,8 @@ document.addEventListener('fullscreenchange',()=>{
 ST.fs=!!document.fullscreenElement;
 if(el.root)el.root.classList.toggle('nrfs',ST.fs);
 if(ST.fs&&el.vid)el.vid.play().catch(()=>{});
+if(!ST.fs){const btn=g('nskip');if(btn)btn.classList.remove('vis');}// hide skip btn outside FS
+else _updSkip();
 });
 
 // point 7: NO outside-click close — only × button closes overlays
@@ -556,12 +590,29 @@ _fsplCurSeason=(ep&&ep.s)||1;
 ST={lang:'en',qual:'720p',spd:1,vol:1,bright:1,muted:false,playing:false,ended:false,started:false,uiTmr:null,uiFull:false,fsOvOpen:false,fsOvTab:'quality',drag:false,raf:null,holdTmr:null,fs:false,netOk:true,sysTmr:null,gtTmr:null,bufErr:0};
 el={root:g('nr'),vid:g('nvid'),ct:g('nct'),bot:g('nb'),cc:g('ncc'),sh2:g('nsh2'),nul:g('nnl'),nur:g('nnr')};
 const cp=g('npl2');if(cp)cp.innerHTML=IC.play;
-if(ep.tracks){
-const pref=_loadPref();const langs=Object.keys(ep.tracks);
-const fl=pref&&langs.includes(pref.lang)?pref.lang:langs[0];
-const qs=Object.keys(ep.tracks[fl]||{});const fq=pref&&qs.includes(pref.qual)?pref.qual:qs[0];
-loadTrk(fl,fq,false);
-}
+// Resolve video source from tracks, or fallback to ep.src / ep.url / ep.video
+(()=>{
+  const v=el.vid;if(!v)return;
+  // show thumbnail/poster immediately
+  const nth=g('nth');
+  if(nth&&ep.thumb){nth.src=ep.thumb;nth.style.display='block';}
+  if(ep.thumb)v.setAttribute('poster',ep.thumb);
+  // try tracks first
+  if(ep.tracks&&Object.keys(ep.tracks).length){
+    const pref=_loadPref();const langs=Object.keys(ep.tracks);
+    const fl=pref&&langs.includes(pref.lang)?pref.lang:langs[0];
+    const qs=Object.keys(ep.tracks[fl]||{});const fq=pref&&qs.includes(pref.qual)?pref.qual:qs[0];
+    loadTrk(fl,fq,false);
+    return;
+  }
+  // fallback: direct src field (ep.src, ep.url, ep.video, ep.link)
+  const directSrc=ep.src||ep.url||ep.video||ep.link||'';
+  if(directSrc){
+    v.src=directSrc;v.load();v.currentTime=_loadPos()||0;
+    const nth2=g('nth');if(nth2&&ep.thumb){nth2.src=ep.thumb;nth2.style.display='block';}
+    _loadCaptions();_drawChDots();_savePref();
+  }
+})();
 bndEvt();
 _buildPeek();
 const spdb=g('nspd-lbl');if(spdb)spdb.textContent='1x';
@@ -593,6 +644,7 @@ _getVol:()=>ST.vol,_getSpd:()=>ST.spd,_isPlaying:()=>ST.playing,
 _seekTo:_seekTo,_setQual:_setQual,_setLang:_setLang,_setSub:_setSub,_fsSetSpd:_fsSetSpd,
 _fsOvTabClick:(t)=>{_setFsOvTab(t);},
 _fsplSetTab:_fsplSetTab,_fsplSetSeason:_fsplSetSeason,_fsplPlay:_fsplPlay,
+_doSkip:()=>{const btn=g('nskip');if(btn&&btn._skipTo!=null&&el.vid){el.vid.currentTime=btn._skipTo;btn.classList.remove('vis');}},
 openFsOv:openFsOv,closeFsOv:closeFsOv,openFspl:openFspl,closeFspl:closeFspl
 };
 })();
