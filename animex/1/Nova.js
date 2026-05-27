@@ -33,54 +33,107 @@ const _loadPos=()=>{try{const v=localStorage.getItem(_lsKey(_sid,_eid));return v
 
 /**
  * Detect what kind of source a URL is.
- * Returns: { type, id, embedUrl, isEmbed }
+ * Returns: { type, id, embedUrl, isEmbed, isJWPlatform }
+ *
+ * JW Player type variants:
+ *  'jwplayer'  — JW Platform-hosted iframe (cdn.jwplayer.com / content.jwplatform.com)
+ *                These support JW's postMessage API natively.
+ *  'jwpage'    — Self-hosted page running JW Player (e.g. animewali.p2pplay.online/#s1k9bj,
+ *                any third-party site embedding JW Player).
+ *                These are plain iframes — we try postMessage but fall back gracefully.
  */
 function detectSource(url){
   if(!url)return{type:'native',id:null,embedUrl:url,isEmbed:false};
   const u=url.trim();
 
-  // YouTube
+  // ── YouTube ─────────────────────────────────────────────────────────────
   let m=u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-  if(m)return{type:'youtube',id:m[1],embedUrl:'https://www.youtube-nocookie.com/embed/'+m[1]+'?enablejsapi=1&autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&origin='+encodeURIComponent(location.origin),isEmbed:true};
+  if(m)return{type:'youtube',id:m[1],
+    embedUrl:'https://www.youtube-nocookie.com/embed/'+m[1]+'?enablejsapi=1&autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&origin='+encodeURIComponent(location.origin),
+    isEmbed:true};
 
-  // JW Player — hosted iframe (cdn.jwplayer.com or content.jwplatform.com)
-  m=u.match(/(?:cdn\.jwplayer\.com|content\.jwplatform\.com)\/players\/([^?#]+\.html)/);
-  if(m)return{type:'jwplayer',id:m[1],embedUrl:u,isEmbed:true};
-  // JW Player — hosted video ID only  e.g. "MEDIAID-PLAYERID"
+  // ── JW Player — JW Platform hosted iframe ───────────────────────────────
+  // cdn.jwplayer.com/players/MEDIAID-PLAYERID.html
+  // content.jwplatform.com/players/MEDIAID-PLAYERID.html
+  m=u.match(/(?:cdn\.jwplayer\.com|content\.jwplatform\.com)\/players\/([A-Za-z0-9_-]+\.html)/);
+  if(m)return{type:'jwplayer',id:m[1],embedUrl:u,isEmbed:true,isJWPlatform:true};
+
+  // JW Platform — previews URL  cdn.jwplayer.com/previews/MEDIAID-PLAYERID
+  m=u.match(/(?:cdn\.jwplayer\.com|content\.jwplatform\.com)\/previews\/([A-Za-z0-9]+-[A-Za-z0-9]+)/);
+  if(m)return{type:'jwplayer',id:m[1],embedUrl:'https://cdn.jwplayer.com/players/'+m[1]+'.html',isEmbed:true,isJWPlatform:true};
+
+  // JW Platform — any other jwplayer.com / jwplatform.com path
+  m=u.match(/(?:[\w-]+\.jwplayer\.com|[\w-]+\.jwplatform\.com)\/\S+\/([A-Za-z0-9]+-[A-Za-z0-9]+)/);
+  if(m)return{type:'jwplayer',id:m[1],embedUrl:u,isEmbed:true,isJWPlatform:true};
+
+  // JW Player — bare MEDIAID-PLAYERID shorthand  e.g. "aBcd1234-EfGh5678"
   m=u.match(/^([A-Za-z0-9]{8}-[A-Za-z0-9]{8})$/);
-  if(m)return{type:'jwplayer',id:m[1],embedUrl:'https://cdn.jwplayer.com/players/'+m[1]+'.html',isEmbed:true};
+  if(m)return{type:'jwplayer',id:m[1],embedUrl:'https://cdn.jwplayer.com/players/'+m[1]+'.html',isEmbed:true,isJWPlatform:true};
 
-  // Vimeo
+  // JW Player — self-hosted / third-party page embedding JW Player
+  // Detect by explicit jwplayer: prefix the consumer can use
+  if(u.startsWith('jwplayer:')){
+    const raw=u.slice(9);
+    // If it looks like a bare ID, resolve to JW Platform
+    if(/^[A-Za-z0-9]{8}-[A-Za-z0-9]{8}$/.test(raw))
+      return{type:'jwplayer',id:raw,embedUrl:'https://cdn.jwplayer.com/players/'+raw+'.html',isEmbed:true,isJWPlatform:true};
+    return{type:'jwpage',id:null,embedUrl:raw,isEmbed:true,isJWPlatform:false};
+  }
+
+  // ── Vimeo ────────────────────────────────────────────────────────────────
   m=u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  if(m)return{type:'vimeo',id:m[1],embedUrl:'https://player.vimeo.com/video/'+m[1]+'?autoplay=1&transparent=0&api=1&player_id=nvframe',isEmbed:true};
+  if(m)return{type:'vimeo',id:m[1],
+    embedUrl:'https://player.vimeo.com/video/'+m[1]+'?autoplay=1&transparent=0&api=1&player_id=nvframe',
+    isEmbed:true};
 
-  // Dailymotion
+  // ── Dailymotion ──────────────────────────────────────────────────────────
   m=u.match(/dailymotion\.com\/(?:video\/|embed\/video\/)([A-Za-z0-9]+)/);
   if(!m)m=u.match(/dai\.ly\/([A-Za-z0-9]+)/);
-  if(m)return{type:'dailymotion',id:m[1],embedUrl:'https://www.dailymotion.com/embed/video/'+m[1]+'?autoplay=1&api=postMessage&id=nvframe',isEmbed:true};
+  if(m)return{type:'dailymotion',id:m[1],
+    embedUrl:'https://www.dailymotion.com/embed/video/'+m[1]+'?autoplay=1&api=postMessage&id=nvframe',
+    isEmbed:true};
 
-  // Twitch stream
-  m=u.match(/twitch\.tv\/([^/?#]+)/);
-  if(m)return{type:'twitch',id:m[1],embedUrl:`https://player.twitch.tv/?channel=${m[1]}&parent=${location.hostname}&autoplay=true`,isEmbed:true};
-  // Twitch VOD
+  // ── Twitch ───────────────────────────────────────────────────────────────
+  // VOD must come before channel (twitch.tv/videos/... vs twitch.tv/channel)
   m=u.match(/twitch\.tv\/videos\/(\d+)/);
-  if(m)return{type:'twitch',id:'v'+m[1],embedUrl:`https://player.twitch.tv/?video=${m[1]}&parent=${location.hostname}&autoplay=true`,isEmbed:true};
+  if(m)return{type:'twitch',id:'v'+m[1],
+    embedUrl:`https://player.twitch.tv/?video=${m[1]}&parent=${location.hostname}&autoplay=true`,
+    isEmbed:true};
+  m=u.match(/twitch\.tv\/([A-Za-z0-9_]+)(?:[/?#]|$)/);
+  if(m&&m[1]!=='videos')return{type:'twitch',id:m[1],
+    embedUrl:`https://player.twitch.tv/?channel=${m[1]}&parent=${location.hostname}&autoplay=true`,
+    isEmbed:true};
 
-  // Facebook video
+  // ── Facebook video ───────────────────────────────────────────────────────
   m=u.match(/facebook\.com\/(?:video(?:s\/|\?v=)|watch\/?\?v=)(\d+)/);
-  if(m)return{type:'facebook',id:m[1],embedUrl:'https://www.facebook.com/plugins/video.php?href='+encodeURIComponent(u)+'&autoplay=1',isEmbed:true};
+  if(m)return{type:'facebook',id:m[1],
+    embedUrl:'https://www.facebook.com/plugins/video.php?href='+encodeURIComponent(u)+'&autoplay=1',
+    isEmbed:true};
 
-  // Generic iframe URL (detect by passing an embed: prefix or *.html end)
+  // ── Explicit iframe prefix ───────────────────────────────────────────────
   if(u.startsWith('iframe:')){return{type:'iframe',id:null,embedUrl:u.slice(7),isEmbed:true};}
-  if(/\.(html|htm)(\?|#|$)/.test(u))return{type:'iframe',id:null,embedUrl:u,isEmbed:true};
 
-  // HLS manifest
-  if(u.endsWith('.m3u8')||u.includes('.m3u8?'))return{type:'hls',id:null,embedUrl:u,isEmbed:false};
+  // ── HLS manifest ─────────────────────────────────────────────────────────
+  if(u.includes('.m3u8'))return{type:'hls',id:null,embedUrl:u,isEmbed:false};
 
-  // DASH manifest
-  if(u.endsWith('.mpd')||u.includes('.mpd?'))return{type:'dash',id:null,embedUrl:u,isEmbed:false};
+  // ── DASH manifest ────────────────────────────────────────────────────────
+  if(u.includes('.mpd'))return{type:'dash',id:null,embedUrl:u,isEmbed:false};
 
-  // Native (mp4, webm, blob, etc.)
+  // ── Native direct video file (mp4, webm, mkv, ogv, blob, etc.) ──────────
+  if(/\.(mp4|webm|mkv|ogv|ogg|mov|avi|flv|wmv|ts)([\?#]|$)/i.test(u)||u.startsWith('blob:'))
+    return{type:'native',id:null,embedUrl:u,isEmbed:false};
+
+  // ── Any remaining .html / .htm URL → treat as generic embed page ─────────
+  if(/\.(html|htm)([\?#]|$)/i.test(u))return{type:'jwpage',id:null,embedUrl:u,isEmbed:true,isJWPlatform:false};
+
+  // ── URL with a hash fragment that looks like a video ID  ─────────────────
+  // e.g. https://animewali.p2pplay.online/#s1k9bj  or  https://site.com/player#abc123
+  if(u.includes('#')&&/https?:\/\//.test(u))return{type:'jwpage',id:null,embedUrl:u,isEmbed:true,isJWPlatform:false};
+
+  // ── Fallback: if it's a full HTTP URL, embed it as generic iframe ────────
+  if(/^https?:\/\//i.test(u))return{type:'jwpage',id:null,embedUrl:u,isEmbed:true,isJWPlatform:false};
+
+  // ── Absolute last resort: native ─────────────────────────────────────────
   return{type:'native',id:null,embedUrl:u,isEmbed:false};
 }
 
@@ -96,8 +149,13 @@ const SRC_ADAPTER={
     cancelAnimationFrame(ST.raf);ST.raf=null;
     clearInterval(this._ytPoll);clearInterval(this._jwPoll);
     clearInterval(this._vimPoll);clearInterval(this._dmPoll);
+    clearTimeout(this._jwFallbackTmr);
+    if(this._jwMsgHandler){window.removeEventListener('message',this._jwMsgHandler);this._jwMsgHandler=null;}
+    if(this._vimMsgHandler){window.removeEventListener('message',this._vimMsgHandler);this._vimMsgHandler=null;}
+    if(this._dmMsgHandler){window.removeEventListener('message',this._dmMsgHandler);this._dmMsgHandler=null;}
+    if(this._pgMsgHandler){window.removeEventListener('message',this._pgMsgHandler);this._pgMsgHandler=null;}
     this._ytPlayer=null;this._ytReady=false;
-    this._jwReady=false;this._iframeEl=null;
+    this._jwReady=false;this._iframeEl=null;this._jwIsHosted=false;
     if(this._hlsInstance){this._hlsInstance.destroy();this._hlsInstance=null;}
   },
 
@@ -178,7 +236,8 @@ const SRC_ADAPTER={
 
     switch(srcInfo.type){
       case'youtube': this._bridgeYouTube(f,srcInfo.id,resumePos); break;
-      case'jwplayer': this._bridgeJWPlayer(f,resumePos); break;
+      case'jwplayer': this._bridgeJWPlayer(f,resumePos,true); break;   // JW Platform hosted
+      case'jwpage':   this._bridgeJWPlayer(f,resumePos,false); break;  // self-hosted JW page
       case'vimeo':    this._bridgeVimeo(f,resumePos); break;
       case'dailymotion': this._bridgeDailymotion(f,resumePos); break;
       case'twitch':   this._bridgeTwitch(f); break;
@@ -280,51 +339,184 @@ const SRC_ADAPTER={
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // JW PLAYER BRIDGE — postMessage via JW's player.js API
-  // Uses the hosted iframe; communicates via window.postMessage
+  // JW PLAYER BRIDGE — All versions, all deployment styles
+  //
+  // isHosted=true  → JW Platform iframe (cdn.jwplayer.com / content.jwplatform.com)
+  //                  These support JW's own postMessage API natively.
+  // isHosted=false → Self-hosted page running any JW Player version
+  //                  (e.g. https://animewali.p2pplay.online/#s1k9bj)
+  //                  We try all known postMessage formats and fall back gracefully.
+  //
+  // JW Player postMessage event formats across versions:
+  //  v6 (Flash):   No postMessage support — pure iframe, show UI on load only.
+  //  v7 hosted:    Sends {type:'jwpsrv_position',...} (internal analytics, not useful).
+  //                Accepts {method:'play'},{method:'pause'},{method:'seek',value:t}
+  //                via postMessage to the iframe origin.
+  //  v7/v8 hosted: Sends {type:'ready'}, {type:'play'}, {type:'pause'},
+  //                {type:'complete'}, {type:'time',position:N,duration:N},
+  //                {type:'buffer'}, {type:'bufferFull'}, {type:'error',message:'...'}
+  //                Accepts: {method:'play'}, {method:'pause'},
+  //                {method:'seek',value:N}, {method:'setVolume',value:0-100},
+  //                {method:'setPlaybackRate',value:N}
+  //  v8 self:      player.js spec (embedly) — {context:'player.js',method:'play'} etc.
+  //  Any version:  Falls back to showing iframe + UI overlay on iframe load.
   // ─────────────────────────────────────────────────────────────────────────
-  _bridgeJWPlayer(iframe,resumePos){
+  _bridgeJWPlayer(iframe,resumePos,isHosted){
     const self=this;
-    let ready=false;
+    self._jwIsHosted=!!isHosted;
+    let apiResponded=false;      // did postMessage API respond at all?
+    let fallbackFired=false;
+
+    // ── Normalise a raw postMessage data payload ──────────────────────────
+    // JW Player 7/8 hosted sends:  {type:'ready'|'play'|'time'|..., position, duration}
+    // Some versions wrap in:        {event:'ready'|'play'|...}
+    // player.js spec sends:         {context:'player.js', event:'ready'|'play'|...}
+    // JW v7 internal analytics:     {type:'jwpsrv_position', playerId:'...'}  — skip
+    function _parseJWMsg(raw){
+      let d;
+      try{d=typeof raw==='string'?JSON.parse(raw):raw;}catch{return null;}
+      if(!d||typeof d!=='object')return null;
+      // Skip JW internal analytics events (not player control events)
+      if(d.type&&d.type.startsWith('jwpsrv'))return null;
+      // Normalise event name to lowercase string
+      const ev=(d.type||d.event||'').toLowerCase();
+      // Normalise position/time
+      const pos=d.position!=null?d.position:d.currentTime!=null?d.currentTime:d.time;
+      const dur=d.duration!=null?d.duration:d.length;
+      return{ev,pos,dur,raw:d};
+    }
+
+    // ── postMessage handler — covers JW v7/v8 hosted & player.js spec ─────
     const pmHandler=e=>{
-      let d;try{d=typeof e.data==='string'?JSON.parse(e.data):e.data;}catch{return;}
-      if(!d||d.id!=='nvframe')return;
-      if(d.event==='ready'||d.type==='ready'){
-        ready=true;self._jwReady=true;ST.adapterReady=true;ST.started=true;
-        // Seek to resume position
-        if(resumePos>2)_jwSend(iframe,{method:'seek',value:resumePos});
-        _jwSend(iframe,{method:'setVolume',value:Math.round(ST.vol*100)});
+      // Accept messages from the iframe's origin or wildcard
+      const msg=_parseJWMsg(e.data);
+      if(!msg)return;
+      // Must come from our iframe (source check — but only if contentWindow available)
+      if(e.source&&iframe.contentWindow&&e.source!==iframe.contentWindow)return;
+
+      const{ev,pos,dur}=msg;
+
+      if(ev==='ready'||ev==='playerready'){
+        apiResponded=true;
+        self._jwReady=true;ST.adapterReady=true;ST.started=true;
+        // Send initial commands using all known JW formats
+        if(resumePos>2){
+          _jwSendAll(iframe,resumePos,'seek');
+        }
+        _jwSendAll(iframe,Math.round(ST.vol*100),'volume');
+        const sp=g('nsp');if(sp)sp.classList.remove('ns');
+        const nth=g('nth');if(nth)nth.style.display='none';
         showUI();
         self._startJWPoll(iframe);
+        return;
       }
-      if(d.event==='play'||d.type==='play'){
-        ST.playing=true;ST.ended=false;
+      if(ev==='play'||ev==='playing'||ev==='firstframe'){
+        apiResponded=true;
+        ST.playing=true;ST.ended=false;ST.started=true;
         const cp=g('npl2');if(cp)cp.innerHTML=IC.pause;
         const sp=g('nsp');if(sp)sp.classList.remove('ns');
-        showUI();hiTmr();
+        const nth=g('nth');if(nth)nth.style.display='none';
+        if(!ST.adapterReady){ST.adapterReady=true;showUI();}
+        hiTmr();
+        return;
       }
-      if(d.event==='pause'||d.type==='pause'){
+      if(ev==='pause'||ev==='idle'){
+        apiResponded=true;
         ST.playing=false;
         const cp=g('npl2');if(cp)cp.innerHTML=IC.play;
         showUI();
+        return;
       }
-      if(d.event==='complete'||d.type==='complete'){ST.ended=true;ST.playing=false;_onEnded();}
-      if(d.event==='time'||d.type==='time'){
-        if(d.position!=null)ST.currentTime=d.position;
-        if(d.duration!=null)ST.duration=d.duration;
+      if(ev==='complete'||ev==='ended'||ev==='finish'){
+        apiResponded=true;
+        ST.ended=true;ST.playing=false;
+        _onEnded();
+        return;
+      }
+      if(ev==='time'||ev==='timeupdate'||ev==='playProgress'){
+        apiResponded=true;
+        if(pos!=null)ST.currentTime=pos;
+        if(dur!=null&&dur>0)ST.duration=dur;
         _tickUI();
+        return;
       }
-      if(d.event==='buffer'||d.type==='buffer'){const sp=g('nsp');if(sp)sp.classList.add('ns');}
-      if(d.event==='bufferFull'){const sp=g('nsp');if(sp)sp.classList.remove('ns');}
+      if(ev==='buffer'||ev==='bufferchange'||ev==='stalled'){
+        const sp=g('nsp');if(sp)sp.classList.add('ns');
+        return;
+      }
+      if(ev==='bufferfull'||ev==='canplay'||ev==='loadeddata'){
+        const sp=g('nsp');if(sp)sp.classList.remove('ns');
+        return;
+      }
+      if(ev==='error'||ev==='setuperror'||ev==='mediaerror'){
+        sysMsg('Player error'+(msg.raw.message?' — '+msg.raw.message:''),false);
+        return;
+      }
+      // player.js spec getDuration response
+      if(ev==='getduration'&&msg.raw.value!=null){
+        ST.duration=msg.raw.value;_tickUI();
+        return;
+      }
+      if(ev==='getcurrenttime'&&msg.raw.value!=null){
+        ST.currentTime=msg.raw.value;_tickUI();
+        return;
+      }
+      // Any message at all counts as the player being alive
+      if(!apiResponded&&ev){
+        apiResponded=true;
+        ST.adapterReady=true;ST.started=true;
+        showUI();
+      }
     };
     window.addEventListener('message',pmHandler);
-    // Store for cleanup
-    this._jwMsgHandler=pmHandler;
+    self._jwMsgHandler=pmHandler;
+
+    // ── On iframe load: send handshakes, start fallback timer ─────────────
     iframe.addEventListener('load',()=>{
-      // Send initial handshake
-      setTimeout(()=>_jwSend(iframe,{method:'getPlayerState',value:null}),800);
-      // Poll fallback if no postMessage events received
-      if(!ready)setTimeout(()=>{if(!ready){self._jwReady=true;ST.adapterReady=true;ST.started=true;showUI();}},3000);
+      const sp=g('nsp');if(sp)sp.classList.add('ns');
+      // Hide thumbnail once iframe starts loading
+      const nth=g('nth');if(nth)nth.style.display='none';
+
+      // Try all JW handshake formats with staggered delays
+      // — JW 8 hosted format
+      setTimeout(()=>_jwSendAll(iframe,null,'ping'),300);
+      // — player.js spec addEventListener
+      setTimeout(()=>{
+        try{
+          iframe.contentWindow.postMessage(
+            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'ready',listener:'nv_ready'}),
+            '*');
+          iframe.contentWindow.postMessage(
+            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'play',listener:'nv_play'}),
+            '*');
+          iframe.contentWindow.postMessage(
+            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'timeupdate',listener:'nv_time'}),
+            '*');
+          iframe.contentWindow.postMessage(
+            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'ended',listener:'nv_ended'}),
+            '*');
+          iframe.contentWindow.postMessage(
+            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'pause',listener:'nv_pause'}),
+            '*');
+        }catch{}
+      },500);
+
+      // ── Fallback: if no postMessage response after 3 s, mark ready anyway ─
+      // (covers JW v6 Flash, pages that block postMessage, or any unknown player)
+      self._jwFallbackTmr=setTimeout(()=>{
+        if(!fallbackFired){
+          fallbackFired=true;
+          if(!ST.adapterReady){
+            ST.adapterReady=true;ST.started=true;
+            const sp2=g('nsp');if(sp2)sp2.classList.remove('ns');
+            // Since we have no time API, hide seekbar on non-hosted pages
+            if(!self._jwIsHosted){
+              const nr=g('nr');if(nr)nr.classList.add('nv-no-seek');
+            }
+            showUI();
+          }
+        }
+      },3000);
     });
   },
 
@@ -333,12 +525,18 @@ const SRC_ADAPTER={
     clearInterval(this._jwPoll);
     this._jwPoll=setInterval(()=>{
       if(!self._jwReady)return;
-      // Request time update via postMessage
-      _jwSend(iframe,{method:'getPosition',value:null});
+      // Poll for current time using all known formats
+      try{
+        // JW 8 hosted
+        iframe.contentWindow.postMessage(JSON.stringify({method:'getPosition'}),'*');
+        // player.js spec
+        iframe.contentWindow.postMessage(
+          JSON.stringify({context:'player.js',version:'0.0.11',method:'getCurrentTime',listener:'nv_ct'}),'*');
+      }catch{}
       _tickUI();
       if(ST.duration>0)D.setProgress(_sid,_eid,Math.min(100,Math.round(ST.currentTime/ST.duration*100)));
       _savePos();
-    },500);
+    },800);
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -433,7 +631,7 @@ const SRC_ADAPTER={
   // ─── UNIFIED CONTROLS (called by Nova's UI buttons) ───────────────────
   play(){
     if(ST.srcType==='youtube'&&this._ytPlayer&&this._ytReady){this._ytPlayer.playVideo();return;}
-    if(ST.srcType==='jwplayer'&&this._iframeEl){_jwSend(this._iframeEl,{method:'play'});return;}
+    if((ST.srcType==='jwplayer'||ST.srcType==='jwpage')&&this._iframeEl){_jwSendAll(this._iframeEl,null,'play');return;}
     if(ST.srcType==='vimeo'&&this._iframeEl){_vimSend(this._iframeEl,'play',null);return;}
     if(ST.srcType==='dailymotion'&&this._iframeEl){_dmSend(this._iframeEl,'play');return;}
     const v=g('nvid');if(v)v.play().catch(()=>{});
@@ -441,7 +639,7 @@ const SRC_ADAPTER={
 
   pause(){
     if(ST.srcType==='youtube'&&this._ytPlayer&&this._ytReady){this._ytPlayer.pauseVideo();return;}
-    if(ST.srcType==='jwplayer'&&this._iframeEl){_jwSend(this._iframeEl,{method:'pause'});return;}
+    if((ST.srcType==='jwplayer'||ST.srcType==='jwpage')&&this._iframeEl){_jwSendAll(this._iframeEl,null,'pause');return;}
     if(ST.srcType==='vimeo'&&this._iframeEl){_vimSend(this._iframeEl,'pause',null);return;}
     if(ST.srcType==='dailymotion'&&this._iframeEl){_dmSend(this._iframeEl,'pause');return;}
     const v=g('nvid');if(v)v.pause();
@@ -451,7 +649,7 @@ const SRC_ADAPTER={
     t=Math.max(0,t);
     ST.currentTime=t;
     if(ST.srcType==='youtube'&&this._ytPlayer&&this._ytReady){this._ytPlayer.seekTo(t,true);return;}
-    if(ST.srcType==='jwplayer'&&this._iframeEl){_jwSend(this._iframeEl,{method:'seek',value:t});return;}
+    if((ST.srcType==='jwplayer'||ST.srcType==='jwpage')&&this._iframeEl){_jwSendAll(this._iframeEl,t,'seek');return;}
     if(ST.srcType==='vimeo'&&this._iframeEl){_vimSend(this._iframeEl,'setCurrentTime',t);return;}
     if(ST.srcType==='dailymotion'&&this._iframeEl){_dmSend(this._iframeEl,'seek',t);return;}
     const v=g('nvid');if(v&&isFinite(v.duration))v.currentTime=Math.min(v.duration,t);
@@ -468,8 +666,8 @@ const SRC_ADAPTER={
     if(ST.srcType==='youtube'&&this._ytPlayer&&this._ytReady){
       this._ytPlayer.setVolume(Math.round(v*100));
       v===0?this._ytPlayer.mute():this._ytPlayer.unMute();
-    }else if(ST.srcType==='jwplayer'&&this._iframeEl){
-      _jwSend(this._iframeEl,{method:'setVolume',value:Math.round(v*100)});
+    }else if((ST.srcType==='jwplayer'||ST.srcType==='jwpage')&&this._iframeEl){
+      _jwSendAll(this._iframeEl,Math.round(v*100),'volume');
     }else if(ST.srcType==='vimeo'&&this._iframeEl){
       _vimSend(this._iframeEl,'setVolume',v);
     }else{
@@ -480,12 +678,15 @@ const SRC_ADAPTER={
 
   mute(m){
     if(ST.srcType==='youtube'&&this._ytPlayer&&this._ytReady){m?this._ytPlayer.mute():this._ytPlayer.unMute();return;}
+    if((ST.srcType==='jwplayer'||ST.srcType==='jwpage')&&this._iframeEl){
+      _jwSendAll(this._iframeEl,m?0:Math.round(ST.vol*100),'volume');return;
+    }
     const vid=g('nvid');if(vid)vid.muted=m;
   },
 
   setSpeed(v){
     if(ST.srcType==='youtube'&&this._ytPlayer&&this._ytReady){this._ytPlayer.setPlaybackRate(v);return;}
-    if(ST.srcType==='jwplayer'&&this._iframeEl){_jwSend(this._iframeEl,{method:'setPlaybackRate',value:v});return;}
+    if((ST.srcType==='jwplayer'||ST.srcType==='jwpage')&&this._iframeEl){_jwSendAll(this._iframeEl,v,'speed');return;}
     // Vimeo and others don't reliably support speed via postMessage; fall through
     const vid=g('nvid');if(vid)vid.playbackRate=v;
   },
@@ -495,8 +696,55 @@ const SRC_ADAPTER={
   isPaused(){return !ST.playing;}
 };
 
-// ─── postMessage helpers ────────────────────────────────────────────────
-function _jwSend(iframe,data){try{iframe.contentWindow.postMessage(JSON.stringify(Object.assign({id:'nvframe'},data)),iframe.src.split('/').slice(0,3).join('/'));}catch{}}
+// ─── postMessage helpers ─────────────────────────────────────────────────
+
+/**
+ * _jwSendAll — Send a command to a JW Player iframe using ALL known formats
+ * simultaneously so it works regardless of JW version or hosting style.
+ *
+ * action: 'play' | 'pause' | 'seek' | 'volume' | 'speed' | 'ping'
+ * value:  number for seek/volume/speed, null for play/pause/ping
+ */
+function _jwSendAll(iframe,value,action){
+  if(!iframe||!iframe.contentWindow)return;
+  const cw=iframe.contentWindow;
+  try{
+    // ── Format 1: JW Player 8 hosted API ──────────────────────────────────
+    // {method:'play'} {method:'pause'} {method:'seek',value:N}
+    // {method:'setVolume',value:0-100} {method:'setPlaybackRate',value:N}
+    const jw8={};
+    if(action==='play')jw8.method='play';
+    else if(action==='pause')jw8.method='pause';
+    else if(action==='seek'){jw8.method='seek';jw8.value=value;}
+    else if(action==='volume'){jw8.method='setVolume';jw8.value=value;}
+    else if(action==='speed'){jw8.method='setPlaybackRate';jw8.value=value;}
+    else if(action==='ping'){jw8.method='getPlayerState';}
+    if(jw8.method)cw.postMessage(JSON.stringify(jw8),'*');
+
+    // ── Format 2: player.js / embedly spec ────────────────────────────────
+    // {context:'player.js', version:'0.0.11', method:'play'|'pause'|'seek', value:N}
+    const pj={context:'player.js',version:'0.0.11'};
+    if(action==='play')pj.method='play';
+    else if(action==='pause')pj.method='pause';
+    else if(action==='seek'){pj.method='setCurrentTime';pj.value=value;}
+    else if(action==='volume'){pj.method='setVolume';pj.value=value/100;}// player.js uses 0-1
+    else if(action==='speed'){pj.method='setPlaybackRate';pj.value=value;}
+    else if(action==='ping'){pj.method='addEventListener';pj.value='ready';pj.listener='nv_r';}
+    if(pj.method)cw.postMessage(JSON.stringify(pj),'*');
+
+    // ── Format 3: JW Player 7 direct method call ──────────────────────────
+    // Some v7 builds accept {method:'play'} without the wrapper
+    // We already covered this in Format 1, but also try old-style string
+    if(action==='play')cw.postMessage('play','*');
+    else if(action==='pause')cw.postMessage('pause','*');
+  }catch{}
+}
+
+// Legacy single-format send (kept for _bridgeJWPlayer internal use)
+function _jwSend(iframe,data){
+  try{iframe.contentWindow.postMessage(JSON.stringify(data),'*');}catch{}
+}
+
 function _vimSend(iframe,method,value){try{iframe.contentWindow.postMessage(JSON.stringify({method,value}),'https://player.vimeo.com');}catch{}}
 function _dmSend(iframe,command,value){try{iframe.contentWindow.postMessage(JSON.stringify(value!=null?{command,parameters:value}:{command}),'https://www.dailymotion.com');}catch{}}
 
@@ -739,7 +987,8 @@ function _renderFsOvBody(){
     chs.forEach((ch,i)=>{const next=chs[i+1];const cur=ct>=ch.t&&(!next||ct<next.t);body.insertAdjacentHTML('beforeend',`<div class="nfsov-item-ch${cur?' act':''}" onclick="NV._seekTo(${ch.t})"><div class="nfsov-ch-dot"></div><span class="nfsov-ch-time">${fT(ch.t)}</span><span class="nfsov-ch-lbl">${ch.title}</span></div>`);});
   }else if(ST.fsOvTab==='speed'){
     // Speed only available for native/hls/dash and youtube
-    const noSpd=ST.srcType==='twitch'||ST.srcType==='facebook'||ST.srcType==='dailymotion'||ST.srcType==='iframe';
+    // Speed only available for native/hls/dash and youtube/jwplayer with API confirmed
+    const noSpd=ST.srcType==='twitch'||ST.srcType==='facebook'||ST.srcType==='dailymotion'||ST.srcType==='iframe'||(ST.srcType==='jwpage'&&!SRC_ADAPTER._jwReady);
     if(noSpd){body.innerHTML='<p style="padding:32px 22px;color:rgba(255,255,255,.35);font-size:15px;text-align:center">Speed control not available for this source</p>';return;}
     CFG.speeds.forEach(v=>{body.insertAdjacentHTML('beforeend',_fsItem(v+'×','',v===ST.spd,`NV._fsSetSpd(${v})`,''));});
   }
@@ -906,7 +1155,7 @@ function _buildPeek(){
 // ─── source badge ────────────────────────────────────────────────────────
 function _updateBadge(type){
   const b=g('nsrc-badge');if(!b)return;
-  const labels={youtube:'YouTube',jwplayer:'JW Player',vimeo:'Vimeo',dailymotion:'Dailymotion',twitch:'Twitch',facebook:'Facebook',hls:'Live / HLS',dash:'DASH',iframe:'Embedded',native:''};
+  const labels={youtube:'YouTube',jwplayer:'JW Player',jwpage:'JW Player',vimeo:'Vimeo',dailymotion:'Dailymotion',twitch:'Twitch',facebook:'Facebook',hls:'Live / HLS',dash:'DASH',iframe:'Embedded',native:''};
   const lbl=labels[type]||'';
   b.textContent=lbl;b.style.display=lbl?'':'none';
 }
@@ -1079,7 +1328,9 @@ return{
       ST.srcType=info.type;
       _updateBadge(info.type);
 
-      // Adjust UI for embed-only sources that have no seek API
+      // Adjust UI for embed-only sources with no time/seek API.
+      // 'jwpage' defers this decision to _bridgeJWPlayer's fallback timer —
+      // if postMessage works, seekbar stays; if not, timer adds nv-no-seek.
       if(info.type==='twitch'||info.type==='facebook'||info.type==='iframe'){
         el.root&&el.root.classList.add('nv-no-seek');
       }else{
