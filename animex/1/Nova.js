@@ -232,7 +232,13 @@ const SRC_ADAPTER={
     nr.appendChild(f);
     this._iframeEl=f;
 
-    const nth=g('nth');if(nth)nth.style.display='none';
+    // For jwpage sources keep #nth (Nova thumbnail) visible until the iframe
+    // has fully loaded — the bridge will hide it then enter passthru mode.
+    // For all other embeds (YT, Vimeo etc) we hide it immediately since those
+    // APIs manage their own poster/thumbnail.
+    if(srcInfo.type!=='jwpage'){
+      const nth=g('nth');if(nth)nth.style.display='none';
+    }
 
     switch(srcInfo.type){
       case'youtube': this._bridgeYouTube(f,srcInfo.id,resumePos); break;
@@ -386,6 +392,18 @@ const SRC_ADAPTER={
       return{ev,pos,dur,raw:d};
     }
 
+    // ── Helper: enter passthrough mode ────────────────────────────────────
+    // Makes #nov pointer-events:none so the user's click reaches the iframe.
+    // Required because browsers block autoplay triggered by postMessage —
+    // only an actual click on the iframe element counts as a user gesture.
+    function _enterPassthru(){
+      const nr=g('nr');if(nr)nr.classList.add('nv-passthru');
+    }
+    // ── Helper: exit passthrough mode — restore Nova overlay controls ──────
+    function _exitPassthru(){
+      const nr=g('nr');if(nr)nr.classList.remove('nv-passthru');
+    }
+
     // ── postMessage handler — covers JW v7/v8 hosted & player.js spec ─────
     const pmHandler=e=>{
       // Accept messages from the iframe's origin or wildcard
@@ -399,6 +417,8 @@ const SRC_ADAPTER={
       if(ev==='ready'||ev==='playerready'){
         apiResponded=true;
         self._jwReady=true;ST.adapterReady=true;ST.started=true;
+        // JW API confirmed → we CAN use postMessage play, exit passthru
+        _exitPassthru();
         // Send initial commands using all known JW formats
         if(resumePos>2){
           _jwSendAll(iframe,resumePos,'seek');
@@ -412,12 +432,16 @@ const SRC_ADAPTER={
       }
       if(ev==='play'||ev==='playing'||ev==='firstframe'){
         apiResponded=true;
+        // Video is actually playing → exit passthru so Nova controls work
+        _exitPassthru();
         ST.playing=true;ST.ended=false;ST.started=true;
         const cp=g('npl2');if(cp)cp.innerHTML=IC.pause;
         const sp=g('nsp');if(sp)sp.classList.remove('ns');
         const nth=g('nth');if(nth)nth.style.display='none';
-        if(!ST.adapterReady){ST.adapterReady=true;showUI();}
-        hiTmr();
+        if(!ST.adapterReady){ST.adapterReady=true;}
+        // Start polling for time only if we haven't already
+        if(!self._jwReady){self._jwReady=true;self._startJWPoll(iframe);}
+        showUI();hiTmr();
         return;
       }
       if(ev==='pause'||ev==='idle'){
@@ -471,52 +495,57 @@ const SRC_ADAPTER={
     window.addEventListener('message',pmHandler);
     self._jwMsgHandler=pmHandler;
 
-    // ── On iframe load: send handshakes, start fallback timer ─────────────
+    // ── On iframe load: hide thumbnail, enter passthrough, send handshakes ─
     iframe.addEventListener('load',()=>{
-      const sp=g('nsp');if(sp)sp.classList.add('ns');
-      // Hide thumbnail once iframe starts loading
+      // Hide Nova's thumbnail — the iframe content is now visible
       const nth=g('nth');if(nth)nth.style.display='none';
 
-      // Try all JW handshake formats with staggered delays
-      // — JW 8 hosted format
+      // Show spinner briefly while JW Player initialises inside iframe
+      const sp=g('nsp');if(sp)sp.classList.add('ns');
+
+      // ── PASSTHROUGH MODE ─────────────────────────────────────────────────
+      // For self-hosted JW pages (jwpage type), we cannot trigger play via
+      // postMessage alone — the browser requires a real user gesture on the
+      // iframe. Enter passthrough so the user's next click reaches the iframe.
+      // For JW Platform hosted iframes the API always works so we skip this.
+      if(!isHosted){
+        _enterPassthru();
+      }
+
+      // Send handshakes in staggered order so any JW version can respond
+      // — JW 8 hosted ping
       setTimeout(()=>_jwSendAll(iframe,null,'ping'),300);
-      // — player.js spec addEventListener
+      // — player.js / embedly spec: subscribe to all events
       setTimeout(()=>{
         try{
-          iframe.contentWindow.postMessage(
-            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'ready',listener:'nv_ready'}),
-            '*');
-          iframe.contentWindow.postMessage(
-            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'play',listener:'nv_play'}),
-            '*');
-          iframe.contentWindow.postMessage(
-            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'timeupdate',listener:'nv_time'}),
-            '*');
-          iframe.contentWindow.postMessage(
-            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'ended',listener:'nv_ended'}),
-            '*');
-          iframe.contentWindow.postMessage(
-            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:'pause',listener:'nv_pause'}),
-            '*');
+          const sub=(ev,lst)=>iframe.contentWindow.postMessage(
+            JSON.stringify({context:'player.js',version:'0.0.11',method:'addEventListener',value:ev,listener:lst}),'*');
+          sub('ready','nv_r');sub('play','nv_p');sub('timeupdate','nv_t');
+          sub('ended','nv_e');sub('pause','nv_pa');sub('error','nv_err');
         }catch{}
       },500);
 
-      // ── Fallback: if no postMessage response after 3 s, mark ready anyway ─
-      // (covers JW v6 Flash, pages that block postMessage, or any unknown player)
+      // ── Fallback timer ───────────────────────────────────────────────────
+      // If no postMessage response in 4s, the player is either JW v6 (Flash),
+      // a page blocking postMessage, or a fully opaque embed.
+      // Mark ready so at least the spinner clears and UI shows.
+      // Stay in passthrough (for jwpage) so user can still click to play.
       self._jwFallbackTmr=setTimeout(()=>{
         if(!fallbackFired){
           fallbackFired=true;
+          const sp2=g('nsp');if(sp2)sp2.classList.remove('ns');
           if(!ST.adapterReady){
             ST.adapterReady=true;ST.started=true;
-            const sp2=g('nsp');if(sp2)sp2.classList.remove('ns');
-            // Since we have no time API, hide seekbar on non-hosted pages
+            // No time API confirmed — hide seekbar
             if(!self._jwIsHosted){
               const nr=g('nr');if(nr)nr.classList.add('nv-no-seek');
             }
             showUI();
           }
+          // Note: we intentionally leave passthrough ON for jwpage here.
+          // The user still needs to click the iframe to start the video.
         }
-      },3000);
+      },4000);
     });
   },
 
@@ -838,6 +867,14 @@ s.textContent=`
 #nr.nrfs #nb-time-row,#nr.nrfs #nbrow-fs,#nr.nrfs #nbpeek{opacity:1;pointer-events:auto}
 /* Hide seekbar/time for sources with no time API (Twitch) */
 #nr.nv-no-seek #nbseek,#nr.nv-no-seek #nb-time-row{display:none}
+/* Pass-through mode: used for jwpage/iframe before first play.
+   #nov becomes invisible to pointer events so the user's click
+   lands directly on the underlying iframe (required user gesture). */
+#nr.nv-passthru #nov{pointer-events:none!important;cursor:default}
+#nr.nv-passthru #ng-left,#nr.nv-passthru #ng-right{pointer-events:none!important}
+/* Show a subtle "tap to play" hint while in passthrough mode */
+#nr.nv-passthru #ncc{opacity:0!important;pointer-events:none!important}
+#nr.nv-passthru::after{content:'Tap video to play';position:absolute;bottom:54px;left:50%;transform:translateX(-50%);z-index:22;background:rgba(0,0,0,.72);backdrop-filter:blur(10px);color:rgba(255,255,255,.75);font-size:12px;font-weight:600;padding:6px 16px;border-radius:99px;pointer-events:none;letter-spacing:.04em;white-space:nowrap}
 #nb-time-row{display:flex;justify-content:flex-end;padding:0 16px 6px;pointer-events:none}
 #ntm{font-size:18px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 1px 6px rgba(0,0,0,.8)}
 #nbseek{padding:0 16px;display:flex;align-items:center}
